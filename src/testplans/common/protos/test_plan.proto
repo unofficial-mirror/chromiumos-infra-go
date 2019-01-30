@@ -6,7 +6,7 @@ syntax = "proto3";
 
 package testplans;
 
-option go_package = "proto";
+option go_package = "protos";
 
 // A Chromium build image, such as "kevin".
 message Image {

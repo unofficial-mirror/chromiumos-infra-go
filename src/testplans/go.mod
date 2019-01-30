@@ -1,6 +1,8 @@
 module testplans
 
 require (
+	github.com/golang/protobuf v1.2.0
+	github.com/jtolds/gls v4.2.1+incompatible // indirect
 	github.com/maruel/subcommands v0.0.0-20181220013616-967e945be48b
 	github.com/op/go-logging v0.0.0-20160315200505-970db520ece7 // indirect
 	github.com/texttheater/golang-levenshtein v0.0.0-20180516184445-d188e65d659e // indirect

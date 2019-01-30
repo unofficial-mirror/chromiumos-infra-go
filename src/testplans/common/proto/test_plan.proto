@@ -1,0 +1,50 @@
+// Copyright 2019 The Chromium OS Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+syntax = "proto3";
+
+package testplans;
+
+option go_package = "proto";
+
+// A Chromium build image, such as "kevin".
+message Image {
+  // The build image's name.
+  string image_name = 1;
+}
+
+// The files that should be tested in a test plan.
+message BuildPayload {
+  // We expect to use either version or images, but not both.
+  // We'll drop the unnecessary one once we've sorted out details
+  // with the Skylab team.
+  string version = 1;
+  repeated Image image = 2;
+}
+
+// Hardware or VM requirements for running a test plan.
+message SchedulingRequirements {
+  // A Chromium lead build target, such as "reef", for which testing is desired.
+  string reference_design = 1;
+}
+
+// Metadata for executing one test suite in one test environment.
+message TestPlan {
+  // The testing environment, such as "hw", "vm", "gce", or "tast".
+  string test_env = 1;
+  // The test suite to run, such as "bvt-inline" or "bvt-cq".
+  string test_suite = 2;
+
+  // The scheduling requirements for this test plan.
+  SchedulingRequirements scheduling_requirements = 3;
+  // The build files provided to run this test plan.
+  BuildPayload build_payload = 4;
+}
+
+// A full set of test plans for a given CQ run.
+message CombinedTestPlan {
+  // The test plans needed to satisfy this CQ run.
+  repeated TestPlan test_plan = 1;
+}
+

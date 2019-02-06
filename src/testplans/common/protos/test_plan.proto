@@ -25,8 +25,15 @@ message BuildPayload {
 
 // Hardware or VM requirements for running a test plan.
 message SchedulingRequirements {
-  // A Chromium lead build target, such as "reef", for which testing is desired.
-  string reference_design = 1;
+  oneof target_type {
+    // A CrOS reference design that may represent many different build targets.
+    // This corresponds to values of `mosys platform family`, such as
+    // "Google_Coral".
+    string reference_design = 1;
+    // Any CrOS build target, such as "kevin". This should correspond to a
+    // Portage overlay.
+    string build_target = 2;
+  }
 }
 
 // Metadata for executing one test suite in one test environment.

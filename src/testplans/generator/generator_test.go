@@ -1,13 +1,13 @@
 // Copyright 2019 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-package plans
+package generator
 
 import (
 	"github.com/google/go-cmp/cmp"
 	"go.chromium.org/luci/lucicfg/external/crostesting/proto/config"
 	"testing"
-	"testplans/common/protos"
+	"testplans/protos"
 )
 
 func TestCreateCombinedTestPlan_success(t *testing.T) {

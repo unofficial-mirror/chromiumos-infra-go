@@ -10,7 +10,7 @@ import (
 	"go.chromium.org/luci/lucicfg/external/crostesting/proto/config"
 	"io/ioutil"
 	"log"
-	"testplans/plans"
+	"testplans/generator"
 )
 
 var (
@@ -47,7 +47,7 @@ func main() {
 	log.Printf(
 		"Read TargetTestRequirementsCfg:\n%s", proto.MarshalTextString(targetTestRequirements))
 
-	combinedTestPlan, err := plans.CreateCombinedTestPlan(targetTestRequirements)
+	combinedTestPlan, err := generator.CreateCombinedTestPlan(targetTestRequirements)
 	if err != nil {
 		log.Fatalf("Error creating CombinedTestPlan:\n%v", err)
 	}

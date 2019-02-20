@@ -1,0 +1,8 @@
+package: chromiumos/infra/test_planner
+description: Chromiumos test planner.
+install_mode: copy
+root: ".out"
+
+data:
+  # include everything in the .out directory
+  - dir: .

@@ -8,6 +8,8 @@ package testplans;
 
 option go_package = "protos";
 
+import "lucicfg/external/crostesting/proto/config/target_test_requirements_config.proto";
+
 // A Chromium build image, such as "kevin".
 message Image {
   // The build image's name.
@@ -36,17 +38,21 @@ message SchedulingRequirements {
   }
 }
 
-// Metadata for executing one test suite in one test environment.
+// Metadata for executing one test configuration for one reference design or
+// build target.
 message TestPlan {
-  // The testing environment, such as "hw", "vm", "gce", or "tast".
-  string test_env = 1;
-  // The test suite to run, such as "bvt-inline" or "bvt-cq".
-  string test_suite = 2;
+  oneof TestCfg {
+    crostesting.GceTestCfg gce_test_cfg = 1;
+    crostesting.HwTestCfg hw_test_cfg = 2;
+    crostesting.MoblabVmTestCfg moblab_vm_test_cfg = 3;
+    crostesting.TastVmTestCfg tast_vm_test_cfg = 4;
+    crostesting.VmTestCfg vm_test_cfg = 5;
+  }
 
   // The scheduling requirements for this test plan.
-  SchedulingRequirements scheduling_requirements = 3;
+  SchedulingRequirements scheduling_requirements = 6;
   // The build files provided to run this test plan.
-  BuildPayload build_payload = 4;
+  BuildPayload build_payload = 7;
 }
 
 // A full set of test plans for a given CQ run.

@@ -1,10 +1,8 @@
-# Generating protos
+# Regenerating protos
 
-You can regenerate the protos in this directory following the instructions here:
-https://developers.google.com/protocol-buffers/docs/reference/go-generated
+Run `regenerate_protos.sh` to regenerate the Go pb files in this folder. In order to do this, you'll
+need
 
-Once you've installed protoc and the protoc-gen-go plugin, you can just run
-
-```shell
-protoc --proto_path=src/testplans/common/protos --go_out=src/testplans/common/protos src/testplans/common/protos/*.proto
-```
+* Go, version 1.11 or greater (https://golang.org/doc/install)
+* protoc (https://developers.google.com/protocol-buffers/)
+* protoc-gen-go (https://github.com/golang/protobuf)

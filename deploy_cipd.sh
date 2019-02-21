@@ -15,8 +15,8 @@ if [ -e $OUTPATH ]; then
 fi
 
 # translation:
-# all cmds | does not start with "dev_" | strip trailing /
-COMMANDS=$(cd $CMDPATH; ls -d */ | grep "^[^dev_]" | sed 's#/##')
+# all cmds | strip trailing /
+COMMANDS=$(cd $CMDPATH; ls -d */ | sed 's#/##')
 
 for go_cmd in $COMMANDS; do
   (cd "$CMDPATH/$go_cmd" && go build -o "$OUTPATH/$go_cmd")

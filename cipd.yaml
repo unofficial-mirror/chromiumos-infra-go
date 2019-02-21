@@ -6,5 +6,4 @@ root: ".out"
 data:
   # include everything in the .out directory
   - dir: .
-    exclude:
-      - dev_*
+

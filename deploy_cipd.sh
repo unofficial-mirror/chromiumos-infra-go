@@ -9,7 +9,16 @@ cd "$(dirname "$0")"
 # Wrap all testplan commands as cipd package.
 CMDPATH="./src/testplans/cmd"
 OUTPATH="$(pwd -P)/.out"
-for go_cmd in $(cd $CMDPATH; ls -d */ | sed 's#/##'); do
+
+if [ -e $OUTPATH ]; then
+  rm -r $OUTPATH/*
+fi
+
+# translation:
+# all cmds | does not start with "dev_" | strip trailing /
+COMMANDS=$(cd $CMDPATH; ls -d */ | grep "^[^dev_]" | sed 's#/##')
+
+for go_cmd in $COMMANDS; do
   (cd "$CMDPATH/$go_cmd" && go build -o "$OUTPATH/$go_cmd")
 done
 

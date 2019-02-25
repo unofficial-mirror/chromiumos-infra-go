@@ -20,10 +20,10 @@ func TestCreateCombinedTestPlan_success(t *testing.T) {
 		},
 	}
 
-	actualTestPlan, _ := CreateCombinedTestPlan(testReqs)
+	actualTestPlan, _ := CreateTestPlan(testReqs)
 
-	expectedTestPlan := &protos.CombinedTestPlan{
-		TestPlan: []*protos.TestPlan{
+	expectedTestPlan := &protos.GenerateTestPlanResponse{
+		TestUnit: []*protos.TestUnit{
 			{SchedulingRequirements: &protos.SchedulingRequirements{
 				TargetType: &protos.SchedulingRequirements_ReferenceDesign{
 					ReferenceDesign: "Google_Reef"}}},
@@ -47,7 +47,7 @@ func TestCreateCombinedTestPlan_inputMissingTargetType(t *testing.T) {
 				TargetType: &config.BuildCriteria_BuildTarget{BuildTarget: "kevin"}}},
 		},
 	}
-	if _, err := CreateCombinedTestPlan(testReqs); err == nil {
+	if _, err := CreateTestPlan(testReqs); err == nil {
 		t.Errorf("Expected an error to be returned")
 	}
 }

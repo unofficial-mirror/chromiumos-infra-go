@@ -10,6 +10,19 @@ option go_package = "protos";
 
 import "lucicfg/external/crostesting/proto/config/target_test_requirements_config.proto";
 
+message GenerateTestPlanRequest {
+  // Path on disk to source_tree_test_config.cfg, which lives in chromite.
+  string source_tree_config_path = 1;
+
+  // Path on disk to target_test_requirements.cfg, which lives in chromite.
+  string target_test_requirements_path = 2;
+}
+
+// The final test plan.
+message GenerateTestPlanResponse {
+  repeated TestUnit test_unit = 1;
+}
+
 // A Chromium build image, such as "kevin".
 message Image {
   // The build image's name.
@@ -40,7 +53,7 @@ message SchedulingRequirements {
 
 // Metadata for executing one test configuration for one reference design or
 // build target.
-message TestPlan {
+message TestUnit {
   oneof TestCfg {
     crostesting.GceTestCfg gce_test_cfg = 1;
     crostesting.HwTestCfg hw_test_cfg = 2;
@@ -54,10 +67,3 @@ message TestPlan {
   // The build files provided to run this test plan.
   BuildPayload build_payload = 7;
 }
-
-// A full set of test plans for a given CQ run.
-message CombinedTestPlan {
-  // The test plans needed to satisfy this CQ run.
-  repeated TestPlan test_plan = 1;
-}
-

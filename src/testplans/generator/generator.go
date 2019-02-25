@@ -9,9 +9,8 @@ import (
 	"testplans/protos"
 )
 
-func CreateCombinedTestPlan(targetTestReqs *config.TargetTestRequirementsCfg) (
-	*protos.CombinedTestPlan, error) {
-	combinedTestPlan := &protos.CombinedTestPlan{}
+func CreateTestPlan(targetTestReqs *config.TargetTestRequirementsCfg) (*protos.GenerateTestPlanResponse, error) {
+	testPlan := &protos.GenerateTestPlanResponse{}
 	// Convert the TargetTestRequirementsCfg into an incomplete version of the TestPlan. This is
 	// in its infancy.
 	for _, perTargetTestReqs := range targetTestReqs.PerTargetTestRequirements {
@@ -28,8 +27,8 @@ func CreateCombinedTestPlan(targetTestReqs *config.TargetTestRequirementsCfg) (
 		} else {
 			return nil, errors.New("found a PerTargetTestRequirements with no TargetType")
 		}
-		testPlan := &protos.TestPlan{SchedulingRequirements: schedulingRequirements}
-		combinedTestPlan.TestPlan = append(combinedTestPlan.TestPlan, testPlan)
+		testUnit := &protos.TestUnit{SchedulingRequirements: schedulingRequirements}
+		testPlan.TestUnit = append(testPlan.TestUnit, testUnit)
 	}
-	return combinedTestPlan, nil
+	return testPlan, nil
 }

@@ -4,6 +4,7 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/golang/protobuf/proto"
@@ -11,47 +12,64 @@ import (
 	"io/ioutil"
 	"log"
 	"testplans/generator"
+	"testplans/protos"
 )
 
 var (
-	sourceTreeConfigPath       = flag.String("source_tree_config_path", "", "Path to source_tree_test_config.cfg")
-	targetTestRequirementsPath = flag.String("target_test_requirements_path", "", "Path to target_test_requirements.cfg")
+	inputJson = flag.String("input_json", "", "Path to JSON proto representing a GenerateTestPlanRequest")
+	outputJson = flag.String("output_json", "", "Path to file to write output GenerateTestPlanResponse JSON proto")
 )
 
 func main() {
 	flag.Parse()
+
+	inputBytes, err := ioutil.ReadFile(*inputJson)
+	if err != nil {
+		log.Fatalf("Failed reading input_json\n%v", err)
+	}
+	req := &protos.GenerateTestPlanRequest{}
+	if err := jsonpb.Unmarshal(bytes.NewReader(inputBytes), req); err != nil {
+		log.Fatalf("Couldn't decode %s as a GenerateTestPlanRequest\n%v", *inputJson, err)
+	}
+
 	// Read the SourceTreeConfig JSON file into a proto.
-	sourceTreeConfigBytes, err := ioutil.ReadFile(*sourceTreeConfigPath)
+	sourceTreeBytes, err := ioutil.ReadFile(req.SourceTreeConfigPath)
 	if err != nil {
 		log.Fatalf("Failed reading source_tree_config_path\n%v", err)
 	}
-	sourceTreeTestConfig := &config.SourceTreeTestCfg{}
-	if err := jsonpb.UnmarshalString(string(sourceTreeConfigBytes), sourceTreeTestConfig);
-			err != nil {
-		log.Fatalf("Couldn't decode %s as a SourceTreeTestCfg\n%v", sourceTreeConfigPath, err)
+	sourceTreeConfig := &config.SourceTreeTestCfg{}
+	if err := jsonpb.Unmarshal(bytes.NewReader(sourceTreeBytes), sourceTreeConfig); err != nil {
+		log.Fatalf("Couldn't decode %s as a SourceTreeTestCfg\n%v", req.SourceTreeConfigPath, err)
 	}
-	log.Printf("Read SourceTreeTestCfg:\n%s", proto.MarshalTextString(sourceTreeTestConfig))
+	log.Printf("Read SourceTreeTestCfg:\n%s", proto.MarshalTextString(sourceTreeConfig))
 
 	// Read the TargetTestRequirements JSON file into a proto.
-	targetTestRequirementsBytes, err := ioutil.ReadFile(*targetTestRequirementsPath)
+	testReqsBytes, err := ioutil.ReadFile(req.TargetTestRequirementsPath)
 	if err != nil {
 		log.Fatalf("Failed reading target_test_requirements_path\n%s", err)
 	}
-	targetTestRequirements := &config.TargetTestRequirementsCfg{}
-	if err := jsonpb.UnmarshalString(string(targetTestRequirementsBytes), targetTestRequirements);
+	testReqsConfig := &config.TargetTestRequirementsCfg{}
+	if err := jsonpb.Unmarshal(bytes.NewReader(testReqsBytes), testReqsConfig);
 			err != nil {
 		log.Fatalf(
 			"Couldn't decode %s as a TargetTestRequirementsCfg\n%s",
-			targetTestRequirementsPath, err)
+			req.TargetTestRequirementsPath, err)
 	}
 	log.Printf(
-		"Read TargetTestRequirementsCfg:\n%s", proto.MarshalTextString(targetTestRequirements))
+		"Read TargetTestRequirementsCfg:\n%s", proto.MarshalTextString(testReqsConfig))
 
-	combinedTestPlan, err := generator.CreateCombinedTestPlan(targetTestRequirements)
+	testPlan, err := generator.CreateTestPlan(testReqsConfig)
 	if err != nil {
-		log.Fatalf("Error creating CombinedTestPlan:\n%v", err)
+		log.Fatalf("Error creating test plan:\n%v", err)
 	}
 
-	log.Printf(
-		"Resultant combined test plan:\n%s", proto.MarshalTextString(combinedTestPlan))
+	marshal := &jsonpb.Marshaler{EmitDefaults:true, Indent:"  "}
+	jsonOutput, err := marshal.MarshalToString(testPlan)
+	if err != nil {
+		log.Fatalf("Failed to marshal %v\n%v", testPlan, err)
+	}
+	if err = ioutil.WriteFile(*outputJson, []byte(jsonOutput), 0644); err != nil {
+		log.Fatalf("Failed to write output JSON!\n%v", err)
+	}
+	log.Printf("Wrote output to %s", *outputJson)
 }

@@ -36,6 +36,9 @@ message BuildPayload {
   // with the Skylab team.
   string version = 1;
   repeated Image image = 2;
+  // The location in Google Storage of the artifacts for this build.
+  // e.g. gs://chromeos-image-archive/eve-paladin/R73-11588.0.0-rc4
+  string artifact_path = 3;
 }
 
 // Hardware or VM requirements for running a test plan.

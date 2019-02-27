@@ -15,7 +15,7 @@ func CreateTestPlan(targetTestReqs *config.TargetTestRequirementsCfg) (*protos.G
 	// in its infancy.
 	for _, perTargetTestReqs := range targetTestReqs.PerTargetTestRequirements {
 		schedulingRequirements := &protos.SchedulingRequirements{}
-		buildCriteria := perTargetTestReqs.GetBuildCriteria()
+		buildCriteria := perTargetTestReqs.GetTargetCriteria()
 		if buildCriteria.GetReferenceDesign() != "" {
 			schedulingRequirements.TargetType =
 					&protos.SchedulingRequirements_ReferenceDesign{

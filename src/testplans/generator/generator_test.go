@@ -13,10 +13,10 @@ import (
 func TestCreateCombinedTestPlan_success(t *testing.T) {
 	testReqs := &config.TargetTestRequirementsCfg{
 		PerTargetTestRequirements: []*config.PerTargetTestRequirements{
-			{BuildCriteria: &config.BuildCriteria{
-				TargetType: &config.BuildCriteria_ReferenceDesign{ReferenceDesign: "Google_Reef"}}},
-			{BuildCriteria: &config.BuildCriteria{
-				TargetType: &config.BuildCriteria_BuildTarget{BuildTarget: "kevin"}}},
+			{TargetCriteria: &config.TargetCriteria{
+				TargetType: &config.TargetCriteria_ReferenceDesign{ReferenceDesign: "Google_Reef"}}},
+			{TargetCriteria: &config.TargetCriteria{
+				TargetType: &config.TargetCriteria_BuildTarget{BuildTarget: "kevin"}}},
 		},
 	}
 
@@ -42,9 +42,9 @@ func TestCreateCombinedTestPlan_inputMissingTargetType(t *testing.T) {
 	testReqs := &config.TargetTestRequirementsCfg{
 		PerTargetTestRequirements: []*config.PerTargetTestRequirements{
 			// This is missing a TargetType.
-			{BuildCriteria: &config.BuildCriteria{}},
-			{BuildCriteria: &config.BuildCriteria{
-				TargetType: &config.BuildCriteria_BuildTarget{BuildTarget: "kevin"}}},
+			{TargetCriteria: &config.TargetCriteria{}},
+			{TargetCriteria: &config.TargetCriteria{
+				TargetType: &config.TargetCriteria_BuildTarget{BuildTarget: "kevin"}}},
 		},
 	}
 	if _, err := CreateTestPlan(testReqs); err == nil {

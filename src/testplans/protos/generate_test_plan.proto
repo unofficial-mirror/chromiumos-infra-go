@@ -10,6 +10,10 @@ option go_package = "protos";
 
 import "lucicfg/external/crostesting/proto/config/target_test_requirements_config.proto";
 
+message FilePath {
+  string file_path = 1;
+}
+
 message GenerateTestPlanRequest {
   // Path on disk to source_tree_test_config.cfg, which lives in chromite.
   string source_tree_config_path = 1;
@@ -18,7 +22,7 @@ message GenerateTestPlanRequest {
   string target_test_requirements_path = 2;
 
   // Path on disk to a BuildReport in protobuf JSON format.
-  string build_report_path = 3;
+  repeated FilePath build_report_path = 3;
 }
 
 // The final test plan.

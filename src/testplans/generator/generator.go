@@ -40,7 +40,7 @@ type ReferenceDesign string
 // targetBuildResult is a conglomeration of data about a build and how to test it.
 type targetBuildResult struct {
 	buildTarget       BuildTarget
-	buildResult       protos.BuildResult
+	buildReport       protos.BuildReport
 	perTargetTestReqs config.PerTargetTestRequirements
 }
 
@@ -48,16 +48,16 @@ type targetBuildResult struct {
 func CreateTestPlan(
 	targetTestReqs *config.TargetTestRequirementsCfg,
 	sourceTreeCfg *config.SourceTreeTestCfg,
-	buildReport *protos.BuildReport) (*protos.GenerateTestPlanResponse, error) {
+	buildReports []*protos.BuildReport) (*protos.GenerateTestPlanResponse, error) {
 	testPlan := &protos.GenerateTestPlanResponse{}
 
-	buildResults := make(map[BuildTarget]protos.BuildResult)
-	for _, br := range buildReport.BuildResult {
-		buildResults[BuildTarget(br.BuildTarget)] = *br
+	btBuildReports := make(map[BuildTarget]protos.BuildReport)
+	for _, br := range buildReports {
+		btBuildReports[BuildTarget(br.BuildTarget)] = *br
 	}
 
 	refToBuildTargets := make(map[ReferenceDesign][]BuildTarget)
-	for _, br := range buildReport.BuildResult {
+	for _, br := range buildReports {
 		if br.ReferenceDesign != "" {
 			ref := ReferenceDesign(br.ReferenceDesign)
 			refToBuildTargets[ref] = append(refToBuildTargets[ref], BuildTarget(br.BuildTarget))
@@ -65,7 +65,7 @@ func CreateTestPlan(
 	}
 
 	// BuildTargets for which HW or VM testing may be skipped, due to source tree configuration.
-	skippableTests, err := extractSkippableTests(sourceTreeCfg, buildReport)
+	skippableTests, err := extractSkippableTests(sourceTreeCfg, buildReports)
 	if err != nil {
 		return testPlan, err
 	}
@@ -74,7 +74,7 @@ func CreateTestPlan(
 	targetBuildResults := make([]targetBuildResult, 0)
 perTargetTestReq:
 	for _, pttr := range targetTestReqs.PerTargetTestRequirements {
-		tbr, err := selectBuildForRequirements(pttr, refToBuildTargets, buildResults)
+		tbr, err := selectBuildForRequirements(pttr, refToBuildTargets, btBuildReports)
 		if err != nil {
 			return testPlan, err
 		}
@@ -154,25 +154,25 @@ func createTestUnits(
 
 // extractSkippableTests maps BuildTargets to the test types that can be skipped for those targets,
 // based on source tree test restrictions.
-func extractSkippableTests(sourceTreeCfg *config.SourceTreeTestCfg, buildReport *protos.BuildReport) (
+func extractSkippableTests(sourceTreeCfg *config.SourceTreeTestCfg, buildReports []*protos.BuildReport) (
 	map[BuildTarget]map[testType]bool, error) {
 
 	skippableTests := make(map[BuildTarget]map[testType]bool)
-	for _, result := range buildReport.BuildResult {
-		buildTarget := BuildTarget(result.BuildTarget)
+	for _, report := range buildReports {
+		buildTarget := BuildTarget(report.BuildTarget)
 		skippableTests[buildTarget] = make(map[testType]bool)
 
-		disableHWTesting, err := canDisableTesting(sourceTreeCfg, result, hw)
+		disableHWTesting, err := canDisableTesting(sourceTreeCfg, report, hw)
 		if err != nil {
 			return skippableTests, err
 		}
 		skippableTests[buildTarget][hw] = disableHWTesting
-		disableVMTesting, err := canDisableTesting(sourceTreeCfg, result, vm)
+		disableVMTesting, err := canDisableTesting(sourceTreeCfg, report, vm)
 		if err != nil {
 			return skippableTests, err
 		}
 		skippableTests[buildTarget][vm] = disableVMTesting
-		log.Printf("For build %s, got disableHWTesting = %t, disableVMTesting = %t", result.BuildTarget, disableHWTesting, disableVMTesting)
+		log.Printf("For build %s, got disableHWTesting = %t, disableVMTesting = %t", report.BuildTarget, disableHWTesting, disableVMTesting)
 	}
 	return skippableTests, nil
 }
@@ -183,7 +183,7 @@ func extractSkippableTests(sourceTreeCfg *config.SourceTreeTestCfg, buildReport 
 func selectBuildForRequirements(
 	pttr *config.PerTargetTestRequirements,
 	refToBuildTargets map[ReferenceDesign][]BuildTarget,
-	buildResults map[BuildTarget]protos.BuildResult) (*targetBuildResult, error) {
+	buildReports map[BuildTarget]protos.BuildReport) (*targetBuildResult, error) {
 
 	log.Printf("Considering testing for TargetCritera %v", pttr.TargetCriteria)
 	var eligibleBuildTargets []BuildTarget
@@ -194,7 +194,7 @@ func selectBuildForRequirements(
 	} else {
 		return nil, errors.New("found a PerTargetTestRequirement without a build target or reference design")
 	}
-	bt, err := pickBuilderToTest(eligibleBuildTargets, buildResults)
+	bt, err := pickBuilderToTest(eligibleBuildTargets, buildReports)
 	if err != nil {
 		// Expected when a necessary builder failed, and thus we cannot continue with testing.
 		return nil, err
@@ -206,8 +206,8 @@ func selectBuildForRequirements(
 		return nil, nil
 	}
 	return &targetBuildResult{
-			buildResult:       buildResults[*bt],
-			buildTarget:       BuildTarget(buildResults[*bt].BuildTarget),
+			buildReport:       buildReports[*bt],
+			buildTarget:       BuildTarget(buildReports[*bt].BuildTarget),
 			perTargetTestReqs: *pttr},
 		nil
 }
@@ -227,31 +227,31 @@ func (tbr targetBuildResult) schedulingReqs() (protos.SchedulingRequirements, er
 
 // pickBuilderToTest returns up to one BuildTarget that should be tested, out of the provided slice
 // of BuildTargets. The returned BuildTarget, if present, is guaranteed to be one with a BuildResult.
-func pickBuilderToTest(buildTargets []BuildTarget, buildResults map[BuildTarget]protos.BuildResult) (*BuildTarget, error) {
+func pickBuilderToTest(buildTargets []BuildTarget, btBuildReports map[BuildTarget]protos.BuildReport) (*BuildTarget, error) {
 	// Relevant results are those builds that weren't terminated early.
 	// Early termination is a good thing. It just means that the build wasn't affected by the relevant commits.
-	relevantResults := make(map[BuildTarget]protos.BuildResult)
+	relevantReports := make(map[BuildTarget]protos.BuildReport)
 	for _, bt := range buildTargets {
-		br, found := buildResults[bt]
+		br, found := btBuildReports[bt]
 		if !found {
 			log.Printf("No build found for BuildTarget %s", bt)
 			continue
 		}
-		if br.EarlyTerminationStatus != protos.BuildResult_NOT_TERMINATED_EARLY &&
-			br.EarlyTerminationStatus != protos.BuildResult_EARLY_TERMINATION_STATUS_UNSPECIFIED {
+		if br.EarlyTerminationStatus != protos.BuildReport_NOT_TERMINATED_EARLY &&
+			br.EarlyTerminationStatus != protos.BuildReport_EARLY_TERMINATION_STATUS_UNSPECIFIED {
 			log.Printf("Disregarding %s because its EarlyTerminationStatus is %v", br.BuildTarget, br.EarlyTerminationStatus)
 			continue
 		}
-		relevantResults[bt] = br
+		relevantReports[bt] = br
 	}
-	if len(relevantResults) == 0 {
+	if len(relevantReports) == 0 {
 		// None of the builds were relevant, so none of these BuildTargets needs testing.
 		return nil, nil
 	}
 	for _, bt := range buildTargets {
 		// Find and return the first relevant, successful build.
-		result, found := relevantResults[bt]
-		if found && result.BuildResultStatus == protos.BuildResult_SUCCESS {
+		result, found := relevantReports[bt]
+		if found && result.BuildResultStatus == protos.BuildReport_SUCCESS {
 			return &bt, nil
 		}
 	}
@@ -260,7 +260,7 @@ func pickBuilderToTest(buildTargets []BuildTarget, buildResults map[BuildTarget]
 
 // canDisableTesting determines whether a particular testing type is unnecessary for a given
 // builder, based on source tree test restrictions.
-func canDisableTesting(sourceTreeCfg *config.SourceTreeTestCfg, buildResult *protos.BuildResult, tt testType) (bool, error) {
+func canDisableTesting(sourceTreeCfg *config.SourceTreeTestCfg, buildResult *protos.BuildReport, tt testType) (bool, error) {
 	fileCount := 0
 	for _, commit := range buildResult.Commit {
 		for _, file := range commit.File {

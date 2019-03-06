@@ -8,13 +8,8 @@ package testplans;
 
 option go_package = "protos";
 
-// The results from one or more completed builds of Chrome OS.
-message BuildReport {
-  repeated BuildResult build_result = 1;
-}
-
 // The result of a CrOS build for a single build target
-message BuildResult {
+message BuildReport {
   // A Chrome OS build target, such as "eve".
   // TODO(seanabraham): Import the common BuildTarget message once it has been
   // moved out of chromite.

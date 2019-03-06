@@ -44,19 +44,19 @@ func TestCreateCombinedTestPlan_success(t *testing.T) {
 		SourceTreeTestRestriction: []*config.SourceTreeTestRestriction{
 			{SourceTree: &config.SourceTree{Path: "hw/tests/not/needed/here"},
 				TestRestriction: &config.TestRestriction{DisableHwTests: true}}}}
-	buildReport := &protos.BuildReport{BuildResult: []*protos.BuildResult{
+	buildReports := []*protos.BuildReport{
 		{BuildTarget: "kevin",
-			BuildResultStatus:      protos.BuildResult_SUCCESS,
-			EarlyTerminationStatus: protos.BuildResult_NOT_TERMINATED_EARLY,
+			BuildResultStatus:      protos.BuildReport_SUCCESS,
+			EarlyTerminationStatus: protos.BuildReport_NOT_TERMINATED_EARLY,
 			Commit:                 []*protos.Commit{{File: []*protos.File{{SourceTreePath: "a/b/c"}}}}},
 		{BuildTarget: "some reef build target",
 			ReferenceDesign:        "Google_Reef",
-			BuildResultStatus:      protos.BuildResult_SUCCESS,
-			EarlyTerminationStatus: protos.BuildResult_NOT_TERMINATED_EARLY,
+			BuildResultStatus:      protos.BuildReport_SUCCESS,
+			EarlyTerminationStatus: protos.BuildReport_NOT_TERMINATED_EARLY,
 			Commit:                 []*protos.Commit{{File: []*protos.File{{SourceTreePath: "c/d/e"}}}}},
-	}}
+	}
 
-	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, buildReport)
+	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, buildReports)
 	if err != nil {
 		t.Error(err)
 	}
@@ -100,8 +100,8 @@ func TestCreateCombinedTestPlan_inputMissingTargetType(t *testing.T) {
 		},
 	}
 	sourceTreeTestCfg := &config.SourceTreeTestCfg{}
-	buildReport := &protos.BuildReport{}
-	if _, err := CreateTestPlan(testReqs, sourceTreeTestCfg, buildReport); err == nil {
+	buildReports := []*protos.BuildReport{}
+	if _, err := CreateTestPlan(testReqs, sourceTreeTestCfg, buildReports); err == nil {
 		t.Errorf("Expected an error to be returned")
 	}
 }

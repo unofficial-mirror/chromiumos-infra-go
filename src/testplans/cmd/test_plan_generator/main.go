@@ -58,16 +58,20 @@ func main() {
 	log.Printf(
 		"Read TargetTestRequirementsCfg:\n%s", proto.MarshalTextString(testReqsConfig))
 
-	buildReportBytes, err := ioutil.ReadFile(req.BuildReportPath)
-	if err != nil {
-		log.Fatalf("Failed reading build_report_path\n%v", err)
-	}
-	buildReport := &protos.BuildReport{}
-	if err := jsonpb.Unmarshal(bytes.NewReader(buildReportBytes), buildReport); err != nil {
-		log.Fatalf("Couldn't decode %s as a BuildReport\n%v", req.BuildReportPath, err)
+	buildReports := make([]*protos.BuildReport, 0)
+	for _, brPath := range req.BuildReportPath {
+		buildReportBytes, err := ioutil.ReadFile(brPath.FilePath)
+		if err != nil {
+			log.Fatalf("Failed reading build_report_path\n%v", err)
+		}
+		buildReport := &protos.BuildReport{}
+		if err := jsonpb.Unmarshal(bytes.NewReader(buildReportBytes), buildReport); err != nil {
+			log.Fatalf("Couldn't decode %s as a BuildReport\n%v", req.BuildReportPath, err)
+		}
+		buildReports = append(buildReports, buildReport)
 	}
 
-	testPlan, err := generator.CreateTestPlan(testReqsConfig, sourceTreeConfig, buildReport)
+	testPlan, err := generator.CreateTestPlan(testReqsConfig, sourceTreeConfig, buildReports)
 	if err != nil {
 		log.Fatalf("Error creating test plan:\n%v", err)
 	}

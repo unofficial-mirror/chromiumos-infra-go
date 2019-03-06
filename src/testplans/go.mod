@@ -1,7 +1,7 @@
 module testplans
 
 require (
-	github.com/golang/protobuf v1.2.1-0.20190205222052-c823c79ea157
+	github.com/golang/protobuf v1.3.0
 	github.com/google/go-cmp v0.2.0
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/srabraham/goconfigparser v0.0.0-20190307212522-a7bfe49cf836

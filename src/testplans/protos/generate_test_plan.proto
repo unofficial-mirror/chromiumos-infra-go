@@ -16,6 +16,9 @@ message GenerateTestPlanRequest {
 
   // Path on disk to target_test_requirements.cfg, which lives in chromite.
   string target_test_requirements_path = 2;
+
+  // Path on disk to a BuildReport in protobuf JSON format.
+  string build_report_path = 3;
 }
 
 // The final test plan.

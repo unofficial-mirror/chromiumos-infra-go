@@ -6,17 +6,18 @@ package main
 import (
 	"bytes"
 	"flag"
-	"github.com/golang/protobuf/jsonpb"
-	"github.com/golang/protobuf/proto"
-	"go.chromium.org/luci/lucicfg/external/crostesting/proto/config"
 	"io/ioutil"
 	"log"
 	"testplans/generator"
 	"testplans/protos"
+
+	"github.com/golang/protobuf/jsonpb"
+	"github.com/golang/protobuf/proto"
+	"go.chromium.org/luci/lucicfg/external/crostesting/proto/config"
 )
 
 var (
-	inputJson = flag.String("input_json", "", "Path to JSON proto representing a GenerateTestPlanRequest")
+	inputJson  = flag.String("input_json", "", "Path to JSON proto representing a GenerateTestPlanRequest")
 	outputJson = flag.String("output_json", "", "Path to file to write output GenerateTestPlanResponse JSON proto")
 )
 
@@ -49,8 +50,7 @@ func main() {
 		log.Fatalf("Failed reading target_test_requirements_path\n%s", err)
 	}
 	testReqsConfig := &config.TargetTestRequirementsCfg{}
-	if err := jsonpb.Unmarshal(bytes.NewReader(testReqsBytes), testReqsConfig);
-			err != nil {
+	if err := jsonpb.Unmarshal(bytes.NewReader(testReqsBytes), testReqsConfig); err != nil {
 		log.Fatalf(
 			"Couldn't decode %s as a TargetTestRequirementsCfg\n%s",
 			req.TargetTestRequirementsPath, err)
@@ -58,12 +58,21 @@ func main() {
 	log.Printf(
 		"Read TargetTestRequirementsCfg:\n%s", proto.MarshalTextString(testReqsConfig))
 
-	testPlan, err := generator.CreateTestPlan(testReqsConfig)
+	buildReportBytes, err := ioutil.ReadFile(req.BuildReportPath)
+	if err != nil {
+		log.Fatalf("Failed reading build_report_path\n%v", err)
+	}
+	buildReport := &protos.BuildReport{}
+	if err := jsonpb.Unmarshal(bytes.NewReader(buildReportBytes), buildReport); err != nil {
+		log.Fatalf("Couldn't decode %s as a BuildReport\n%v", req.BuildReportPath, err)
+	}
+
+	testPlan, err := generator.CreateTestPlan(testReqsConfig, sourceTreeConfig, buildReport)
 	if err != nil {
 		log.Fatalf("Error creating test plan:\n%v", err)
 	}
 
-	marshal := &jsonpb.Marshaler{EmitDefaults:true, Indent:"  "}
+	marshal := &jsonpb.Marshaler{EmitDefaults: true, Indent: "  "}
 	jsonOutput, err := marshal.MarshalToString(testPlan)
 	if err != nil {
 		log.Fatalf("Failed to marshal %v\n%v", testPlan, err)

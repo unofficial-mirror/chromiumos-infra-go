@@ -7,8 +7,8 @@ github.com/kr/pretty v0.1.0/go.mod h1:dAy3ld7l9f0ibDNOQOHHMYYIIbhfbHSm3C4ZsoJORN
 github.com/kr/pty v1.1.1/go.mod h1:pFQYn66WHrOpPYNljwOMqo10TkYh1fy3cYio2l3bCsQ=
 github.com/kr/text v0.1.0 h1:45sCR5RtlFHMR4UwH9sdQ5TC8v0qDQCHnXt+kaKSTVE=
 github.com/kr/text v0.1.0/go.mod h1:4Jbv+DJW3UT/LiOwJeYQe1efqtUx/iVham/4vfdArNI=
-github.com/srabraham/goconfigparser v0.0.0-20190307212522-a7bfe49cf836 h1:xWlC5XiJPdGvafrnaKTkwqiPqG4jIfVZkR7jQhzIEVY=
-github.com/srabraham/goconfigparser v0.0.0-20190307212522-a7bfe49cf836/go.mod h1:BJvL+m3af5MNfhurzZoqRlfnQ7Xpb8Bx7hXWBrVWvHM=
+github.com/mvo5/goconfigparser v0.0.0-20190308092147-6a365a5a3f41 h1:iMRDid83mu+x4BeVAauhgs3EEkkvJvIUr6ZlW6etFNU=
+github.com/mvo5/goconfigparser v0.0.0-20190308092147-6a365a5a3f41/go.mod h1:xmt4k1xLDl8Tdan+0S/jmMK2uSUBSzTc18+5GN5Vea8=
 go.chromium.org/luci v0.0.0-20190228200206-18b3b032f245 h1:lY5RDCNFnslcBC7fJ+ykiaLPlg0/tVMmng/ZQo5xzns=
 go.chromium.org/luci v0.0.0-20190228200206-18b3b032f245/go.mod h1:MIQewVTLvOvc0UioV0JNqTNO/RspKFS0XEeoKrOxsdM=
 golang.org/x/net v0.0.0-20180906233101-161cd47e91fd h1:nTDtHvHSdCn1m6ITfMRqtOd/9+7a3s8RBNOZ3eYZzJA=

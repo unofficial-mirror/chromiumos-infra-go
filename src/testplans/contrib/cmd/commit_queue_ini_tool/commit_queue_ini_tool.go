@@ -6,7 +6,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/srabraham/goconfigparser"
+	"github.com/mvo5/goconfigparser"
 	"log"
 	"os"
 	"path"

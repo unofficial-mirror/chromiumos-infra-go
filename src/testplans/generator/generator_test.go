@@ -5,55 +5,54 @@ package generator
 
 import (
 	"testing"
-	"testplans/protos"
 
 	"github.com/google/go-cmp/cmp"
-	"go.chromium.org/luci/lucicfg/external/crostesting/proto/config"
+	"go.chromium.org/chromiumos/infra/proto/go/testplans"
 )
 
 func TestCreateCombinedTestPlan_success(t *testing.T) {
-	reefGceTestCfg := &config.GceTestCfg{GceTest: []*config.GceTestCfg_GceTest{
+	reefGceTestCfg := &testplans.GceTestCfg{GceTest: []*testplans.GceTestCfg_GceTest{
 		{TestType: "GCE reef"},
 	}}
-	reefMoblabVmTestCfg := &config.MoblabVmTestCfg{MoblabTest: []*config.MoblabVmTestCfg_MoblabTest{
+	reefMoblabVmTestCfg := &testplans.MoblabVmTestCfg{MoblabTest: []*testplans.MoblabVmTestCfg_MoblabTest{
 		{TestType: "Moblab reef"},
 	}}
-	kevinHWTestCfg := &config.HwTestCfg{HwTest: []*config.HwTestCfg_HwTest{
+	kevinHWTestCfg := &testplans.HwTestCfg{HwTest: []*testplans.HwTestCfg_HwTest{
 		{Suite: "HW kevin"},
 	}}
-	kevinTastVMTestCfg := &config.TastVmTestCfg{TastVmTest: []*config.TastVmTestCfg_TastVmTest{
+	kevinTastVMTestCfg := &testplans.TastVmTestCfg{TastVmTest: []*testplans.TastVmTestCfg_TastVmTest{
 		{SuiteName: "Tast kevin"},
 	}}
-	kevinVMTestCfg := &config.VmTestCfg{VmTest: []*config.VmTestCfg_VmTest{
+	kevinVMTestCfg := &testplans.VmTestCfg{VmTest: []*testplans.VmTestCfg_VmTest{
 		{TestType: "VM kevin"},
 	}}
-	testReqs := &config.TargetTestRequirementsCfg{
-		PerTargetTestRequirements: []*config.PerTargetTestRequirements{
-			{TargetCriteria: &config.TargetCriteria{
-				TargetType: &config.TargetCriteria_ReferenceDesign{ReferenceDesign: "Google_Reef"}},
+	testReqs := &testplans.TargetTestRequirementsCfg{
+		PerTargetTestRequirements: []*testplans.PerTargetTestRequirements{
+			{TargetCriteria: &testplans.TargetCriteria{
+				TargetType: &testplans.TargetCriteria_ReferenceDesign{ReferenceDesign: "Google_Reef"}},
 				GceTestCfg:      reefGceTestCfg,
 				MoblabVmTestCfg: reefMoblabVmTestCfg},
-			{TargetCriteria: &config.TargetCriteria{
-				TargetType: &config.TargetCriteria_BuildTarget{BuildTarget: "kevin"}},
+			{TargetCriteria: &testplans.TargetCriteria{
+				TargetType: &testplans.TargetCriteria_BuildTarget{BuildTarget: "kevin"}},
 				HwTestCfg:     kevinHWTestCfg,
 				TastVmTestCfg: kevinTastVMTestCfg,
 				VmTestCfg:     kevinVMTestCfg},
 		},
 	}
-	sourceTreeTestCfg := &config.SourceTreeTestCfg{
-		SourceTreeTestRestriction: []*config.SourceTreeTestRestriction{
-			{SourceTree: &config.SourceTree{Path: "hw/tests/not/needed/here"},
-				TestRestriction: &config.TestRestriction{DisableHwTests: true}}}}
-	buildReports := []*protos.BuildReport{
+	sourceTreeTestCfg := &testplans.SourceTreeTestCfg{
+		SourceTreeTestRestriction: []*testplans.SourceTreeTestRestriction{
+			{SourceTree: &testplans.SourceTree{Path: "hw/tests/not/needed/here"},
+				TestRestriction: &testplans.TestRestriction{DisableHwTests: true}}}}
+	buildReports := []*testplans.BuildReport{
 		{BuildTarget: "kevin",
-			BuildResultStatus:      protos.BuildReport_SUCCESS,
-			EarlyTerminationStatus: protos.BuildReport_NOT_TERMINATED_EARLY,
-			Commit:                 []*protos.Commit{{File: []*protos.File{{SourceTreePath: "a/b/c"}}}}},
+			BuildResultStatus:      testplans.BuildReport_SUCCESS,
+			EarlyTerminationStatus: testplans.BuildReport_NOT_TERMINATED_EARLY,
+			Commit:                 []*testplans.Commit{{File: []*testplans.File{{SourceTreePath: "a/b/c"}}}}},
 		{BuildTarget: "some reef build target",
 			ReferenceDesign:        "Google_Reef",
-			BuildResultStatus:      protos.BuildReport_SUCCESS,
-			EarlyTerminationStatus: protos.BuildReport_NOT_TERMINATED_EARLY,
-			Commit:                 []*protos.Commit{{File: []*protos.File{{SourceTreePath: "c/d/e"}}}}},
+			BuildResultStatus:      testplans.BuildReport_SUCCESS,
+			EarlyTerminationStatus: testplans.BuildReport_NOT_TERMINATED_EARLY,
+			Commit:                 []*testplans.Commit{{File: []*testplans.File{{SourceTreePath: "c/d/e"}}}}},
 	}
 
 	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, buildReports)
@@ -61,28 +60,28 @@ func TestCreateCombinedTestPlan_success(t *testing.T) {
 		t.Error(err)
 	}
 
-	expectedTestPlan := &protos.GenerateTestPlanResponse{
-		TestUnit: []*protos.TestUnit{
-			{SchedulingRequirements: &protos.SchedulingRequirements{
-				TargetType: &protos.SchedulingRequirements_ReferenceDesign{
+	expectedTestPlan := &testplans.GenerateTestPlanResponse{
+		TestUnit: []*testplans.TestUnit{
+			{SchedulingRequirements: &testplans.SchedulingRequirements{
+				TargetType: &testplans.SchedulingRequirements_ReferenceDesign{
 					ReferenceDesign: "Google_Reef"}},
-				TestCfg: &protos.TestUnit_GceTestCfg{GceTestCfg: reefGceTestCfg}},
-			{SchedulingRequirements: &protos.SchedulingRequirements{
-				TargetType: &protos.SchedulingRequirements_ReferenceDesign{
+				TestCfg: &testplans.TestUnit_GceTestCfg{GceTestCfg: reefGceTestCfg}},
+			{SchedulingRequirements: &testplans.SchedulingRequirements{
+				TargetType: &testplans.SchedulingRequirements_ReferenceDesign{
 					ReferenceDesign: "Google_Reef"}},
-				TestCfg: &protos.TestUnit_MoblabVmTestCfg{MoblabVmTestCfg: reefMoblabVmTestCfg}},
-			{SchedulingRequirements: &protos.SchedulingRequirements{
-				TargetType: &protos.SchedulingRequirements_BuildTarget{
+				TestCfg: &testplans.TestUnit_MoblabVmTestCfg{MoblabVmTestCfg: reefMoblabVmTestCfg}},
+			{SchedulingRequirements: &testplans.SchedulingRequirements{
+				TargetType: &testplans.SchedulingRequirements_BuildTarget{
 					BuildTarget: "kevin"}},
-				TestCfg: &protos.TestUnit_HwTestCfg{HwTestCfg: kevinHWTestCfg}},
-			{SchedulingRequirements: &protos.SchedulingRequirements{
-				TargetType: &protos.SchedulingRequirements_BuildTarget{
+				TestCfg: &testplans.TestUnit_HwTestCfg{HwTestCfg: kevinHWTestCfg}},
+			{SchedulingRequirements: &testplans.SchedulingRequirements{
+				TargetType: &testplans.SchedulingRequirements_BuildTarget{
 					BuildTarget: "kevin"}},
-				TestCfg: &protos.TestUnit_TastVmTestCfg{TastVmTestCfg: kevinTastVMTestCfg}},
-			{SchedulingRequirements: &protos.SchedulingRequirements{
-				TargetType: &protos.SchedulingRequirements_BuildTarget{
+				TestCfg: &testplans.TestUnit_TastVmTestCfg{TastVmTestCfg: kevinTastVMTestCfg}},
+			{SchedulingRequirements: &testplans.SchedulingRequirements{
+				TargetType: &testplans.SchedulingRequirements_BuildTarget{
 					BuildTarget: "kevin"}},
-				TestCfg: &protos.TestUnit_VmTestCfg{VmTestCfg: kevinVMTestCfg}},
+				TestCfg: &testplans.TestUnit_VmTestCfg{VmTestCfg: kevinVMTestCfg}},
 		}}
 
 	if diff := cmp.Diff(expectedTestPlan, actualTestPlan); diff != "" {
@@ -91,16 +90,16 @@ func TestCreateCombinedTestPlan_success(t *testing.T) {
 }
 
 func TestCreateCombinedTestPlan_inputMissingTargetType(t *testing.T) {
-	testReqs := &config.TargetTestRequirementsCfg{
-		PerTargetTestRequirements: []*config.PerTargetTestRequirements{
+	testReqs := &testplans.TargetTestRequirementsCfg{
+		PerTargetTestRequirements: []*testplans.PerTargetTestRequirements{
 			// This is missing a TargetType.
-			{TargetCriteria: &config.TargetCriteria{}},
-			{TargetCriteria: &config.TargetCriteria{
-				TargetType: &config.TargetCriteria_BuildTarget{BuildTarget: "kevin"}}},
+			{TargetCriteria: &testplans.TargetCriteria{}},
+			{TargetCriteria: &testplans.TargetCriteria{
+				TargetType: &testplans.TargetCriteria_BuildTarget{BuildTarget: "kevin"}}},
 		},
 	}
-	sourceTreeTestCfg := &config.SourceTreeTestCfg{}
-	buildReports := []*protos.BuildReport{}
+	sourceTreeTestCfg := &testplans.SourceTreeTestCfg{}
+	buildReports := []*testplans.BuildReport{}
 	if _, err := CreateTestPlan(testReqs, sourceTreeTestCfg, buildReports); err == nil {
 		t.Errorf("Expected an error to be returned")
 	}

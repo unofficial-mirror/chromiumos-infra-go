@@ -9,11 +9,10 @@ import (
 	"io/ioutil"
 	"log"
 	"testplans/generator"
-	"testplans/protos"
 
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/golang/protobuf/proto"
-	"go.chromium.org/luci/lucicfg/external/crostesting/proto/config"
+	"go.chromium.org/chromiumos/infra/proto/go/testplans"
 )
 
 var (
@@ -28,7 +27,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed reading input_json\n%v", err)
 	}
-	req := &protos.GenerateTestPlanRequest{}
+	req := &testplans.GenerateTestPlanRequest{}
 	if err := jsonpb.Unmarshal(bytes.NewReader(inputBytes), req); err != nil {
 		log.Fatalf("Couldn't decode %s as a GenerateTestPlanRequest\n%v", *inputJson, err)
 	}
@@ -38,7 +37,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed reading source_tree_config_path\n%v", err)
 	}
-	sourceTreeConfig := &config.SourceTreeTestCfg{}
+	sourceTreeConfig := &testplans.SourceTreeTestCfg{}
 	if err := jsonpb.Unmarshal(bytes.NewReader(sourceTreeBytes), sourceTreeConfig); err != nil {
 		log.Fatalf("Couldn't decode %s as a SourceTreeTestCfg\n%v", req.SourceTreeConfigPath, err)
 	}
@@ -49,7 +48,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed reading target_test_requirements_path\n%s", err)
 	}
-	testReqsConfig := &config.TargetTestRequirementsCfg{}
+	testReqsConfig := &testplans.TargetTestRequirementsCfg{}
 	if err := jsonpb.Unmarshal(bytes.NewReader(testReqsBytes), testReqsConfig); err != nil {
 		log.Fatalf(
 			"Couldn't decode %s as a TargetTestRequirementsCfg\n%s",
@@ -58,13 +57,13 @@ func main() {
 	log.Printf(
 		"Read TargetTestRequirementsCfg:\n%s", proto.MarshalTextString(testReqsConfig))
 
-	buildReports := make([]*protos.BuildReport, 0)
+	buildReports := make([]*testplans.BuildReport, 0)
 	for _, brPath := range req.BuildReportPath {
 		buildReportBytes, err := ioutil.ReadFile(brPath.FilePath)
 		if err != nil {
 			log.Fatalf("Failed reading build_report_path\n%v", err)
 		}
-		buildReport := &protos.BuildReport{}
+		buildReport := &testplans.BuildReport{}
 		if err := jsonpb.Unmarshal(bytes.NewReader(buildReportBytes), buildReport); err != nil {
 			log.Fatalf("Couldn't decode %s as a BuildReport\n%v", req.BuildReportPath, err)
 		}

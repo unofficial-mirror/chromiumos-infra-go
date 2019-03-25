@@ -14,21 +14,7 @@ import (
 )
 
 var (
-	configDumpJsonPath       = flag.String("config_dump_json_path", "", "Path to fully expanded config_dump.json")
-	// Mappings from builder to reference design. These just need to cover the builders in the
-	// following table that have MAINBOARD_FAMILY set in their Kconfig.
-	// https://cs.chromium.org/chromium/src/third_party/chromite/config/chromeos_config.py?l=2150-2172&rcl=611d1fbc1736114e324d2f341180b33fd0938d38
-	builderToReferenceDesign = map[string]string{
-		"peppy":    "Google_Slippy",
-		"wolf":     "Google_Slippy",
-		"cave":     "Google_Glados",
-		"sentry":   "Google_Glados",
-		"reef":     "Google_Reef",
-		"coral":    "Google_Coral",
-		"eve":      "Google_Poppy",
-		"soraka":   "Google_Poppy",
-		"nocturne": "Google_Nocturne",
-	}
+	configDumpJsonPath = flag.String("config_dump_json_path", "", "Path to fully expanded config_dump.json")
 )
 
 // A renamed []string for the purpose of having a custom String() method.
@@ -80,10 +66,10 @@ func (ts1 *TestSuites) merge(ts2 *TestSuites) {
 
 func (ts TestSuites) notEmpty() bool {
 	return ts.gceTestSuites != nil ||
-			ts.hwTestSuites != nil ||
-			ts.moblabTestSuites != nil ||
-			ts.tastVmTestSuites != nil ||
-			ts.vmTestSuites != nil
+		ts.hwTestSuites != nil ||
+		ts.moblabTestSuites != nil ||
+		ts.tastVmTestSuites != nil ||
+		ts.vmTestSuites != nil
 }
 
 func (ts TestSuites) String() string {
@@ -206,19 +192,8 @@ func main() {
 		}
 	}
 
-	testSuitesByBuilderOrReferenceDesign := make(map[string]TestSuites)
-	for k, v := range testSuitesByBuilder {
-		targetBuilder := k
-		if ref, present := builderToReferenceDesign[k]; present {
-			targetBuilder = ref
-		}
-		currentSuites := testSuitesByBuilderOrReferenceDesign[targetBuilder]
-		currentSuites.merge(&v)
-		testSuitesByBuilderOrReferenceDesign[targetBuilder] = currentSuites
-	}
-
 	log.Print("\n\n\n")
-	log.Printf("Test mappings with reference designs:")
+	log.Printf("Test suites by builder:")
 
-	print(testSuitesByBuilderOrReferenceDesign)
+	print(testSuitesByBuilder)
 }

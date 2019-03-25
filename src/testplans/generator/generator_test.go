@@ -29,7 +29,7 @@ func TestCreateCombinedTestPlan_success(t *testing.T) {
 	testReqs := &testplans.TargetTestRequirementsCfg{
 		PerTargetTestRequirements: []*testplans.PerTargetTestRequirements{
 			{TargetCriteria: &testplans.TargetCriteria{
-				TargetType: &testplans.TargetCriteria_ReferenceDesign{ReferenceDesign: "Google_Reef"}},
+				TargetType: &testplans.TargetCriteria_BuildTarget{BuildTarget: "reef"}},
 				GceTestCfg:      reefGceTestCfg,
 				MoblabVmTestCfg: reefMoblabVmTestCfg},
 			{TargetCriteria: &testplans.TargetCriteria{
@@ -48,8 +48,7 @@ func TestCreateCombinedTestPlan_success(t *testing.T) {
 			BuildResultStatus:      testplans.BuildReport_SUCCESS,
 			EarlyTerminationStatus: testplans.BuildReport_NOT_TERMINATED_EARLY,
 			Commit:                 []*testplans.Commit{{File: []*testplans.File{{SourceTreePath: "a/b/c"}}}}},
-		{BuildTarget: "some reef build target",
-			ReferenceDesign:        "Google_Reef",
+		{BuildTarget: "reef",
 			BuildResultStatus:      testplans.BuildReport_SUCCESS,
 			EarlyTerminationStatus: testplans.BuildReport_NOT_TERMINATED_EARLY,
 			Commit:                 []*testplans.Commit{{File: []*testplans.File{{SourceTreePath: "c/d/e"}}}}},
@@ -63,12 +62,12 @@ func TestCreateCombinedTestPlan_success(t *testing.T) {
 	expectedTestPlan := &testplans.GenerateTestPlanResponse{
 		TestUnit: []*testplans.TestUnit{
 			{SchedulingRequirements: &testplans.SchedulingRequirements{
-				TargetType: &testplans.SchedulingRequirements_ReferenceDesign{
-					ReferenceDesign: "Google_Reef"}},
+				TargetType: &testplans.SchedulingRequirements_BuildTarget{
+					BuildTarget: "reef"}},
 				TestCfg: &testplans.TestUnit_GceTestCfg{GceTestCfg: reefGceTestCfg}},
 			{SchedulingRequirements: &testplans.SchedulingRequirements{
-				TargetType: &testplans.SchedulingRequirements_ReferenceDesign{
-					ReferenceDesign: "Google_Reef"}},
+				TargetType: &testplans.SchedulingRequirements_BuildTarget{
+					BuildTarget: "reef"}},
 				TestCfg: &testplans.TestUnit_MoblabVmTestCfg{MoblabVmTestCfg: reefMoblabVmTestCfg}},
 			{SchedulingRequirements: &testplans.SchedulingRequirements{
 				TargetType: &testplans.SchedulingRequirements_BuildTarget{

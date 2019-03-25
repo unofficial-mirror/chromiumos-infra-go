@@ -33,9 +33,6 @@ func (tt testType) String() string {
 // BuildTarget is an OS build target, such as "kevin" or "eve".
 type BuildTarget string
 
-// ReferenceDesign is an OS platform family, such as "Google_Reef".
-type ReferenceDesign string
-
 // targetBuildResult is a conglomeration of data about a build and how to test it.
 type targetBuildResult struct {
 	buildTarget       BuildTarget
@@ -55,25 +52,17 @@ func CreateTestPlan(
 		btBuildReports[BuildTarget(br.BuildTarget)] = *br
 	}
 
-	refToBuildTargets := make(map[ReferenceDesign][]BuildTarget)
-	for _, br := range buildReports {
-		if br.ReferenceDesign != "" {
-			ref := ReferenceDesign(br.ReferenceDesign)
-			refToBuildTargets[ref] = append(refToBuildTargets[ref], BuildTarget(br.BuildTarget))
-		}
-	}
-
 	// BuildTargets for which HW or VM testing may be skipped, due to source tree configuration.
 	skippableTests, err := extractSkippableTests(sourceTreeCfg, buildReports)
 	if err != nil {
 		return testPlan, err
 	}
 
-	// List of builds that will actually be tested, e.g. one per reference design or build target.
+	// List of builds that will actually be tested, e.g. one per build target.
 	targetBuildResults := make([]targetBuildResult, 0)
 perTargetTestReq:
 	for _, pttr := range targetTestReqs.PerTargetTestRequirements {
-		tbr, err := selectBuildForRequirements(pttr, refToBuildTargets, btBuildReports)
+		tbr, err := selectBuildForRequirements(pttr, btBuildReports)
 		if err != nil {
 			return testPlan, err
 		}
@@ -177,29 +166,25 @@ func extractSkippableTests(sourceTreeCfg *testplans.SourceTreeTestCfg, buildRepo
 }
 
 // selectBuildForRequirements finds a build that best matches the provided PerTargetTestRequirements.
-// e.g. if the requirements want a build for a Google_Reef reference design, this method will find
-// a successful, non-early-terminated Google_Reef-based built target.
+// e.g. if the requirements want a build for a reef build target, this method will find a successful,
+// non-early-terminated build.
 func selectBuildForRequirements(
 	pttr *testplans.PerTargetTestRequirements,
-	refToBuildTargets map[ReferenceDesign][]BuildTarget,
 	buildReports map[BuildTarget]testplans.BuildReport) (*targetBuildResult, error) {
 
 	log.Printf("Considering testing for TargetCritera %v", pttr.TargetCriteria)
 	var eligibleBuildTargets []BuildTarget
-	if pttr.TargetCriteria.GetReferenceDesign() != "" {
-		eligibleBuildTargets = refToBuildTargets[ReferenceDesign(pttr.TargetCriteria.GetReferenceDesign())]
-	} else if pttr.TargetCriteria.GetBuildTarget() != "" {
-		eligibleBuildTargets = []BuildTarget{BuildTarget(pttr.TargetCriteria.GetBuildTarget())}
-	} else {
-		return nil, errors.New("found a PerTargetTestRequirement without a build target or reference design")
+	if pttr.TargetCriteria.GetBuildTarget() == "" {
+		return nil, errors.New("found a PerTargetTestRequirement without a build target")
 	}
+	eligibleBuildTargets = []BuildTarget{BuildTarget(pttr.TargetCriteria.GetBuildTarget())}
 	bt, err := pickBuilderToTest(eligibleBuildTargets, buildReports)
 	if err != nil {
 		// Expected when a necessary builder failed, and thus we cannot continue with testing.
 		return nil, err
 	}
 	if bt == nil {
-		// There are no builds for this reference design, so this PerTargetTestRequirement is
+		// There are no builds for these test criteria, so this PerTargetTestRequirement is
 		// irrelevant. Continue on to the next one.
 		// This happens when no build was relevant due to an EarlyTerminationStatus.
 		return nil, nil
@@ -213,15 +198,11 @@ func selectBuildForRequirements(
 
 // schedulingReqs translates TargetCriteria into SchedulingRequirements.
 func (tbr targetBuildResult) schedulingReqs() (testplans.SchedulingRequirements, error) {
-	if tbr.perTargetTestReqs.TargetCriteria.GetReferenceDesign() != "" {
-		return testplans.SchedulingRequirements{TargetType: &testplans.SchedulingRequirements_ReferenceDesign{
-			ReferenceDesign: tbr.perTargetTestReqs.TargetCriteria.GetReferenceDesign()}}, nil
-	} else if tbr.perTargetTestReqs.TargetCriteria.GetBuildTarget() != "" {
+	if tbr.perTargetTestReqs.TargetCriteria.GetBuildTarget() != "" {
 		return testplans.SchedulingRequirements{TargetType: &testplans.SchedulingRequirements_BuildTarget{
 			BuildTarget: tbr.perTargetTestReqs.TargetCriteria.GetBuildTarget()}}, nil
-	} else {
-		return testplans.SchedulingRequirements{}, fmt.Errorf("No TargetCritera for %v", tbr)
 	}
+	return testplans.SchedulingRequirements{}, fmt.Errorf("No TargetCritera for %v", tbr)
 }
 
 // pickBuilderToTest returns up to one BuildTarget that should be tested, out of the provided slice

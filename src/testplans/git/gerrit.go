@@ -11,12 +11,22 @@ import (
 	"net/http"
 )
 
+// ChangeRevKey is the necessary set of data for looking up a single Gerrit revision.
+type ChangeRevKey struct {
+	Host      string
+	ChangeNum int64
+	Revision  int32
+}
+
+func (cik ChangeRevKey) String() string {
+	return fmt.Sprintf("%s:%d:%d", cik.Host, cik.ChangeNum, cik.Revision)
+}
+
 // ChangeRev contains data about a Gerrit change,revision pair.
 type ChangeRev struct {
-	ChangeNum int64
-	Project   string
-	Revision  int32
-	Files     []string
+	ChangeRevKey
+	Project string
+	Files   []string
 }
 
 var (
@@ -47,16 +57,61 @@ func GetChangeRev(authedClient *http.Client, ctx context.Context, changeNum int6
 	for _, v := range ch.GetRevisions() {
 		if v.Number == revision {
 			return &ChangeRev{
-				ChangeNum: ch.Number,
-				Project:   ch.Project,
-				Revision:  v.Number,
-				Files:     getKeys(v.Files),
+				ChangeRevKey: ChangeRevKey{
+					Host:      host,
+					ChangeNum: ch.Number,
+					Revision:  v.Number,
+				},
+				Project: ch.Project,
+				Files:   getKeys(v.Files),
 			}, nil
 		}
 	}
 	return nil, fmt.Errorf("found no revision %d for change %d on host %s", revision, changeNum, host)
 }
 
+// ChangeRevData encapsulates a bunch of Gerrit change revisions.
+type ChangeRevData struct {
+	m map[string]*ChangeRev
+}
+
+// GetChangeRev extracts a single Gerrit change revision from the ChangeRevData.
+func (crv ChangeRevData) GetChangeRev(host string, changeNum int64, revision int32) (*ChangeRev, error) {
+	key := ChangeRevKey{Host: host, ChangeNum: changeNum, Revision: revision}.String()
+	val, found := crv.m[key]
+	if !found {
+		return nil, fmt.Errorf("No ChangeRev found for key %s", key)
+	}
+	return val, nil
+}
+
+// GetChangeRevData fetches the Gerrit changes for the provided ChangeIdKeys, and bundles the result
+// into a ChangeRevData.
+func GetChangeRevData(authedClient *http.Client, ctx context.Context, changeIds []ChangeRevKey) (*ChangeRevData, error) {
+	output := &ChangeRevData{m: make(map[string]*ChangeRev)}
+	for _, c := range changeIds {
+		if _, exists := output.m[c.String()]; !exists {
+			cr, err := GetChangeRev(authedClient, ctx, c.ChangeNum, c.Revision, c.Host)
+			if err != nil {
+				return output, err
+			}
+			output.m[c.String()] = cr
+		}
+	}
+	return output, nil
+}
+
+// GetChangeRevForTest is intended for testing only, and it allows creation of a ChangeRevData
+// through the supplied ChangeRevs.
+func GetChangeRevsForTest(cr []*ChangeRev) *ChangeRevData {
+	output := &ChangeRevData{m: make(map[string]*ChangeRev)}
+	for _, c := range cr {
+		output.m[c.String()] = c
+	}
+	return output
+}
+
+// getKeys extracts the keyset from the provided map.
 func getKeys(m map[string]*gerritpb.FileInfo) []string {
 	keys := make([]string, 0)
 	for k := range m {

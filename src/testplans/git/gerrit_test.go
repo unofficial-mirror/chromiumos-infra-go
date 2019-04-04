@@ -41,9 +41,11 @@ func TestGetChangeRev_success(t *testing.T) {
 	mockGerrit = gerritMock
 
 	expectedChRev := &ChangeRev{
-		ChangeNum: changeNum,
-		Revision:  revision,
-		Project:   project,
+		ChangeRevKey: ChangeRevKey{
+			ChangeNum: changeNum,
+			Revision:  revision,
+		},
+		Project: project,
 		Files: []string{
 			"/file/1",
 			"/file/2",

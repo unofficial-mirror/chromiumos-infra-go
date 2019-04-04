@@ -7,20 +7,23 @@ import (
 	"bytes"
 	"context"
 	"flag"
+	"github.com/golang/protobuf/jsonpb"
+	"github.com/golang/protobuf/proto"
 	"github.com/maruel/subcommands"
+	"go.chromium.org/chromiumos/infra/proto/go/testplans"
 	"go.chromium.org/luci/auth"
 	"go.chromium.org/luci/auth/client/authcli"
+	bbproto "go.chromium.org/luci/buildbucket/proto"
 	"go.chromium.org/luci/common/api/gerrit"
 	"go.chromium.org/luci/common/cli"
 	"go.chromium.org/luci/hardcoded/chromeinfra"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"testplans/generator"
-
-	"github.com/golang/protobuf/jsonpb"
-	"github.com/golang/protobuf/proto"
-	"go.chromium.org/chromiumos/infra/proto/go/testplans"
+	"testplans/git"
+	"testplans/repo"
 )
 
 func cmdGenTestPlan(authOpts auth.Options) *subcommands.Command {
@@ -44,8 +47,19 @@ type getTestPlanRun struct {
 	outputJson string
 }
 
+func fetchClData(authedClient *http.Client, ctx context.Context, bbBuilds []*bbproto.Build) (*git.ChangeRevData, error) {
+	changeIds := make([]git.ChangeRevKey, 0)
+	for _, build := range bbBuilds {
+		for _, ch := range build.Input.GerritChanges {
+			changeIds = append(changeIds, git.ChangeRevKey{Host: ch.Host, ChangeNum: ch.Change, Revision: int32(ch.Patchset)})
+		}
+	}
+	return git.GetChangeRevData(authedClient, ctx, changeIds)
+}
+
 func (c *getTestPlanRun) Run(a subcommands.Application, args []string, env subcommands.Env) int {
 	flag.Parse()
+	// TODO(seanabraham@chromium.org): Break up this method into smaller ones.
 
 	inputBytes, err := ioutil.ReadFile(c.inputJson)
 	if err != nil {
@@ -57,6 +71,13 @@ func (c *getTestPlanRun) Run(a subcommands.Application, args []string, env subco
 		log.Printf("Couldn't decode %s as a GenerateTestPlanRequest\n%v", c.inputJson, err)
 		return 2
 	}
+
+	// Run the repo tool to get a mapping from Gerrit project to source root.
+	if req.ChromiumosCheckoutRoot == "" {
+		log.Printf("Must set request ChromiumosCheckoutRoot")
+		return 14
+	}
+	repoToSrcRoot := repo.GetRepoToSourceRoot(req.ChromiumosCheckoutRoot)
 
 	// Read the SourceTreeConfig JSON file into a proto.
 	sourceTreeBytes, err := ioutil.ReadFile(req.SourceTreeConfigPath)
@@ -87,22 +108,38 @@ func (c *getTestPlanRun) Run(a subcommands.Application, args []string, env subco
 	log.Printf(
 		"Read TargetTestRequirementsCfg:\n%s", proto.MarshalTextString(testReqsConfig))
 
-	buildReports := make([]*testplans.BuildReport, 0)
-	for _, brPath := range req.BuildReportPath {
-		buildReportBytes, err := ioutil.ReadFile(brPath.FilePath)
+	// Read the Buildbucket Build protos.
+	bbBuilds := make([]*bbproto.Build, 0)
+	for _, bbBuildPath := range req.BuildbucketBuildPath {
+		bbBuildBytes, err := ioutil.ReadFile(bbBuildPath.FilePath)
 		if err != nil {
 			log.Printf("Failed reading build_report_path\n%v", err)
 			return 7
 		}
-		buildReport := &testplans.BuildReport{}
-		if err := jsonpb.Unmarshal(bytes.NewReader(buildReportBytes), buildReport); err != nil {
-			log.Printf("Couldn't decode %s as a BuildReport\n%v", req.BuildReportPath, err)
+		bbBuild := &bbproto.Build{}
+		if err := jsonpb.Unmarshal(bytes.NewReader(bbBuildBytes), bbBuild); err != nil {
+			log.Printf("Couldn't decode %s as a Buildbucket Build\n%v", bbBuildPath, err)
 			return 8
 		}
-		buildReports = append(buildReports, buildReport)
+		bbBuilds = append(bbBuilds, bbBuild)
 	}
 
-	testPlan, err := generator.CreateTestPlan(testReqsConfig, sourceTreeConfig, buildReports)
+	// Create an authenticated client for Gerrit RPCs, then fetch all required CL data from Gerrit.
+	ctx := context.Background()
+	authenticator := auth.NewAuthenticator(ctx, auth.SilentLogin, c.authOpts)
+	authedClient, err := authenticator.Client()
+	if err != nil {
+		log.Print(err)
+		return 12
+	}
+	changeRevs, err := fetchClData(authedClient, ctx, bbBuilds)
+	if err != nil {
+		log.Print(err)
+		return 13
+	}
+
+	// And finally, run the test plan generator itself!
+	testPlan, err := generator.CreateTestPlan(testReqsConfig, sourceTreeConfig, bbBuilds, changeRevs, repoToSrcRoot)
 	if err != nil {
 		log.Printf("Error creating test plan:\n%v", err)
 		return 9

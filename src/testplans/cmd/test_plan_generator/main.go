@@ -33,7 +33,8 @@ func cmdGenTestPlan(authOpts auth.Options) *subcommands.Command {
 		LongDesc:  "Generates a test plan",
 		CommandRun: func() subcommands.CommandRun {
 			c := &getTestPlanRun{}
-			c.authOpts = authOpts
+			c.authFlags = authcli.Flags{}
+			c.authFlags.Register(c.GetFlags(), authOpts)
 			c.Flags.StringVar(&c.inputJson, "input_json", "", "Path to JSON proto representing a GenerateTestPlanRequest")
 			c.Flags.StringVar(&c.outputJson, "output_json", "", "Path to file to write output GenerateTestPlanResponse JSON proto")
 			return c
@@ -42,7 +43,7 @@ func cmdGenTestPlan(authOpts auth.Options) *subcommands.Command {
 
 type getTestPlanRun struct {
 	subcommands.CommandRunBase
-	authOpts   auth.Options
+	authFlags  authcli.Flags
 	inputJson  string
 	outputJson string
 }
@@ -60,6 +61,19 @@ func fetchClData(authedClient *http.Client, ctx context.Context, bbBuilds []*bbp
 func (c *getTestPlanRun) Run(a subcommands.Application, args []string, env subcommands.Env) int {
 	flag.Parse()
 	// TODO(seanabraham@chromium.org): Break up this method into smaller ones.
+
+	// Do auth needed for Gerrit RPCs.
+	ctx := context.Background()
+	authOpts, err := c.authFlags.Options()
+	if err != nil {
+		log.Print(err)
+		return 16
+	}
+	authedClient, err := auth.NewAuthenticator(ctx, auth.SilentLogin, authOpts).Client()
+	if err != nil {
+		log.Print(err)
+		return 12
+	}
 
 	inputBytes, err := ioutil.ReadFile(c.inputJson)
 	if err != nil {
@@ -129,16 +143,10 @@ func (c *getTestPlanRun) Run(a subcommands.Application, args []string, env subco
 	}
 
 	// Create an authenticated client for Gerrit RPCs, then fetch all required CL data from Gerrit.
-	ctx := context.Background()
-	authenticator := auth.NewAuthenticator(ctx, auth.SilentLogin, c.authOpts)
-	authedClient, err := authenticator.Client()
-	if err != nil {
-		log.Print(err)
-		return 12
-	}
 	changeRevs, err := fetchClData(authedClient, ctx, bbBuilds)
 	if err != nil {
-		log.Print(err)
+		log.Printf("Failed to fetch CL data from Gerrit. "+
+			"Note that a NotFound error may indicate authorization issues.\n%v", err)
 		return 13
 	}
 
@@ -163,7 +171,7 @@ func (c *getTestPlanRun) Run(a subcommands.Application, args []string, env subco
 	return 0
 }
 
-func GetApplication(defaultAuthOpts auth.Options) *cli.Application {
+func GetApplication(authOpts auth.Options) *cli.Application {
 	return &cli.Application{
 		Name: "test_planner",
 
@@ -172,10 +180,10 @@ func GetApplication(defaultAuthOpts auth.Options) *cli.Application {
 		},
 
 		Commands: []*subcommands.Command{
-			authcli.SubcommandInfo(defaultAuthOpts, "auth-info", false),
-			authcli.SubcommandLogin(defaultAuthOpts, "auth-login", false),
-			authcli.SubcommandLogout(defaultAuthOpts, "auth-logout", false),
-			cmdGenTestPlan(defaultAuthOpts),
+			authcli.SubcommandInfo(authOpts, "auth-info", false),
+			authcli.SubcommandLogin(authOpts, "auth-login", false),
+			authcli.SubcommandLogout(authOpts, "auth-logout", false),
+			cmdGenTestPlan(authOpts),
 		},
 	}
 }

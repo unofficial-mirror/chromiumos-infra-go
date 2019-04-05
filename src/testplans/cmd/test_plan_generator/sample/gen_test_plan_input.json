@@ -1,0 +1,13 @@
+{
+	"chromiumos_checkout_root": "REPLACE_WITH_PATH_TO_YOUR_CHROMIUMOS_REPO",
+	"buildbucket_build_path": [
+		{
+			"file_path": "REPLACE_WITH_PATH_TO_THIS_DIRECTORY/build_bucket_build_1.cfg"
+		},
+		{
+			"file_path": "REPLACE_WITH_PATH_TO_THIS_DIRECTORY/build_bucket_build_2.cfg"
+		}
+	],
+	"source_tree_config_path": "REPLACE_WITH_PATH_TO_CHROMEOS_INFRA_CONFIG_CHECKOUT/config/testingconfig/generated/source_tree_test_config.cfg",
+	"target_test_requirements_path": "REPLACE_WITH_PATH_TO_CHROMEOS_INFRA_CONFIG_CHECKOUT/config/testingconfig/generated/target_test_requirements.cfg"
+}

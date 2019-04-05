@@ -6,9 +6,10 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"flag"
+	"fmt"
 	"github.com/golang/protobuf/jsonpb"
-	"github.com/golang/protobuf/proto"
 	"github.com/maruel/subcommands"
 	"go.chromium.org/chromiumos/infra/proto/go/testplans"
 	"go.chromium.org/luci/auth"
@@ -19,7 +20,6 @@ import (
 	"go.chromium.org/luci/hardcoded/chromeinfra"
 	"io/ioutil"
 	"log"
-	"net/http"
 	"os"
 	"testplans/generator"
 	"testplans/git"
@@ -41,6 +41,50 @@ func cmdGenTestPlan(authOpts auth.Options) *subcommands.Command {
 		}}
 }
 
+func (c *getTestPlanRun) Run(a subcommands.Application, args []string, env subcommands.Env) int {
+	flag.Parse()
+
+	req, err := c.readInputJson()
+	if err != nil {
+		log.Print(err)
+		return 1
+	}
+
+	sourceTreeConfig, testReqsConfig, err := readConfigFiles(req.SourceTreeConfigPath, req.TargetTestRequirementsPath)
+	if err != nil {
+		log.Print(err)
+		return 2
+	}
+	bbBuilds, err := readBuildbucketBuilds(req.BuildbucketBuildPath)
+	if err != nil {
+		log.Print(err)
+		return 3
+	}
+
+	changeRevs, err := c.fetchGerritData(bbBuilds)
+	if err != nil {
+		log.Print(err)
+		return 4
+	}
+	repoToSrcRoot, err := getRepoToSourceRoot(req.ChromiumosCheckoutRoot)
+	if err != nil {
+		log.Print(err)
+		return 5
+	}
+
+	testPlan, err := generator.CreateTestPlan(testReqsConfig, sourceTreeConfig, bbBuilds, changeRevs, *repoToSrcRoot)
+	if err != nil {
+		log.Printf("Error creating test plan:\n%v", err)
+		return 6
+	}
+
+	if err = c.writeOutputJson(testPlan); err != nil {
+		log.Print(err)
+		return 7
+	}
+	return 0
+}
+
 type getTestPlanRun struct {
 	subcommands.CommandRunBase
 	authFlags  authcli.Flags
@@ -48,127 +92,107 @@ type getTestPlanRun struct {
 	outputJson string
 }
 
-func fetchClData(authedClient *http.Client, ctx context.Context, bbBuilds []*bbproto.Build) (*git.ChangeRevData, error) {
+func (c *getTestPlanRun) readInputJson() (*testplans.GenerateTestPlanRequest, error) {
+	inputBytes, err := ioutil.ReadFile(c.inputJson)
+	if err != nil {
+		return nil, fmt.Errorf("Failed reading input_json\n%v", err)
+	}
+	req := &testplans.GenerateTestPlanRequest{}
+	if err := jsonpb.Unmarshal(bytes.NewReader(inputBytes), req); err != nil {
+		return nil, fmt.Errorf("Couldn't decode %s as a GenerateTestPlanRequest\n%v", c.inputJson, err)
+	}
+	return req, nil
+}
+
+func readConfigFiles(sourceTreeConfigPath, targetTestRequirementsPath string) (*testplans.SourceTreeTestCfg, *testplans.TargetTestRequirementsCfg, error) {
+	// Read the SourceTreeConfig JSON file into a proto.
+	sourceTreeBytes, err := ioutil.ReadFile(sourceTreeConfigPath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed reading source_tree_config_path\n%v", err)
+	}
+	sourceTreeConfig := &testplans.SourceTreeTestCfg{}
+	if err := jsonpb.Unmarshal(bytes.NewReader(sourceTreeBytes), sourceTreeConfig); err != nil {
+		return nil, nil, fmt.Errorf("Couldn't decode %s as a SourceTreeTestCfg\n%v", sourceTreeConfigPath, err)
+	}
+
+	// Read the TargetTestRequirements JSON file into a proto.
+	testReqsBytes, err := ioutil.ReadFile(targetTestRequirementsPath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed reading target_test_requirements_path\n%s", err)
+	}
+	testReqsConfig := &testplans.TargetTestRequirementsCfg{}
+	if err := jsonpb.Unmarshal(bytes.NewReader(testReqsBytes), testReqsConfig); err != nil {
+		return nil, nil, fmt.Errorf("Couldn't decode %s as a TargetTestRequirementsCfg\n%s",
+			targetTestRequirementsPath, err)
+	}
+	return sourceTreeConfig, testReqsConfig, nil
+}
+
+func readBuildbucketBuilds(bbBuildPaths []*testplans.FilePath) ([]*bbproto.Build, error) {
+	bbBuilds := make([]*bbproto.Build, 0)
+	for _, bbBuildPath := range bbBuildPaths {
+		bbBuildBytes, err := ioutil.ReadFile(bbBuildPath.FilePath)
+		if err != nil {
+			return bbBuilds, fmt.Errorf("Failed reading build_report_path\n%v", err)
+		}
+		bbBuild := &bbproto.Build{}
+		if err := jsonpb.Unmarshal(bytes.NewReader(bbBuildBytes), bbBuild); err != nil {
+			return bbBuilds, fmt.Errorf("Couldn't decode %s as a Buildbucket Build\n%v", bbBuildPath, err)
+		}
+		bbBuilds = append(bbBuilds, bbBuild)
+	}
+	return bbBuilds, nil
+}
+
+func (c *getTestPlanRun) fetchGerritData(bbBuilds []*bbproto.Build) (*git.ChangeRevData, error) {
+	// Create an authenticated client for Gerrit RPCs, then fetch all required CL data from Gerrit.
+	ctx := context.Background()
+	authOpts, err := c.authFlags.Options()
+	if err != nil {
+		return nil, err
+	}
+	authedClient, err := auth.NewAuthenticator(ctx, auth.SilentLogin, authOpts).Client()
+	if err != nil {
+		return nil, err
+	}
 	changeIds := make([]git.ChangeRevKey, 0)
 	for _, build := range bbBuilds {
 		for _, ch := range build.Input.GerritChanges {
 			changeIds = append(changeIds, git.ChangeRevKey{Host: ch.Host, ChangeNum: ch.Change, Revision: int32(ch.Patchset)})
 		}
 	}
-	return git.GetChangeRevData(authedClient, ctx, changeIds)
+	chRevData, err := git.GetChangeRevData(authedClient, ctx, changeIds)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to fetch CL data from Gerrit. "+
+				"Note that a NotFound error may indicate authorization issues.\n%v", err)
+	}
+	return chRevData, nil
 }
 
-func (c *getTestPlanRun) Run(a subcommands.Application, args []string, env subcommands.Env) int {
-	flag.Parse()
-	// TODO(seanabraham@chromium.org): Break up this method into smaller ones.
-
-	// Do auth needed for Gerrit RPCs.
-	ctx := context.Background()
-	authOpts, err := c.authFlags.Options()
-	if err != nil {
-		log.Print(err)
-		return 16
-	}
-	authedClient, err := auth.NewAuthenticator(ctx, auth.SilentLogin, authOpts).Client()
-	if err != nil {
-		log.Print(err)
-		return 12
-	}
-
-	inputBytes, err := ioutil.ReadFile(c.inputJson)
-	if err != nil {
-		log.Printf("Failed reading input_json\n%v", err)
-		return 1
-	}
-	req := &testplans.GenerateTestPlanRequest{}
-	if err := jsonpb.Unmarshal(bytes.NewReader(inputBytes), req); err != nil {
-		log.Printf("Couldn't decode %s as a GenerateTestPlanRequest\n%v", c.inputJson, err)
-		return 2
-	}
-
+func getRepoToSourceRoot(chromiumosCheckoutRoot string) (*map[string]string, error) {
 	// Run the repo tool to get a mapping from Gerrit project to source root.
-	if req.ChromiumosCheckoutRoot == "" {
+	if chromiumosCheckoutRoot == "" {
 		log.Printf("Must set request ChromiumosCheckoutRoot")
-		return 14
+		return nil, errors.New("Must set request ChromiumosCheckoutRoot")
 	}
-	repoToSrcRoot, err := repo.GetRepoToSourceRoot(req.ChromiumosCheckoutRoot)
+	repoToSrcRoot, err := repo.GetRepoToSourceRoot(chromiumosCheckoutRoot)
 	if err != nil {
-		log.Printf("Error with repo tool call\n%v", err)
-		return 15
+		return nil, fmt.Errorf("Error with repo tool call\n%v", err)
 	}
+	return &repoToSrcRoot, nil
+}
 
-	// Read the SourceTreeConfig JSON file into a proto.
-	sourceTreeBytes, err := ioutil.ReadFile(req.SourceTreeConfigPath)
-	if err != nil {
-		log.Printf("Failed reading source_tree_config_path\n%v", err)
-		return 3
-	}
-	sourceTreeConfig := &testplans.SourceTreeTestCfg{}
-	if err := jsonpb.Unmarshal(bytes.NewReader(sourceTreeBytes), sourceTreeConfig); err != nil {
-		log.Printf("Couldn't decode %s as a SourceTreeTestCfg\n%v", req.SourceTreeConfigPath, err)
-		return 4
-	}
-	log.Printf("Read SourceTreeTestCfg:\n%s", proto.MarshalTextString(sourceTreeConfig))
-
-	// Read the TargetTestRequirements JSON file into a proto.
-	testReqsBytes, err := ioutil.ReadFile(req.TargetTestRequirementsPath)
-	if err != nil {
-		log.Printf("Failed reading target_test_requirements_path\n%s", err)
-		return 5
-	}
-	testReqsConfig := &testplans.TargetTestRequirementsCfg{}
-	if err := jsonpb.Unmarshal(bytes.NewReader(testReqsBytes), testReqsConfig); err != nil {
-		log.Printf(
-			"Couldn't decode %s as a TargetTestRequirementsCfg\n%s",
-			req.TargetTestRequirementsPath, err)
-		return 6
-	}
-	log.Printf(
-		"Read TargetTestRequirementsCfg:\n%s", proto.MarshalTextString(testReqsConfig))
-
-	// Read the Buildbucket Build protos.
-	bbBuilds := make([]*bbproto.Build, 0)
-	for _, bbBuildPath := range req.BuildbucketBuildPath {
-		bbBuildBytes, err := ioutil.ReadFile(bbBuildPath.FilePath)
-		if err != nil {
-			log.Printf("Failed reading build_report_path\n%v", err)
-			return 7
-		}
-		bbBuild := &bbproto.Build{}
-		if err := jsonpb.Unmarshal(bytes.NewReader(bbBuildBytes), bbBuild); err != nil {
-			log.Printf("Couldn't decode %s as a Buildbucket Build\n%v", bbBuildPath, err)
-			return 8
-		}
-		bbBuilds = append(bbBuilds, bbBuild)
-	}
-
-	// Create an authenticated client for Gerrit RPCs, then fetch all required CL data from Gerrit.
-	changeRevs, err := fetchClData(authedClient, ctx, bbBuilds)
-	if err != nil {
-		log.Printf("Failed to fetch CL data from Gerrit. "+
-			"Note that a NotFound error may indicate authorization issues.\n%v", err)
-		return 13
-	}
-
-	// And finally, run the test plan generator itself!
-	testPlan, err := generator.CreateTestPlan(testReqsConfig, sourceTreeConfig, bbBuilds, changeRevs, repoToSrcRoot)
-	if err != nil {
-		log.Printf("Error creating test plan:\n%v", err)
-		return 9
-	}
-
+func (c *getTestPlanRun) writeOutputJson(tp *testplans.GenerateTestPlanResponse) error {
 	marshal := &jsonpb.Marshaler{EmitDefaults: true, Indent: "  "}
-	jsonOutput, err := marshal.MarshalToString(testPlan)
+	jsonOutput, err := marshal.MarshalToString(tp)
 	if err != nil {
-		log.Printf("Failed to marshal %v\n%v", testPlan, err)
-		return 10
+		return fmt.Errorf("Failed to marshal %v\n%v", tp, err)
 	}
 	if err = ioutil.WriteFile(c.outputJson, []byte(jsonOutput), 0644); err != nil {
-		log.Printf("Failed to write output JSON!\n%v", err)
-		return 11
+		return fmt.Errorf("Failed to write output JSON!\n%v", err)
 	}
 	log.Printf("Wrote output to %s", c.outputJson)
-	return 0
+	return nil
 }
 
 func GetApplication(authOpts auth.Options) *cli.Application {

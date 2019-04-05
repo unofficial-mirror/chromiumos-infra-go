@@ -77,7 +77,11 @@ func (c *getTestPlanRun) Run(a subcommands.Application, args []string, env subco
 		log.Printf("Must set request ChromiumosCheckoutRoot")
 		return 14
 	}
-	repoToSrcRoot := repo.GetRepoToSourceRoot(req.ChromiumosCheckoutRoot)
+	repoToSrcRoot, err := repo.GetRepoToSourceRoot(req.ChromiumosCheckoutRoot)
+	if err != nil {
+		log.Printf("Error with repo tool call\n%v", err)
+		return 15
+	}
 
 	// Read the SourceTreeConfig JSON file into a proto.
 	sourceTreeBytes, err := ioutil.ReadFile(req.SourceTreeConfigPath)

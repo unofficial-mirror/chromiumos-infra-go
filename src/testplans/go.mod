@@ -8,6 +8,7 @@ require (
 	github.com/google/go-cmp v0.2.0
 	github.com/maruel/subcommands v0.0.0-20181220013616-967e945be48b // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
+	github.com/mvo5/goconfigparser v0.0.0-20190308092147-6a365a5a3f41 // indirect
 	github.com/texttheater/golang-levenshtein v0.0.0-20180516184445-d188e65d659e // indirect
 	go.chromium.org/chromiumos/infra/proto/go v0.0.0-20190404200257-eb49fd0099e8
 	go.chromium.org/luci v0.0.0-20190404171609-14fb4fbce8ea

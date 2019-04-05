@@ -36,7 +36,7 @@ func getConfigs() map[string]*goconfigparser.ConfigParser {
 	testDir, err := os.Stat(path.Join(*rootDir, "chromite"))
 	if err != nil || !testDir.IsDir() {
 		log.Fatal("Expected to find a chromite subdirectory of --root-dir. Are you sure that " +
-				"--root-dir points to a chromiumos repo checkout?")
+			"--root-dir points to a chromiumos repo checkout?")
 	}
 	values := make(map[string]*goconfigparser.ConfigParser)
 	err = filepath.Walk(*rootDir, func(path string, f os.FileInfo, err error) error {

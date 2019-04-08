@@ -256,7 +256,8 @@ func pickBuilderToTest(buildTargets []BuildTarget, btBuildReports map[BuildTarge
 			return &bt, nil
 		}
 	}
-	return nil, fmt.Errorf("can't test for build target(s) %v because all builders failed", buildTargets)
+	log.Printf("can't test for build target(s) %v because all builders failed\n", buildTargets)
+	return nil, nil
 }
 
 // canDisableTesting determines whether a particular testing type is unnecessary for a given

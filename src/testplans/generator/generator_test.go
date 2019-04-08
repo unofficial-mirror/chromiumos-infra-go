@@ -124,6 +124,69 @@ func TestCreateCombinedTestPlan_success(t *testing.T) {
 	}
 }
 
+func TestCreateCombinedTestPlan_successDespiteOneFailedBuilder(t *testing.T) {
+	// In this test, the kevin builder failed, so the output test plan will not contain a test unit
+	// for kevin.
+
+	reefGceTestCfg := &testplans.GceTestCfg{GceTest: []*testplans.GceTestCfg_GceTest{
+		{TestType: "GCE reef"},
+	}}
+	kevinVMTestCfg := &testplans.VmTestCfg{VmTest: []*testplans.VmTestCfg_VmTest{
+		{TestType: "VM kevin"},
+	}}
+	testReqs := &testplans.TargetTestRequirementsCfg{
+		PerTargetTestRequirements: []*testplans.PerTargetTestRequirements{
+			{TargetCriteria: &testplans.TargetCriteria{
+				TargetType: &testplans.TargetCriteria_BuildTarget{BuildTarget: "reef"}},
+				GceTestCfg: reefGceTestCfg},
+			{TargetCriteria: &testplans.TargetCriteria{
+				TargetType: &testplans.TargetCriteria_BuildTarget{BuildTarget: "kevin"}},
+				VmTestCfg: kevinVMTestCfg},
+		},
+	}
+	sourceTreeTestCfg := &testplans.SourceTreeTestCfg{
+		SourceTreeTestRestriction: []*testplans.SourceTreeTestRestriction{
+			{SourceTree: &testplans.SourceTree{Path: "hw/tests/not/needed/here"},
+				TestRestriction: &testplans.TestRestriction{DisableHwTests: true}}}}
+	bbBuilds := []*bbproto.Build{
+		makeBuildbucketBuild("kevin", bbproto.Status_FAILURE, []*bbproto.GerritChange{
+			{Host: "test-review.googlesource.com", Change: 123, Patchset: 2},
+		}),
+		makeBuildbucketBuild("reef", bbproto.Status_SUCCESS, []*bbproto.GerritChange{
+			{Host: "test-review.googlesource.com", Change: 123, Patchset: 2},
+		}),
+	}
+	chRevData := git.GetChangeRevsForTest([]*git.ChangeRev{
+		{
+			ChangeRevKey: git.ChangeRevKey{
+				Host:      "test-review.googlesource.com",
+				ChangeNum: 123,
+				Revision:  2,
+			},
+			Project: "chromiumos/repo/name",
+			Files:   []string{"a/b/c"},
+		},
+	})
+	repoToSrcRoot := map[string]string{"chromiumos/repo/name": "src/to/file"}
+
+	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, chRevData, repoToSrcRoot)
+	if err != nil {
+		t.Error(err)
+	}
+
+	expectedTestPlan := &testplans.GenerateTestPlanResponse{
+		TestUnit: []*testplans.TestUnit{
+			{SchedulingRequirements: &testplans.SchedulingRequirements{
+				TargetType: &testplans.SchedulingRequirements_BuildTarget{
+					BuildTarget: "reef"}},
+				TestCfg: &testplans.TestUnit_GceTestCfg{GceTestCfg: reefGceTestCfg}},
+		}}
+
+	if diff := cmp.Diff(expectedTestPlan, actualTestPlan); diff != "" {
+		t.Errorf("CreateCombinedTestPlan bad result (-want/+got)\n%s", diff)
+	}
+}
+
 func TestCreateCombinedTestPlan_skipsUnnecessaryHardwareTest(t *testing.T) {
 	kevinHWTestCfg := &testplans.HwTestCfg{HwTest: []*testplans.HwTestCfg_HwTest{
 		{Suite: "HW kevin"},

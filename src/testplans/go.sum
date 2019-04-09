@@ -123,6 +123,7 @@ go.chromium.org/chromiumos/infra/proto v0.0.0-20190404172825-1f5546132853 h1:vwa
 go.chromium.org/chromiumos/infra/proto v0.0.0-20190404172825-1f5546132853/go.mod h1:iVW1SALLZE5lx9/iMexcc242WJddrJ+ZkD22Inegxoo=
 go.chromium.org/chromiumos/infra/proto v0.0.0-20190404185805-5d3b75d61dd7 h1:BTE19gLRTgb/ILa1lGCOQnr+JQx1bnE38tkrGJoeHII=
 go.chromium.org/chromiumos/infra/proto v0.0.0-20190404200257-eb49fd0099e8 h1:yoeRHmiOAwg8cmRGExAhhj/1JAAOwpV+F8k4fE78FQI=
+go.chromium.org/chromiumos/infra/proto v0.0.0-20190409164829-d91e8295a7fb h1:D+vC2kHNBiTlWLatBU3coVsjfJuRg5mIJZ6HUF8oRUY=
 go.chromium.org/chromiumos/infra/proto/go v0.0.0-20190315222105-98d1d5f3c819 h1:idF61iXmgF6FimRDdOKpuNraadYEnowSX78pdEefFXA=
 go.chromium.org/chromiumos/infra/proto/go v0.0.0-20190315222105-98d1d5f3c819/go.mod h1:C/0YoeDZmbGtFcm5EPApFTyjr/fIS5ebDJSQJKZOEOk=
 go.chromium.org/chromiumos/infra/proto/go v0.0.0-20190404172825-1f5546132853 h1:a04nPQfnFhRnV0nOyAMaKnHqOWXPbLhezze4HGD5v8M=
@@ -131,6 +132,8 @@ go.chromium.org/chromiumos/infra/proto/go v0.0.0-20190404185805-5d3b75d61dd7 h1:
 go.chromium.org/chromiumos/infra/proto/go v0.0.0-20190404185805-5d3b75d61dd7/go.mod h1:Y1AiM5bpNKKecKy3wgiBwF9q1PJ/f57z86DpkNrMehk=
 go.chromium.org/chromiumos/infra/proto/go v0.0.0-20190404200257-eb49fd0099e8 h1:V7Dxu8ih7w2bSumW1BxmVxWQG3g1BsiAJ92SxPMiCvw=
 go.chromium.org/chromiumos/infra/proto/go v0.0.0-20190404200257-eb49fd0099e8/go.mod h1:Y1AiM5bpNKKecKy3wgiBwF9q1PJ/f57z86DpkNrMehk=
+go.chromium.org/chromiumos/infra/proto/go v0.0.0-20190409164829-d91e8295a7fb h1:cWqWZGdECKxs4YHX0be08U4ET35UfqjLK3jetupgwpY=
+go.chromium.org/chromiumos/infra/proto/go v0.0.0-20190409164829-d91e8295a7fb/go.mod h1:Y1AiM5bpNKKecKy3wgiBwF9q1PJ/f57z86DpkNrMehk=
 go.chromium.org/luci v0.0.0-20190403184148-f09562cadc12 h1:zIGy9WAiw5aaiD2UwIpv11yoqvn/TofE7sTO2fEW6Ak=
 go.chromium.org/luci v0.0.0-20190403184148-f09562cadc12/go.mod h1:MIQewVTLvOvc0UioV0JNqTNO/RspKFS0XEeoKrOxsdM=
 go.chromium.org/luci v0.0.0-20190404171609-14fb4fbce8ea h1:qf3Ri7sv3yJPL4E0iq4hBYn3AFSf2dNNJpuZDBXAT2E=

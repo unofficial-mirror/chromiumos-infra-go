@@ -104,11 +104,15 @@ func createTestUnits(
 		if err != nil {
 			return testUnits, err
 		}
+		bp := &testplans.BuildPayload{
+			ArtifactsGsBucket: tbr.buildReport.Output.Properties.Fields["artifacts"].GetStructValue().Fields["gs_bucket"].GetStringValue(),
+			ArtifactsGsPath:   tbr.buildReport.Output.Properties.Fields["artifacts"].GetStructValue().Fields["gs_path"].GetStringValue(),
+		}
 		pttr := tbr.perTargetTestReqs
 		if pttr.GceTestCfg != nil {
-			// TODO add build payload
 			testUnits = append(testUnits,
 				&testplans.TestUnit{
+					BuildPayload:           bp,
 					SchedulingRequirements: &sched,
 					TestCfg:                &testplans.TestUnit_GceTestCfg{GceTestCfg: pttr.GceTestCfg}})
 		}
@@ -116,24 +120,24 @@ func createTestUnits(
 			if skippableTests[tbr.buildTarget][hw] {
 				log.Printf("No HW testing needed for %s", tbr.buildTarget)
 			} else {
-				// TODO add build payload
 				testUnits = append(testUnits,
 					&testplans.TestUnit{
+						BuildPayload:           bp,
 						SchedulingRequirements: &sched,
 						TestCfg:                &testplans.TestUnit_HwTestCfg{HwTestCfg: pttr.HwTestCfg}})
 			}
 		}
 		if pttr.MoblabVmTestCfg != nil {
-			// TODO add build payload
 			testUnits = append(testUnits,
 				&testplans.TestUnit{
+					BuildPayload:           bp,
 					SchedulingRequirements: &sched,
 					TestCfg:                &testplans.TestUnit_MoblabVmTestCfg{MoblabVmTestCfg: pttr.MoblabVmTestCfg}})
 		}
 		if pttr.TastVmTestCfg != nil {
-			// TODO add build payload
 			testUnits = append(testUnits,
 				&testplans.TestUnit{
+					BuildPayload:           bp,
 					SchedulingRequirements: &sched,
 					TestCfg:                &testplans.TestUnit_TastVmTestCfg{TastVmTestCfg: pttr.TastVmTestCfg}})
 		}
@@ -141,9 +145,9 @@ func createTestUnits(
 			if skippableTests[tbr.buildTarget][vm] {
 				log.Printf("No VM testing needed for %s", tbr.buildTarget)
 			} else {
-				// TODO add build payload
 				testUnits = append(testUnits,
 					&testplans.TestUnit{
+						BuildPayload:           bp,
 						SchedulingRequirements: &sched,
 						TestCfg:                &testplans.TestUnit_VmTestCfg{VmTestCfg: pttr.VmTestCfg}})
 			}

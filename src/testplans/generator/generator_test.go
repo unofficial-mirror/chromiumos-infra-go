@@ -13,6 +13,11 @@ import (
 	bbproto "go.chromium.org/luci/buildbucket/proto"
 )
 
+const (
+	GS_BUCKET      = "gs://chromeos-image-archive"
+	GS_PATH_PREFIX = "gs/path/"
+)
+
 func makeBuildbucketBuild(buildTarget string, status bbproto.Status, changes []*bbproto.GerritChange) *bbproto.Build {
 	b := &bbproto.Build{
 		Input: &bbproto.Build_Input{
@@ -22,6 +27,20 @@ func makeBuildbucketBuild(buildTarget string, status bbproto.Status, changes []*
 						Kind: &_struct.Value_StructValue{StructValue: &_struct.Struct{
 							Fields: map[string]*_struct.Value{
 								"name": {Kind: &_struct.Value_StringValue{StringValue: buildTarget}},
+							},
+						}},
+					},
+				},
+			},
+		},
+		Output: &bbproto.Build_Output{
+			Properties: &_struct.Struct{
+				Fields: map[string]*_struct.Value{
+					"artifacts": {
+						Kind: &_struct.Value_StructValue{StructValue: &_struct.Struct{
+							Fields: map[string]*_struct.Value{
+								"gs_bucket": {Kind: &_struct.Value_StringValue{StringValue: GS_BUCKET}},
+								"gs_path":   {Kind: &_struct.Value_StringValue{StringValue: GS_PATH_PREFIX + buildTarget}},
 							},
 						}},
 					},
@@ -100,23 +119,43 @@ func TestCreateCombinedTestPlan_success(t *testing.T) {
 			{SchedulingRequirements: &testplans.SchedulingRequirements{
 				TargetType: &testplans.SchedulingRequirements_BuildTarget{
 					BuildTarget: "reef"}},
-				TestCfg: &testplans.TestUnit_GceTestCfg{GceTestCfg: reefGceTestCfg}},
+				TestCfg: &testplans.TestUnit_GceTestCfg{GceTestCfg: reefGceTestCfg},
+				BuildPayload: &testplans.BuildPayload{
+					ArtifactsGsBucket: GS_BUCKET,
+					ArtifactsGsPath:   GS_PATH_PREFIX + "reef",
+				}},
 			{SchedulingRequirements: &testplans.SchedulingRequirements{
 				TargetType: &testplans.SchedulingRequirements_BuildTarget{
 					BuildTarget: "reef"}},
-				TestCfg: &testplans.TestUnit_MoblabVmTestCfg{MoblabVmTestCfg: reefMoblabVmTestCfg}},
+				TestCfg: &testplans.TestUnit_MoblabVmTestCfg{MoblabVmTestCfg: reefMoblabVmTestCfg},
+				BuildPayload: &testplans.BuildPayload{
+					ArtifactsGsBucket: GS_BUCKET,
+					ArtifactsGsPath:   GS_PATH_PREFIX + "reef",
+				}},
 			{SchedulingRequirements: &testplans.SchedulingRequirements{
 				TargetType: &testplans.SchedulingRequirements_BuildTarget{
 					BuildTarget: "kevin"}},
-				TestCfg: &testplans.TestUnit_HwTestCfg{HwTestCfg: kevinHWTestCfg}},
+				TestCfg: &testplans.TestUnit_HwTestCfg{HwTestCfg: kevinHWTestCfg},
+				BuildPayload: &testplans.BuildPayload{
+					ArtifactsGsBucket: GS_BUCKET,
+					ArtifactsGsPath:   GS_PATH_PREFIX + "kevin",
+				}},
 			{SchedulingRequirements: &testplans.SchedulingRequirements{
 				TargetType: &testplans.SchedulingRequirements_BuildTarget{
 					BuildTarget: "kevin"}},
-				TestCfg: &testplans.TestUnit_TastVmTestCfg{TastVmTestCfg: kevinTastVMTestCfg}},
+				TestCfg: &testplans.TestUnit_TastVmTestCfg{TastVmTestCfg: kevinTastVMTestCfg},
+				BuildPayload: &testplans.BuildPayload{
+					ArtifactsGsBucket: GS_BUCKET,
+					ArtifactsGsPath:   GS_PATH_PREFIX + "kevin",
+				}},
 			{SchedulingRequirements: &testplans.SchedulingRequirements{
 				TargetType: &testplans.SchedulingRequirements_BuildTarget{
 					BuildTarget: "kevin"}},
-				TestCfg: &testplans.TestUnit_VmTestCfg{VmTestCfg: kevinVMTestCfg}},
+				TestCfg: &testplans.TestUnit_VmTestCfg{VmTestCfg: kevinVMTestCfg},
+				BuildPayload: &testplans.BuildPayload{
+					ArtifactsGsBucket: GS_BUCKET,
+					ArtifactsGsPath:   GS_PATH_PREFIX + "kevin",
+				}},
 		}}
 
 	if diff := cmp.Diff(expectedTestPlan, actualTestPlan); diff != "" {
@@ -179,7 +218,11 @@ func TestCreateCombinedTestPlan_successDespiteOneFailedBuilder(t *testing.T) {
 			{SchedulingRequirements: &testplans.SchedulingRequirements{
 				TargetType: &testplans.SchedulingRequirements_BuildTarget{
 					BuildTarget: "reef"}},
-				TestCfg: &testplans.TestUnit_GceTestCfg{GceTestCfg: reefGceTestCfg}},
+				TestCfg: &testplans.TestUnit_GceTestCfg{GceTestCfg: reefGceTestCfg},
+				BuildPayload: &testplans.BuildPayload{
+					ArtifactsGsBucket: GS_BUCKET,
+					ArtifactsGsPath:   GS_PATH_PREFIX + "reef",
+				}},
 		}}
 
 	if diff := cmp.Diff(expectedTestPlan, actualTestPlan); diff != "" {

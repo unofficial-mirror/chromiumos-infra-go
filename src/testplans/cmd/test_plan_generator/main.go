@@ -101,6 +101,7 @@ func (c *getTestPlanRun) readInputJson() (*testplans.GenerateTestPlanRequest, er
 	if err := jsonpb.Unmarshal(bytes.NewReader(inputBytes), req); err != nil {
 		return nil, fmt.Errorf("Couldn't decode %s as a GenerateTestPlanRequest\n%v", c.inputJson, err)
 	}
+	log.Printf("Read request:\n%v", req)
 	return req, nil
 }
 

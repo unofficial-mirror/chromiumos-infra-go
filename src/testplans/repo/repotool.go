@@ -50,6 +50,7 @@ func GetRepoToSourceRoot(chromiumosCheckout string) (map[string]string, error) {
 	defer cancel()
 	var stdoutBuf, stderrBuf bytes.Buffer
 	if err := commandRunnerImpl.runCommand(ctx, &stdoutBuf, &stderrBuf, "repo", "list"); err != nil {
+		log.Printf("Error from repo.\nstdout =\n%s\n\nstderr=\n%s", stdoutBuf.String(), stderrBuf.String())
 		return repoToSrcRoot, err
 	}
 	repos := strings.Split(stdoutBuf.String(), "\n")

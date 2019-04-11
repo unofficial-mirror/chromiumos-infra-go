@@ -6,7 +6,7 @@ require (
 	cloud.google.com/go v0.37.2 // indirect
 	github.com/golang/protobuf v1.3.1
 	github.com/google/go-cmp v0.2.0
-	github.com/maruel/subcommands v0.0.0-20181220013616-967e945be48b // indirect
+	github.com/maruel/subcommands v0.0.0-20181220013616-967e945be48b
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mvo5/goconfigparser v0.0.0-20190308092147-6a365a5a3f41 // indirect
 	github.com/texttheater/golang-levenshtein v0.0.0-20180516184445-d188e65d659e // indirect

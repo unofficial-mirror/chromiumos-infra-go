@@ -10,6 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/golang/protobuf/jsonpb"
+	"github.com/golang/protobuf/proto"
 	"github.com/maruel/subcommands"
 	"go.chromium.org/chromiumos/infra/proto/go/testplans"
 	"go.chromium.org/luci/auth"
@@ -101,7 +102,7 @@ func (c *getTestPlanRun) readInputJson() (*testplans.GenerateTestPlanRequest, er
 	if err := jsonpb.Unmarshal(bytes.NewReader(inputBytes), req); err != nil {
 		return nil, fmt.Errorf("Couldn't decode %s as a GenerateTestPlanRequest\n%v", c.inputJson, err)
 	}
-	log.Printf("Read request:\n%v", req)
+	log.Printf("Read request:\n%s", proto.MarshalTextString(req))
 	return req, nil
 }
 
@@ -192,6 +193,7 @@ func (c *getTestPlanRun) writeOutputJson(tp *testplans.GenerateTestPlanResponse)
 	if err = ioutil.WriteFile(c.outputJson, []byte(jsonOutput), 0644); err != nil {
 		return fmt.Errorf("Failed to write output JSON!\n%v", err)
 	}
+	log.Printf("Full test plan =\n%s", proto.MarshalTextString(tp))
 	log.Printf("Wrote output to %s", c.outputJson)
 	return nil
 }

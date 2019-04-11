@@ -42,6 +42,7 @@ func TestGetChangeRev_success(t *testing.T) {
 
 	expectedChRev := &ChangeRev{
 		ChangeRevKey: ChangeRevKey{
+			Host: host,
 			ChangeNum: changeNum,
 			Revision:  revision,
 		},

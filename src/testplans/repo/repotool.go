@@ -54,12 +54,18 @@ func GetRepoToSourceRoot(chromiumosCheckout string) (map[string]string, error) {
 		return repoToSrcRoot, err
 	}
 	repos := strings.Split(stdoutBuf.String(), "\n")
+	if len(repos) < 1 {
+		return repoToSrcRoot, fmt.Errorf("expected to find at least one repo mappings. Instead, only found [%v]", repos)
+	}
 repoLoop:
 	for _, r := range repos {
 		if r == "" {
 			break repoLoop
 		}
 		split := strings.Split(r, ":")
+		if len(split) != 2 {
+			return repoToSrcRoot, fmt.Errorf("unexpected line format [%s]", r)
+		}
 		repoName := strings.TrimSpace(split[1])
 		srcRoot := strings.TrimSpace(split[0])
 		repoToSrcRoot[repoName] = srcRoot

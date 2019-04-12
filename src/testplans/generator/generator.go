@@ -90,7 +90,7 @@ perTargetTestReq:
 }
 
 func getBuildTarget(bb *bbproto.Build) string {
-	return bb.Input.Properties.Fields["build_target"].GetStructValue().Fields["name"].GetStringValue()
+	return bb.Output.Properties.Fields["build_target"].GetStructValue().Fields["name"].GetStringValue()
 }
 
 // createTestUnits creates the final list of tests required for the GenerateTestPlanResponse.

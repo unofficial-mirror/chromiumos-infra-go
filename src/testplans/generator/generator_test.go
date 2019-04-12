@@ -20,7 +20,8 @@ const (
 
 func makeBuildbucketBuild(buildTarget string, status bbproto.Status, changes []*bbproto.GerritChange) *bbproto.Build {
 	b := &bbproto.Build{
-		Input: &bbproto.Build_Input{
+		Input: &bbproto.Build_Input{},
+		Output: &bbproto.Build_Output{
 			Properties: &_struct.Struct{
 				Fields: map[string]*_struct.Value{
 					"build_target": {
@@ -30,12 +31,6 @@ func makeBuildbucketBuild(buildTarget string, status bbproto.Status, changes []*
 							},
 						}},
 					},
-				},
-			},
-		},
-		Output: &bbproto.Build_Output{
-			Properties: &_struct.Struct{
-				Fields: map[string]*_struct.Value{
 					"artifacts": {
 						Kind: &_struct.Value_StructValue{StructValue: &_struct.Struct{
 							Fields: map[string]*_struct.Value{

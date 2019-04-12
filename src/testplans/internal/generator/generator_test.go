@@ -5,7 +5,7 @@ package generator
 
 import (
 	"testing"
-	"testplans/git"
+	"testplans/internal/git"
 
 	_struct "github.com/golang/protobuf/ptypes/struct"
 	"github.com/google/go-cmp/cmp"

@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
-	"testplans/git"
+	"testplans/internal/git"
 
 	"go.chromium.org/chromiumos/infra/proto/go/testplans"
 	bbproto "go.chromium.org/luci/buildbucket/proto"

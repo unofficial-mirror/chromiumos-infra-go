@@ -23,9 +23,9 @@ import (
 	"log"
 	"os"
 	"strings"
-	"testplans/generator"
-	"testplans/git"
-	"testplans/repo"
+	"testplans/internal/generator"
+	"testplans/internal/git"
+	"testplans/internal/repo"
 )
 
 const (

@@ -56,7 +56,7 @@ func (c *getTestPlanRun) Run(a subcommands.Application, args []string, env subco
 		log.Print(err)
 		return 2
 	}
-	bbBuilds, err := readBuildbucketBuilds(req.BuildbucketBuildPath)
+	bbBuilds, err := readBuildbucketBuilds(req.BuildbucketProtos)
 	if err != nil {
 		log.Print(err)
 		return 3
@@ -67,7 +67,7 @@ func (c *getTestPlanRun) Run(a subcommands.Application, args []string, env subco
 		log.Print(err)
 		return 4
 	}
-	repoToSrcRoot, err := getRepoToSourceRoot(req.ChromiumosCheckoutRoot)
+	repoToSrcRoot, err := getRepoToSourceRoot(req.ChromiumosCheckoutRoot, req.RepoToolPath)
 	if err != nil {
 		log.Print(err)
 		return 5
@@ -130,18 +130,17 @@ func readConfigFiles(sourceTreeConfigPath, targetTestRequirementsPath string) (*
 	return sourceTreeConfig, testReqsConfig, nil
 }
 
-func readBuildbucketBuilds(bbBuildPaths []*testplans.FilePath) ([]*bbproto.Build, error) {
+func readBuildbucketBuilds(bbBuildsBytes []*testplans.ProtoBytes) ([]*bbproto.Build, error) {
 	bbBuilds := make([]*bbproto.Build, 0)
-	for _, bbBuildPath := range bbBuildPaths {
-		bbBuildBytes, err := ioutil.ReadFile(bbBuildPath.FilePath)
-		if err != nil {
-			return bbBuilds, fmt.Errorf("Failed reading build_report_path\n%v", err)
-		}
+	for _, bbBuildBytes := range bbBuildsBytes {
 		bbBuild := &bbproto.Build{}
-		if err := jsonpb.Unmarshal(bytes.NewReader(bbBuildBytes), bbBuild); err != nil {
-			return bbBuilds, fmt.Errorf("Couldn't decode %s as a Buildbucket Build\n%v", bbBuildPath, err)
+		if err := proto.Unmarshal(bbBuildBytes.SerializedProto, bbBuild); err != nil {
+			return bbBuilds, fmt.Errorf("Couldn't decode %s as a Buildbucket Build\n%v", bbBuildBytes.String(), err)
 		}
 		bbBuilds = append(bbBuilds, bbBuild)
+	}
+	if len(bbBuilds) > 0 {
+		log.Printf("Sample buildbucket proto:\n%s", proto.MarshalTextString(bbBuilds[0]))
 	}
 	return bbBuilds, nil
 }
@@ -171,13 +170,13 @@ func (c *getTestPlanRun) fetchGerritData(bbBuilds []*bbproto.Build) (*git.Change
 	return chRevData, nil
 }
 
-func getRepoToSourceRoot(chromiumosCheckoutRoot string) (*map[string]string, error) {
+func getRepoToSourceRoot(chromiumosCheckoutRoot, repoToolPath string) (*map[string]string, error) {
 	// Run the repo tool to get a mapping from Gerrit project to source root.
 	if chromiumosCheckoutRoot == "" {
 		log.Printf("Must set request ChromiumosCheckoutRoot")
 		return nil, errors.New("Must set request ChromiumosCheckoutRoot")
 	}
-	repoToSrcRoot, err := repo.GetRepoToSourceRoot(chromiumosCheckoutRoot)
+	repoToSrcRoot, err := repo.GetRepoToSourceRoot(chromiumosCheckoutRoot, repoToolPath)
 	if err != nil {
 		return nil, fmt.Errorf("Error with repo tool call\n%v", err)
 	}

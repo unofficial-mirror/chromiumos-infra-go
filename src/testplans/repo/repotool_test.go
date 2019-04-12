@@ -48,7 +48,7 @@ chromite : chromiumos/chromite
 	if err != nil {
 		t.Error(err)
 	}
-	actual, err := GetRepoToSourceRoot(f)
+	actual, err := GetRepoToSourceRoot(f, "repo")
 	if err != nil {
 		t.Error(err)
 	}
@@ -71,7 +71,7 @@ func TestGetRepoToSourceRoot_repoToolFails(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = GetRepoToSourceRoot(f)
+	_, err = GetRepoToSourceRoot(f, "repo")
 	if err == nil {
 		t.Error("expected an error")
 	}

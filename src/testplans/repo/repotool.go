@@ -32,7 +32,7 @@ func (c realCommandRunner) runCommand(ctx context.Context, stdoutBuf, stderrBuf 
 }
 
 // GetRepoToSourceRoot gets the mapping of Gerrit project to Chromium OS source tree path.
-func GetRepoToSourceRoot(chromiumosCheckout string) (map[string]string, error) {
+func GetRepoToSourceRoot(chromiumosCheckout, repoToolPath string) (map[string]string, error) {
 	repoToSrcRoot := make(map[string]string)
 	wd, err := os.Getwd()
 	if err != nil {
@@ -49,7 +49,7 @@ func GetRepoToSourceRoot(chromiumosCheckout string) (map[string]string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	var stdoutBuf, stderrBuf bytes.Buffer
-	if err := commandRunnerImpl.runCommand(ctx, &stdoutBuf, &stderrBuf, "repo", "list"); err != nil {
+	if err := commandRunnerImpl.runCommand(ctx, &stdoutBuf, &stderrBuf, repoToolPath, "list"); err != nil {
 		log.Printf("Error from repo.\nstdout =\n%s\n\nstderr=\n%s", stdoutBuf.String(), stderrBuf.String())
 		return repoToSrcRoot, err
 	}

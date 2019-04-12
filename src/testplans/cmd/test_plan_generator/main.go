@@ -22,9 +22,15 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"strings"
 	"testplans/generator"
 	"testplans/git"
 	"testplans/repo"
+)
+
+const (
+	sourceTreeTestConfigPath   = "testingconfig/generated/source_tree_test_config.cfg"
+	targetTestRequirementsPath = "testingconfig/generated/target_test_requirements.cfg"
 )
 
 func cmdGenTestPlan(authOpts auth.Options) *subcommands.Command {
@@ -50,6 +56,13 @@ func (c *getTestPlanRun) Run(a subcommands.Application, args []string, env subco
 		log.Print(err)
 		return 1
 	}
+
+	// Try to fetch the config files from Gitiles, but ignore the output and don't fail on error.
+	// TODO(seanabraham): Use these config files, rather than the ones below, once this has been
+	// confirmed to work in a live postsubmit orchestrator run.
+	stc, trc, err := c.fetchConfigFromGitiles()
+	log.Printf("Fetched config from Gitiles: %s\n\n%s\n\n%v",
+		proto.MarshalTextString(stc), proto.MarshalTextString(trc), err)
 
 	sourceTreeConfig, testReqsConfig, err := readConfigFiles(req.SourceTreeConfigPath, req.TargetTestRequirementsPath)
 	if err != nil {
@@ -104,6 +117,37 @@ func (c *getTestPlanRun) readInputJson() (*testplans.GenerateTestPlanRequest, er
 	}
 	log.Printf("Read request:\n%s", proto.MarshalTextString(req))
 	return req, nil
+}
+
+func (c *getTestPlanRun) fetchConfigFromGitiles() (*testplans.SourceTreeTestCfg, *testplans.TargetTestRequirementsCfg, error) {
+	// Create an authenticated client for Gerrit RPCs, then fetch all required CL data from Gerrit.
+	ctx := context.Background()
+	authOpts, err := c.authFlags.Options()
+	if err != nil {
+		return nil, nil, err
+	}
+	authedClient, err := auth.NewAuthenticator(ctx, auth.SilentLogin, authOpts).Client()
+	if err != nil {
+		return nil, nil, err
+	}
+	m, err := git.FetchFilesFromGitiles(authedClient, ctx,
+		"chrome-internal.googlesource.com",
+		"chromeos/infra/config",
+		"master",
+		[]string{sourceTreeTestConfigPath, targetTestRequirementsPath})
+	if err != nil {
+		return nil, nil, err
+	}
+	sourceTreeConfig := &testplans.SourceTreeTestCfg{}
+	if err := jsonpb.Unmarshal(strings.NewReader((*m)[sourceTreeTestConfigPath]), sourceTreeConfig); err != nil {
+		return nil, nil, fmt.Errorf("Couldn't decode %s as a SourceTreeTestCfg\n%v", (*m)[sourceTreeTestConfigPath], err)
+	}
+	testReqsConfig := &testplans.TargetTestRequirementsCfg{}
+	if err := jsonpb.Unmarshal(strings.NewReader((*m)[targetTestRequirementsPath]), testReqsConfig); err != nil {
+		return nil, nil, fmt.Errorf("Couldn't decode %s as a TargetTestRequirementsCfg\n%s",
+			targetTestRequirementsPath, err)
+	}
+	return sourceTreeConfig, testReqsConfig, nil
 }
 
 func readConfigFiles(sourceTreeConfigPath, targetTestRequirementsPath string) (*testplans.SourceTreeTestCfg, *testplans.TargetTestRequirementsCfg, error) {
@@ -175,6 +219,10 @@ func getRepoToSourceRoot(chromiumosCheckoutRoot, repoToolPath string) (*map[stri
 	if chromiumosCheckoutRoot == "" {
 		log.Printf("Must set request ChromiumosCheckoutRoot")
 		return nil, errors.New("Must set request ChromiumosCheckoutRoot")
+	}
+	// If the path isn't set, assume repo is just on the caller's $PATH.
+	if repoToolPath == "" {
+		repoToolPath = "repo"
 	}
 	repoToSrcRoot, err := repo.GetRepoToSourceRoot(chromiumosCheckoutRoot, repoToolPath)
 	if err != nil {

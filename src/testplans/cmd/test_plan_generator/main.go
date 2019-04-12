@@ -57,18 +57,12 @@ func (c *getTestPlanRun) Run(a subcommands.Application, args []string, env subco
 		return 1
 	}
 
-	// Try to fetch the config files from Gitiles, but ignore the output and don't fail on error.
-	// TODO(seanabraham): Use these config files, rather than the ones below, once this has been
-	// confirmed to work in a live postsubmit orchestrator run.
-	stc, trc, err := c.fetchConfigFromGitiles()
-	log.Printf("Fetched config from Gitiles: %s\n\n%s\n\n%v",
-		proto.MarshalTextString(stc), proto.MarshalTextString(trc), err)
-
-	sourceTreeConfig, testReqsConfig, err := readConfigFiles(req.SourceTreeConfigPath, req.TargetTestRequirementsPath)
+	sourceTreeConfig, testReqsConfig, err := c.fetchConfigFromGitiles()
 	if err != nil {
 		log.Print(err)
 		return 2
 	}
+
 	bbBuilds, err := readBuildbucketBuilds(req.BuildbucketProtos)
 	if err != nil {
 		log.Print(err)
@@ -147,30 +141,8 @@ func (c *getTestPlanRun) fetchConfigFromGitiles() (*testplans.SourceTreeTestCfg,
 		return nil, nil, fmt.Errorf("Couldn't decode %s as a TargetTestRequirementsCfg\n%s",
 			targetTestRequirementsPath, err)
 	}
-	return sourceTreeConfig, testReqsConfig, nil
-}
-
-func readConfigFiles(sourceTreeConfigPath, targetTestRequirementsPath string) (*testplans.SourceTreeTestCfg, *testplans.TargetTestRequirementsCfg, error) {
-	// Read the SourceTreeConfig JSON file into a proto.
-	sourceTreeBytes, err := ioutil.ReadFile(sourceTreeConfigPath)
-	if err != nil {
-		return nil, nil, fmt.Errorf("Failed reading source_tree_config_path\n%v", err)
-	}
-	sourceTreeConfig := &testplans.SourceTreeTestCfg{}
-	if err := jsonpb.Unmarshal(bytes.NewReader(sourceTreeBytes), sourceTreeConfig); err != nil {
-		return nil, nil, fmt.Errorf("Couldn't decode %s as a SourceTreeTestCfg\n%v", sourceTreeConfigPath, err)
-	}
-
-	// Read the TargetTestRequirements JSON file into a proto.
-	testReqsBytes, err := ioutil.ReadFile(targetTestRequirementsPath)
-	if err != nil {
-		return nil, nil, fmt.Errorf("Failed reading target_test_requirements_path\n%s", err)
-	}
-	testReqsConfig := &testplans.TargetTestRequirementsCfg{}
-	if err := jsonpb.Unmarshal(bytes.NewReader(testReqsBytes), testReqsConfig); err != nil {
-		return nil, nil, fmt.Errorf("Couldn't decode %s as a TargetTestRequirementsCfg\n%s",
-			targetTestRequirementsPath, err)
-	}
+	log.Printf("Fetched config from Gitiles: %s\n\n%s",
+		proto.MarshalTextString(sourceTreeConfig), proto.MarshalTextString(testReqsConfig))
 	return sourceTreeConfig, testReqsConfig, nil
 }
 

@@ -102,6 +102,7 @@ type getTestPlanRun struct {
 
 func (c *getTestPlanRun) readInputJson() (*testplans.GenerateTestPlanRequest, error) {
 	inputBytes, err := ioutil.ReadFile(c.inputJson)
+	log.Printf("Request is:\n%s", string(inputBytes))
 	if err != nil {
 		return nil, fmt.Errorf("Failed reading input_json\n%v", err)
 	}
@@ -109,7 +110,6 @@ func (c *getTestPlanRun) readInputJson() (*testplans.GenerateTestPlanRequest, er
 	if err := jsonpb.Unmarshal(bytes.NewReader(inputBytes), req); err != nil {
 		return nil, fmt.Errorf("Couldn't decode %s as a GenerateTestPlanRequest\n%v", c.inputJson, err)
 	}
-	log.Printf("Read request:\n%s", proto.MarshalTextString(req))
 	return req, nil
 }
 

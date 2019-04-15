@@ -7,8 +7,6 @@ you're going to have to do a bit of setup, and you'll have to be a Googler.
    https://chromium.googlesource.com/chromiumos/infra/test_planner).
 1. Have a local chromiumos repo checkout.
 1. Have depot_tools (in particular, the repo command) on your PATH.
-1. Have a local chromeos/infra/config checkout (see
-   https://chrome-internal.googlesource.com/chromeos/infra/config).
 1. Have Golang >=1.12 installed.
 
 OK, now edit gen_test_plan_input.json and replace the REPLACE strings.
@@ -18,16 +16,14 @@ This might look something like
 ```json
 {
   "chromiumos_checkout_root": "/home/sean/chromiumos",
-  "buildbucket_build_path": [
+  "buildbucket_protos": [
     {
-      "file_path": "/home/sean/test_planner/src/testplans/cmd/test_plan_generator/sample/build_bucket_build_1.cfg"
+      "serialized_proto": "SomeBase64EncodedBuildBucketBuildProto"
     },
     {
-      "file_path": "/home/sean/test_planner/src/testplans/cmd/test_plan_generator/sample/build_bucket_build_2.cfg"
+      "serialized_proto": "SomeOtherBase64EncodedBuildBucketBuildProto"
     }
-  ],
-  "source_tree_config_path": "/home/sean/chromeos-infra-config/config/testingconfig/generated/source_tree_test_config.cfg",
-  "target_test_requirements_path": "/home/sean/chromeos-infra-config/config/testingconfig/generated/target_test_requirements.cfg"
+  ]
 }
 ```
 

@@ -1,5 +1,8 @@
 /pkg/
 
+# Outputs from deploy_cipd.sh
+.out/
+
 # IntelliJ generated files
 *.iml
 .idea/

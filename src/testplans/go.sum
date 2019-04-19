@@ -118,10 +118,16 @@ github.com/tarm/serial v0.0.0-20180830185346-98f6abe2eb07/go.mod h1:kDXzergiv9cb
 github.com/texttheater/golang-levenshtein v0.0.0-20180516184445-d188e65d659e h1:T5PdfK/M1xyrHwynxMIVMWLS7f/qHwfslZphxtGnw7s=
 github.com/texttheater/golang-levenshtein v0.0.0-20180516184445-d188e65d659e/go.mod h1:XDKHRm5ThF8YJjx001LtgelzsoaEcvnA7lVWz9EeX3g=
 go.chromium.org/chromiumos/infra/proto v0.0.0-20190412142951-855d82ed0e18 h1:Ut3OeEoubOLznQy8MrpkzFxhPdvaOd1KcU4tHpXLfmo=
+go.chromium.org/chromiumos/infra/proto v0.0.0-20190419204223-c1ccbfd39f21 h1:ykPFXJN2m+qMTwIRudnmsK9TIW7Ft5QQmiqDKN0wc88=
+go.chromium.org/chromiumos/infra/proto v0.0.0-20190419210954-9d7b9f8e6de7 h1:CNvQMd6PLbN4k/va9vVP1s4ylQZY/e9+BTdBaVXW9p4=
 go.chromium.org/chromiumos/infra/proto/go v0.0.0-20190409164829-d91e8295a7fb h1:cWqWZGdECKxs4YHX0be08U4ET35UfqjLK3jetupgwpY=
 go.chromium.org/chromiumos/infra/proto/go v0.0.0-20190409164829-d91e8295a7fb/go.mod h1:Y1AiM5bpNKKecKy3wgiBwF9q1PJ/f57z86DpkNrMehk=
 go.chromium.org/chromiumos/infra/proto/go v0.0.0-20190412142951-855d82ed0e18 h1:GTcC8sHpBpklNIwS7fCkuOYnPK8RF38u4nIkl9DCi5I=
 go.chromium.org/chromiumos/infra/proto/go v0.0.0-20190412142951-855d82ed0e18/go.mod h1:Y1AiM5bpNKKecKy3wgiBwF9q1PJ/f57z86DpkNrMehk=
+go.chromium.org/chromiumos/infra/proto/go v0.0.0-20190419204223-c1ccbfd39f21 h1:eB+1X8U1qXVHj4pP7P+D1qw79Pkn8YvZXKIExgI8rfM=
+go.chromium.org/chromiumos/infra/proto/go v0.0.0-20190419204223-c1ccbfd39f21/go.mod h1:Y1AiM5bpNKKecKy3wgiBwF9q1PJ/f57z86DpkNrMehk=
+go.chromium.org/chromiumos/infra/proto/go v0.0.0-20190419210954-9d7b9f8e6de7 h1:l8/j5Z0mRUbKKXM/D4DbTyWxD6z2OYmxDvv6EvJJ28M=
+go.chromium.org/chromiumos/infra/proto/go v0.0.0-20190419210954-9d7b9f8e6de7/go.mod h1:Y1AiM5bpNKKecKy3wgiBwF9q1PJ/f57z86DpkNrMehk=
 go.chromium.org/luci v0.0.0-20190404171609-14fb4fbce8ea h1:qf3Ri7sv3yJPL4E0iq4hBYn3AFSf2dNNJpuZDBXAT2E=
 go.chromium.org/luci v0.0.0-20190404171609-14fb4fbce8ea/go.mod h1:MIQewVTLvOvc0UioV0JNqTNO/RspKFS0XEeoKrOxsdM=
 go.opencensus.io v0.18.0/go.mod h1:vKdFvxhtzZ9onBp9VKHK8z/sRpBMnKAsufL7wlDrCOA=

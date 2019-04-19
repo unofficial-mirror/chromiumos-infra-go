@@ -4,6 +4,7 @@
 package generator
 
 import (
+	"go.chromium.org/chromiumos/infra/proto/go/chromiumos"
 	"testing"
 	"testplans/internal/git"
 
@@ -58,7 +59,10 @@ func TestCreateCombinedTestPlan_success(t *testing.T) {
 		{TestType: "Moblab reef"},
 	}}
 	kevinHWTestCfg := &testplans.HwTestCfg{HwTest: []*testplans.HwTestCfg_HwTest{
-		{Suite: "HW kevin"},
+		{
+			Suite:       "HW kevin",
+			SkylabBoard: "kev",
+		},
 	}}
 	kevinTastVMTestCfg := &testplans.TastVmTestCfg{TastVmTest: []*testplans.TastVmTestCfg_TastVmTest{
 		{SuiteName: "Tast kevin"},
@@ -111,7 +115,9 @@ func TestCreateCombinedTestPlan_success(t *testing.T) {
 
 	expectedTestPlan := &testplans.GenerateTestPlanResponse{
 		TestUnit: []*testplans.TestUnit{
-			{SchedulingRequirements: &testplans.SchedulingRequirements{
+			{
+				BuildTarget: &chromiumos.BuildTarget{Name: "reef"},
+				SchedulingRequirements: &testplans.SchedulingRequirements{
 				TargetType: &testplans.SchedulingRequirements_BuildTarget{
 					BuildTarget: "reef"}},
 				TestCfg: &testplans.TestUnit_GceTestCfg{GceTestCfg: reefGceTestCfg},
@@ -119,7 +125,9 @@ func TestCreateCombinedTestPlan_success(t *testing.T) {
 					ArtifactsGsBucket: GS_BUCKET,
 					ArtifactsGsPath:   GS_PATH_PREFIX + "reef",
 				}},
-			{SchedulingRequirements: &testplans.SchedulingRequirements{
+			{
+				BuildTarget: &chromiumos.BuildTarget{Name: "reef"},
+				SchedulingRequirements: &testplans.SchedulingRequirements{
 				TargetType: &testplans.SchedulingRequirements_BuildTarget{
 					BuildTarget: "reef"}},
 				TestCfg: &testplans.TestUnit_MoblabVmTestCfg{MoblabVmTestCfg: reefMoblabVmTestCfg},
@@ -127,7 +135,9 @@ func TestCreateCombinedTestPlan_success(t *testing.T) {
 					ArtifactsGsBucket: GS_BUCKET,
 					ArtifactsGsPath:   GS_PATH_PREFIX + "reef",
 				}},
-			{SchedulingRequirements: &testplans.SchedulingRequirements{
+			{
+				BuildTarget: &chromiumos.BuildTarget{Name: "kevin"},
+				SchedulingRequirements: &testplans.SchedulingRequirements{
 				TargetType: &testplans.SchedulingRequirements_BuildTarget{
 					BuildTarget: "kevin"}},
 				TestCfg: &testplans.TestUnit_HwTestCfg{HwTestCfg: kevinHWTestCfg},
@@ -135,7 +145,9 @@ func TestCreateCombinedTestPlan_success(t *testing.T) {
 					ArtifactsGsBucket: GS_BUCKET,
 					ArtifactsGsPath:   GS_PATH_PREFIX + "kevin",
 				}},
-			{SchedulingRequirements: &testplans.SchedulingRequirements{
+			{
+				BuildTarget: &chromiumos.BuildTarget{Name: "kevin"},
+				SchedulingRequirements: &testplans.SchedulingRequirements{
 				TargetType: &testplans.SchedulingRequirements_BuildTarget{
 					BuildTarget: "kevin"}},
 				TestCfg: &testplans.TestUnit_TastVmTestCfg{TastVmTestCfg: kevinTastVMTestCfg},
@@ -143,7 +155,9 @@ func TestCreateCombinedTestPlan_success(t *testing.T) {
 					ArtifactsGsBucket: GS_BUCKET,
 					ArtifactsGsPath:   GS_PATH_PREFIX + "kevin",
 				}},
-			{SchedulingRequirements: &testplans.SchedulingRequirements{
+			{
+				BuildTarget: &chromiumos.BuildTarget{Name: "kevin"},
+				SchedulingRequirements: &testplans.SchedulingRequirements{
 				TargetType: &testplans.SchedulingRequirements_BuildTarget{
 					BuildTarget: "kevin"}},
 				TestCfg: &testplans.TestUnit_VmTestCfg{VmTestCfg: kevinVMTestCfg},
@@ -210,9 +224,11 @@ func TestCreateCombinedTestPlan_successDespiteOneFailedBuilder(t *testing.T) {
 
 	expectedTestPlan := &testplans.GenerateTestPlanResponse{
 		TestUnit: []*testplans.TestUnit{
-			{SchedulingRequirements: &testplans.SchedulingRequirements{
-				TargetType: &testplans.SchedulingRequirements_BuildTarget{
-					BuildTarget: "reef"}},
+			{
+				BuildTarget: &chromiumos.BuildTarget{Name: "reef"},
+				SchedulingRequirements: &testplans.SchedulingRequirements{
+					TargetType: &testplans.SchedulingRequirements_BuildTarget{
+						BuildTarget: "reef"}},
 				TestCfg: &testplans.TestUnit_GceTestCfg{GceTestCfg: reefGceTestCfg},
 				BuildPayload: &testplans.BuildPayload{
 					ArtifactsGsBucket: GS_BUCKET,
@@ -227,7 +243,10 @@ func TestCreateCombinedTestPlan_successDespiteOneFailedBuilder(t *testing.T) {
 
 func TestCreateCombinedTestPlan_skipsUnnecessaryHardwareTest(t *testing.T) {
 	kevinHWTestCfg := &testplans.HwTestCfg{HwTest: []*testplans.HwTestCfg_HwTest{
-		{Suite: "HW kevin"},
+		{
+			Suite:       "HW kevin",
+			SkylabBoard: "kev",
+		},
 	}}
 	testReqs := &testplans.TargetTestRequirementsCfg{
 		PerTargetTestRequirements: []*testplans.PerTargetTestRequirements{

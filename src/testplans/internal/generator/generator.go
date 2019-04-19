@@ -6,6 +6,7 @@ package generator
 import (
 	"errors"
 	"fmt"
+	"go.chromium.org/chromiumos/infra/proto/go/chromiumos"
 	"log"
 	"strings"
 	"testplans/internal/git"
@@ -109,9 +110,11 @@ func createTestUnits(
 			ArtifactsGsPath:   tbr.buildReport.Output.Properties.Fields["artifacts"].GetStructValue().Fields["gs_path"].GetStringValue(),
 		}
 		pttr := tbr.perTargetTestReqs
+		bt := chromiumos.BuildTarget{Name: string(tbr.buildTarget)}
 		if pttr.GceTestCfg != nil {
 			testUnits = append(testUnits,
 				&testplans.TestUnit{
+					BuildTarget:            &bt,
 					BuildPayload:           bp,
 					SchedulingRequirements: &sched,
 					TestCfg:                &testplans.TestUnit_GceTestCfg{GceTestCfg: pttr.GceTestCfg}})
@@ -122,6 +125,7 @@ func createTestUnits(
 			} else {
 				testUnits = append(testUnits,
 					&testplans.TestUnit{
+						BuildTarget:            &bt,
 						BuildPayload:           bp,
 						SchedulingRequirements: &sched,
 						TestCfg:                &testplans.TestUnit_HwTestCfg{HwTestCfg: pttr.HwTestCfg}})
@@ -130,6 +134,7 @@ func createTestUnits(
 		if pttr.MoblabVmTestCfg != nil {
 			testUnits = append(testUnits,
 				&testplans.TestUnit{
+					BuildTarget:            &bt,
 					BuildPayload:           bp,
 					SchedulingRequirements: &sched,
 					TestCfg:                &testplans.TestUnit_MoblabVmTestCfg{MoblabVmTestCfg: pttr.MoblabVmTestCfg}})
@@ -137,6 +142,7 @@ func createTestUnits(
 		if pttr.TastVmTestCfg != nil {
 			testUnits = append(testUnits,
 				&testplans.TestUnit{
+					BuildTarget:            &bt,
 					BuildPayload:           bp,
 					SchedulingRequirements: &sched,
 					TestCfg:                &testplans.TestUnit_TastVmTestCfg{TastVmTestCfg: pttr.TastVmTestCfg}})
@@ -147,6 +153,7 @@ func createTestUnits(
 			} else {
 				testUnits = append(testUnits,
 					&testplans.TestUnit{
+						BuildTarget:            &bt,
 						BuildPayload:           bp,
 						SchedulingRequirements: &sched,
 						TestCfg:                &testplans.TestUnit_VmTestCfg{VmTestCfg: pttr.VmTestCfg}})

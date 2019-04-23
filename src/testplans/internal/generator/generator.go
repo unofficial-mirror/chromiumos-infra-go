@@ -105,9 +105,21 @@ func createTestUnits(
 		if err != nil {
 			return testUnits, err
 		}
+		art, ok := tbr.buildReport.Output.Properties.Fields["artifacts"]
+		if !ok {
+			return nil, fmt.Errorf("found no artifacts output property for build_target %s", tbr.buildTarget)
+		}
+		gsBucket, ok := art.GetStructValue().Fields["gs_bucket"]
+		if !ok {
+			return nil, fmt.Errorf("found no artifacts.gs_bucket property for build_target %s", tbr.buildTarget)
+		}
+		gsPath, ok := art.GetStructValue().Fields["gs_path"]
+		if !ok {
+			return nil, fmt.Errorf("found no artifacts.gs_path property for build_target %s", tbr.buildTarget)
+		}
 		bp := &testplans.BuildPayload{
-			ArtifactsGsBucket: tbr.buildReport.Output.Properties.Fields["artifacts"].GetStructValue().Fields["gs_bucket"].GetStringValue(),
-			ArtifactsGsPath:   tbr.buildReport.Output.Properties.Fields["artifacts"].GetStructValue().Fields["gs_path"].GetStringValue(),
+			ArtifactsGsBucket: gsBucket.GetStringValue(),
+			ArtifactsGsPath:   gsPath.GetStringValue(),
 		}
 		pttr := tbr.perTargetTestReqs
 		bt := chromiumos.BuildTarget{Name: string(tbr.buildTarget)}

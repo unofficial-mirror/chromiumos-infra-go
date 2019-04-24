@@ -101,10 +101,6 @@ func createTestUnits(
 
 	testUnits := make([]*testplans.TestUnit, 0)
 	for _, tbr := range targetBuildResults {
-		sched, err := tbr.schedulingReqs()
-		if err != nil {
-			return testUnits, err
-		}
 		art, ok := tbr.buildReport.Output.Properties.Fields["artifacts"]
 		if !ok {
 			return nil, fmt.Errorf("found no artifacts output property for build_target %s", tbr.buildTarget)
@@ -128,7 +124,6 @@ func createTestUnits(
 				&testplans.TestUnit{
 					BuildTarget:            &bt,
 					BuildPayload:           bp,
-					SchedulingRequirements: &sched,
 					TestCfg:                &testplans.TestUnit_GceTestCfg{GceTestCfg: pttr.GceTestCfg}})
 		}
 		if pttr.HwTestCfg != nil {
@@ -139,7 +134,6 @@ func createTestUnits(
 					&testplans.TestUnit{
 						BuildTarget:            &bt,
 						BuildPayload:           bp,
-						SchedulingRequirements: &sched,
 						TestCfg:                &testplans.TestUnit_HwTestCfg{HwTestCfg: pttr.HwTestCfg}})
 			}
 		}
@@ -148,7 +142,6 @@ func createTestUnits(
 				&testplans.TestUnit{
 					BuildTarget:            &bt,
 					BuildPayload:           bp,
-					SchedulingRequirements: &sched,
 					TestCfg:                &testplans.TestUnit_MoblabVmTestCfg{MoblabVmTestCfg: pttr.MoblabVmTestCfg}})
 		}
 		if pttr.TastVmTestCfg != nil {
@@ -156,7 +149,6 @@ func createTestUnits(
 				&testplans.TestUnit{
 					BuildTarget:            &bt,
 					BuildPayload:           bp,
-					SchedulingRequirements: &sched,
 					TestCfg:                &testplans.TestUnit_TastVmTestCfg{TastVmTestCfg: pttr.TastVmTestCfg}})
 		}
 		if pttr.VmTestCfg != nil {
@@ -167,7 +159,6 @@ func createTestUnits(
 					&testplans.TestUnit{
 						BuildTarget:            &bt,
 						BuildPayload:           bp,
-						SchedulingRequirements: &sched,
 						TestCfg:                &testplans.TestUnit_VmTestCfg{VmTestCfg: pttr.VmTestCfg}})
 			}
 		}
@@ -233,15 +224,6 @@ func selectBuildForRequirements(
 			buildTarget:       BuildTarget(getBuildTarget(&br)),
 			perTargetTestReqs: *pttr},
 		nil
-}
-
-// schedulingReqs translates TargetCriteria into SchedulingRequirements.
-func (tbr targetBuildResult) schedulingReqs() (testplans.SchedulingRequirements, error) {
-	if tbr.perTargetTestReqs.TargetCriteria.GetBuildTarget() != "" {
-		return testplans.SchedulingRequirements{TargetType: &testplans.SchedulingRequirements_BuildTarget{
-			BuildTarget: tbr.perTargetTestReqs.TargetCriteria.GetBuildTarget()}}, nil
-	}
-	return testplans.SchedulingRequirements{}, fmt.Errorf("No TargetCritera for %v", tbr)
 }
 
 // pickBuilderToTest returns up to one BuildTarget that should be tested, out of the provided slice

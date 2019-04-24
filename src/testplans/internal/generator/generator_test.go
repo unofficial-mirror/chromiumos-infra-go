@@ -117,9 +117,6 @@ func TestCreateCombinedTestPlan_success(t *testing.T) {
 		TestUnit: []*testplans.TestUnit{
 			{
 				BuildTarget: &chromiumos.BuildTarget{Name: "reef"},
-				SchedulingRequirements: &testplans.SchedulingRequirements{
-				TargetType: &testplans.SchedulingRequirements_BuildTarget{
-					BuildTarget: "reef"}},
 				TestCfg: &testplans.TestUnit_GceTestCfg{GceTestCfg: reefGceTestCfg},
 				BuildPayload: &testplans.BuildPayload{
 					ArtifactsGsBucket: GS_BUCKET,
@@ -127,9 +124,6 @@ func TestCreateCombinedTestPlan_success(t *testing.T) {
 				}},
 			{
 				BuildTarget: &chromiumos.BuildTarget{Name: "reef"},
-				SchedulingRequirements: &testplans.SchedulingRequirements{
-				TargetType: &testplans.SchedulingRequirements_BuildTarget{
-					BuildTarget: "reef"}},
 				TestCfg: &testplans.TestUnit_MoblabVmTestCfg{MoblabVmTestCfg: reefMoblabVmTestCfg},
 				BuildPayload: &testplans.BuildPayload{
 					ArtifactsGsBucket: GS_BUCKET,
@@ -137,9 +131,6 @@ func TestCreateCombinedTestPlan_success(t *testing.T) {
 				}},
 			{
 				BuildTarget: &chromiumos.BuildTarget{Name: "kevin"},
-				SchedulingRequirements: &testplans.SchedulingRequirements{
-				TargetType: &testplans.SchedulingRequirements_BuildTarget{
-					BuildTarget: "kevin"}},
 				TestCfg: &testplans.TestUnit_HwTestCfg{HwTestCfg: kevinHWTestCfg},
 				BuildPayload: &testplans.BuildPayload{
 					ArtifactsGsBucket: GS_BUCKET,
@@ -147,9 +138,6 @@ func TestCreateCombinedTestPlan_success(t *testing.T) {
 				}},
 			{
 				BuildTarget: &chromiumos.BuildTarget{Name: "kevin"},
-				SchedulingRequirements: &testplans.SchedulingRequirements{
-				TargetType: &testplans.SchedulingRequirements_BuildTarget{
-					BuildTarget: "kevin"}},
 				TestCfg: &testplans.TestUnit_TastVmTestCfg{TastVmTestCfg: kevinTastVMTestCfg},
 				BuildPayload: &testplans.BuildPayload{
 					ArtifactsGsBucket: GS_BUCKET,
@@ -157,9 +145,6 @@ func TestCreateCombinedTestPlan_success(t *testing.T) {
 				}},
 			{
 				BuildTarget: &chromiumos.BuildTarget{Name: "kevin"},
-				SchedulingRequirements: &testplans.SchedulingRequirements{
-				TargetType: &testplans.SchedulingRequirements_BuildTarget{
-					BuildTarget: "kevin"}},
 				TestCfg: &testplans.TestUnit_VmTestCfg{VmTestCfg: kevinVMTestCfg},
 				BuildPayload: &testplans.BuildPayload{
 					ArtifactsGsBucket: GS_BUCKET,
@@ -226,9 +211,6 @@ func TestCreateCombinedTestPlan_successDespiteOneFailedBuilder(t *testing.T) {
 		TestUnit: []*testplans.TestUnit{
 			{
 				BuildTarget: &chromiumos.BuildTarget{Name: "reef"},
-				SchedulingRequirements: &testplans.SchedulingRequirements{
-					TargetType: &testplans.SchedulingRequirements_BuildTarget{
-						BuildTarget: "reef"}},
 				TestCfg: &testplans.TestUnit_GceTestCfg{GceTestCfg: reefGceTestCfg},
 				BuildPayload: &testplans.BuildPayload{
 					ArtifactsGsBucket: GS_BUCKET,

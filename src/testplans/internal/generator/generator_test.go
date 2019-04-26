@@ -117,35 +117,35 @@ func TestCreateCombinedTestPlan_success(t *testing.T) {
 		TestUnit: []*testplans.TestUnit{
 			{
 				BuildTarget: &chromiumos.BuildTarget{Name: "reef"},
-				TestCfg: &testplans.TestUnit_GceTestCfg{GceTestCfg: reefGceTestCfg},
+				TestCfg:     &testplans.TestUnit_GceTestCfg{GceTestCfg: reefGceTestCfg},
 				BuildPayload: &testplans.BuildPayload{
 					ArtifactsGsBucket: GS_BUCKET,
 					ArtifactsGsPath:   GS_PATH_PREFIX + "reef",
 				}},
 			{
 				BuildTarget: &chromiumos.BuildTarget{Name: "reef"},
-				TestCfg: &testplans.TestUnit_MoblabVmTestCfg{MoblabVmTestCfg: reefMoblabVmTestCfg},
+				TestCfg:     &testplans.TestUnit_MoblabVmTestCfg{MoblabVmTestCfg: reefMoblabVmTestCfg},
 				BuildPayload: &testplans.BuildPayload{
 					ArtifactsGsBucket: GS_BUCKET,
 					ArtifactsGsPath:   GS_PATH_PREFIX + "reef",
 				}},
 			{
 				BuildTarget: &chromiumos.BuildTarget{Name: "kevin"},
-				TestCfg: &testplans.TestUnit_HwTestCfg{HwTestCfg: kevinHWTestCfg},
+				TestCfg:     &testplans.TestUnit_HwTestCfg{HwTestCfg: kevinHWTestCfg},
 				BuildPayload: &testplans.BuildPayload{
 					ArtifactsGsBucket: GS_BUCKET,
 					ArtifactsGsPath:   GS_PATH_PREFIX + "kevin",
 				}},
 			{
 				BuildTarget: &chromiumos.BuildTarget{Name: "kevin"},
-				TestCfg: &testplans.TestUnit_TastVmTestCfg{TastVmTestCfg: kevinTastVMTestCfg},
+				TestCfg:     &testplans.TestUnit_TastVmTestCfg{TastVmTestCfg: kevinTastVMTestCfg},
 				BuildPayload: &testplans.BuildPayload{
 					ArtifactsGsBucket: GS_BUCKET,
 					ArtifactsGsPath:   GS_PATH_PREFIX + "kevin",
 				}},
 			{
 				BuildTarget: &chromiumos.BuildTarget{Name: "kevin"},
-				TestCfg: &testplans.TestUnit_VmTestCfg{VmTestCfg: kevinVMTestCfg},
+				TestCfg:     &testplans.TestUnit_VmTestCfg{VmTestCfg: kevinVMTestCfg},
 				BuildPayload: &testplans.BuildPayload{
 					ArtifactsGsBucket: GS_BUCKET,
 					ArtifactsGsPath:   GS_PATH_PREFIX + "kevin",
@@ -211,7 +211,7 @@ func TestCreateCombinedTestPlan_successDespiteOneFailedBuilder(t *testing.T) {
 		TestUnit: []*testplans.TestUnit{
 			{
 				BuildTarget: &chromiumos.BuildTarget{Name: "reef"},
-				TestCfg: &testplans.TestUnit_GceTestCfg{GceTestCfg: reefGceTestCfg},
+				TestCfg:     &testplans.TestUnit_GceTestCfg{GceTestCfg: reefGceTestCfg},
 				BuildPayload: &testplans.BuildPayload{
 					ArtifactsGsBucket: GS_BUCKET,
 					ArtifactsGsPath:   GS_PATH_PREFIX + "reef",

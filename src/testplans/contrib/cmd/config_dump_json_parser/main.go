@@ -49,7 +49,7 @@ func mergeDedupeSortSlice(s1 []string, s2 []string) []string {
 		allStrings[s] = true
 	}
 	result := make([]string, 0)
-	for k, _ := range allStrings {
+	for k := range allStrings {
 		result = append(result, k)
 	}
 	sort.Strings(result)
@@ -94,7 +94,7 @@ func (ts TestSuites) String() string {
 
 func print(suitesByBuilder map[string]TestSuites) {
 	builderNames := make([]string, 0)
-	for builderName, _ := range suitesByBuilder {
+	for builderName := range suitesByBuilder {
 		builderNames = append(builderNames, builderName)
 	}
 	sort.Strings(builderNames)

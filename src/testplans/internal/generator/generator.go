@@ -122,9 +122,9 @@ func createTestUnits(
 		if pttr.GceTestCfg != nil {
 			testUnits = append(testUnits,
 				&testplans.TestUnit{
-					BuildTarget:            &bt,
-					BuildPayload:           bp,
-					TestCfg:                &testplans.TestUnit_GceTestCfg{GceTestCfg: pttr.GceTestCfg}})
+					BuildTarget:  &bt,
+					BuildPayload: bp,
+					TestCfg:      &testplans.TestUnit_GceTestCfg{GceTestCfg: pttr.GceTestCfg}})
 		}
 		if pttr.HwTestCfg != nil {
 			if skippableTests[tbr.buildTarget][hw] {
@@ -132,24 +132,24 @@ func createTestUnits(
 			} else {
 				testUnits = append(testUnits,
 					&testplans.TestUnit{
-						BuildTarget:            &bt,
-						BuildPayload:           bp,
-						TestCfg:                &testplans.TestUnit_HwTestCfg{HwTestCfg: pttr.HwTestCfg}})
+						BuildTarget:  &bt,
+						BuildPayload: bp,
+						TestCfg:      &testplans.TestUnit_HwTestCfg{HwTestCfg: pttr.HwTestCfg}})
 			}
 		}
 		if pttr.MoblabVmTestCfg != nil {
 			testUnits = append(testUnits,
 				&testplans.TestUnit{
-					BuildTarget:            &bt,
-					BuildPayload:           bp,
-					TestCfg:                &testplans.TestUnit_MoblabVmTestCfg{MoblabVmTestCfg: pttr.MoblabVmTestCfg}})
+					BuildTarget:  &bt,
+					BuildPayload: bp,
+					TestCfg:      &testplans.TestUnit_MoblabVmTestCfg{MoblabVmTestCfg: pttr.MoblabVmTestCfg}})
 		}
 		if pttr.TastVmTestCfg != nil {
 			testUnits = append(testUnits,
 				&testplans.TestUnit{
-					BuildTarget:            &bt,
-					BuildPayload:           bp,
-					TestCfg:                &testplans.TestUnit_TastVmTestCfg{TastVmTestCfg: pttr.TastVmTestCfg}})
+					BuildTarget:  &bt,
+					BuildPayload: bp,
+					TestCfg:      &testplans.TestUnit_TastVmTestCfg{TastVmTestCfg: pttr.TastVmTestCfg}})
 		}
 		if pttr.VmTestCfg != nil {
 			if skippableTests[tbr.buildTarget][vm] {
@@ -157,9 +157,9 @@ func createTestUnits(
 			} else {
 				testUnits = append(testUnits,
 					&testplans.TestUnit{
-						BuildTarget:            &bt,
-						BuildPayload:           bp,
-						TestCfg:                &testplans.TestUnit_VmTestCfg{VmTestCfg: pttr.VmTestCfg}})
+						BuildTarget:  &bt,
+						BuildPayload: bp,
+						TestCfg:      &testplans.TestUnit_VmTestCfg{VmTestCfg: pttr.VmTestCfg}})
 			}
 		}
 	}

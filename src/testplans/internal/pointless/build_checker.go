@@ -35,7 +35,7 @@ func CheckBuilder(
 	// Get all of the files referenced by each GerritCommit in the Build.
 	affectedFiles, err := extractAffectedFiles(build, changeRevs, repoToSrcRoot)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error in extractAffectedFiles: %+v", err)
 	}
 	if len(affectedFiles) == 0 {
 		log.Printf("Build %s: No affected files, so this can't be a CQ run. "+

@@ -4,7 +4,6 @@
 package pointless
 
 import (
-	_struct "github.com/golang/protobuf/ptypes/struct"
 	chromite "go.chromium.org/chromiumos/infra/proto/go/chromite/api"
 	"go.chromium.org/chromiumos/infra/proto/go/chromiumos"
 	bbproto "go.chromium.org/luci/buildbucket/proto"
@@ -15,17 +14,7 @@ import (
 func makeBuildbucketBuild(changes []*bbproto.GerritChange) *bbproto.Build {
 	b := &bbproto.Build{
 		Input: &bbproto.Build_Input{},
-		Output: &bbproto.Build_Output{
-			Properties: &_struct.Struct{
-				Fields: map[string]*_struct.Value{
-					"build_target": {
-						Kind: &_struct.Value_StructValue{StructValue: &_struct.Struct{
-							Fields: map[string]*_struct.Value{
-								"name": {Kind: &_struct.Value_StringValue{StringValue: "reef"}},
-							},
-						}},
-					},
-				}}},
+		Builder: &bbproto.BuilderID{Builder: "reef"},
 	}
 	for _, c := range changes {
 		b.Input.GerritChanges = append(b.Input.GerritChanges, c)

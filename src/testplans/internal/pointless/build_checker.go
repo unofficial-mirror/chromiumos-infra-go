@@ -38,8 +38,8 @@ func CheckBuilder(
 		return nil, fmt.Errorf("error in extractAffectedFiles: %+v", err)
 	}
 	if len(affectedFiles) == 0 {
-		log.Printf("Build %s: No affected files, so this can't be a CQ run. "+
-			"Aborting with BuildIsPointless := false", getBuildTarget(build))
+		log.Printf("Builder %s: No affected files, so this can't be a CQ run. "+
+			"Aborting with BuildIsPointless := false", getBuilderName(build))
 		return &chromiumos.PointlessBuildCheckResponse{
 			BuildIsPointless: &wrappers.BoolValue{Value: false},
 		}, nil
@@ -48,9 +48,9 @@ func CheckBuilder(
 	// Filter out files that are irrelevant to Portage because of the BuildIrrelevantPaths.
 	affectedFiles = filterByBuildIrrelevantPaths(affectedFiles, buildIrrelevantPaths)
 	if len(affectedFiles) == 0 {
-		log.Printf("Build %s: All files ruled out by build-irrelevant paths. This means that "+
+		log.Printf("Builder %s: All files ruled out by build-irrelevant paths. This means that "+
 			"none of the Gerrit changes in the build input could affect the outcome of the build",
-			getBuildTarget(build))
+			getBuilderName(build))
 		return &chromiumos.PointlessBuildCheckResponse{
 			BuildIsPointless:     &wrappers.BoolValue{Value: true},
 			PointlessBuildReason: chromiumos.PointlessBuildCheckResponse_IRRELEVANT_TO_KNOWN_NON_PORTAGE_DIRECTORIES,
@@ -62,15 +62,15 @@ func CheckBuilder(
 	// Filter out files that aren't in the Portage dep graph.
 	affectedFiles = filterByPortageDeps(affectedFiles, depGraph)
 	if len(affectedFiles) == 0 {
-		log.Printf("Build %s: All files ruled out after checking dep graph", getBuildTarget(build))
+		log.Printf("Builder %s: All files ruled out after checking dep graph", getBuilderName(build))
 		return &chromiumos.PointlessBuildCheckResponse{
 			BuildIsPointless:     &wrappers.BoolValue{Value: true},
 			PointlessBuildReason: chromiumos.PointlessBuildCheckResponse_IRRELEVANT_TO_DEPS_GRAPH,
 		}, nil
 	}
 
-	log.Printf("Build %s: This build is not pointless, due to files:\n%v",
-		getBuildTarget(build), strings.Join(affectedFiles, "\n"))
+	log.Printf("Builder %s: This build is not pointless, due to files:\n%v",
+		getBuilderName(build), strings.Join(affectedFiles, "\n"))
 	return &chromiumos.PointlessBuildCheckResponse{
 		BuildIsPointless: &wrappers.BoolValue{Value: false},
 	}, nil
@@ -145,6 +145,6 @@ affectedFile:
 	return portageFilteredFiles
 }
 
-func getBuildTarget(bb *bbproto.Build) string {
-	return bb.Output.Properties.Fields["build_target"].GetStructValue().Fields["name"].GetStringValue()
+func getBuilderName(bb *bbproto.Build) string {
+	return bb.GetBuilder().GetBuilder()
 }

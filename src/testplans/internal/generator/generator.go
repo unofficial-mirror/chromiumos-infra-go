@@ -100,7 +100,14 @@ func createTestUnits(
 	skippableTests map[BuildTarget]map[testType]bool) ([]*testplans.TestUnit, error) {
 
 	testUnits := make([]*testplans.TestUnit, 0)
+targetLoop:
 	for _, tbr := range targetBuildResults {
+		pointlessBuild, ok := tbr.buildReport.Output.Properties.Fields["pointless_build"]
+		if ok && pointlessBuild.GetBoolValue() {
+			// Build terminated early and successfully. No need to test it.
+			log.Printf("Skipping build %s because it's marked as pointless", tbr.buildTarget)
+			continue targetLoop
+		}
 		art, ok := tbr.buildReport.Output.Properties.Fields["artifacts"]
 		if !ok {
 			return nil, fmt.Errorf("found no artifacts output property for build_target %s", tbr.buildTarget)

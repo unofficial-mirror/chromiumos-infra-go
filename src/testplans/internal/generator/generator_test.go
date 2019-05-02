@@ -287,3 +287,52 @@ func TestCreateCombinedTestPlan_inputMissingTargetType(t *testing.T) {
 		t.Errorf("Expected an error to be returned")
 	}
 }
+
+func TestCreateCombinedTestPlan_skipsPointlessBuild(t *testing.T) {
+	kevinHWTestCfg := &testplans.HwTestCfg{HwTest: []*testplans.HwTestCfg_HwTest{
+		{
+			Suite:       "HW kevin",
+			SkylabBoard: "kev",
+		},
+	}}
+	testReqs := &testplans.TargetTestRequirementsCfg{
+		PerTargetTestRequirements: []*testplans.PerTargetTestRequirements{
+			{TargetCriteria: &testplans.TargetCriteria{
+				TargetType: &testplans.TargetCriteria_BuildTarget{BuildTarget: "kevin"}},
+				HwTestCfg:     kevinHWTestCfg},
+		},
+	}
+	sourceTreeTestCfg := &testplans.SourceTreeTestCfg{
+		SourceTreeTestRestriction: []*testplans.SourceTreeTestRestriction{
+			{SourceTree: &testplans.SourceTree{Path: "hw/tests/not/needed/here"},
+				TestRestriction: &testplans.TestRestriction{DisableHwTests: true}}}}
+	bbBuild := makeBuildbucketBuild("kevin", bbproto.Status_SUCCESS, []*bbproto.GerritChange{
+		{Host: "test-review.googlesource.com", Change: 123, Patchset: 2},
+	})
+	bbBuild.Output.Properties.Fields["pointless_build"] = &_struct.Value{Kind: &_struct.Value_BoolValue{BoolValue: true}}
+	bbBuilds := []*bbproto.Build{bbBuild}
+	chRevData := git.GetChangeRevsForTest([]*git.ChangeRev{
+		{
+			ChangeRevKey: git.ChangeRevKey{
+				Host:      "test-review.googlesource.com",
+				ChangeNum: 123,
+				Revision:  2,
+			},
+			Project: "chromiumos/repo/name",
+			Files:   []string{"a/b/c"},
+		},
+	})
+	repoToSrcRoot := map[string]string{"chromiumos/repo/name": "src/to/file"}
+
+	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, chRevData, repoToSrcRoot)
+	if err != nil {
+		t.Error(err)
+	}
+
+	expectedTestPlan := &testplans.GenerateTestPlanResponse{
+		TestUnit: []*testplans.TestUnit{}}
+
+	if diff := cmp.Diff(expectedTestPlan, actualTestPlan); diff != "" {
+		t.Errorf("CreateCombinedTestPlan bad result (-want/+got)\n%s", diff)
+	}
+}

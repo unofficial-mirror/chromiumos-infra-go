@@ -5,7 +5,7 @@ package pointless
 
 import (
 	chromite "go.chromium.org/chromiumos/infra/proto/go/chromite/api"
-	"go.chromium.org/chromiumos/infra/proto/go/chromiumos"
+	testplans_pb "go.chromium.org/chromiumos/infra/proto/go/testplans"
 	bbproto "go.chromium.org/luci/buildbucket/proto"
 	"testing"
 	"testplans/internal/git"
@@ -55,7 +55,7 @@ func TestCheckBuilder_irrelevantToDepGraph(t *testing.T) {
 	if !res.BuildIsPointless.Value {
 		t.Errorf("expected build_is_pointless, instead got result %v", res)
 	}
-	if res.PointlessBuildReason != chromiumos.PointlessBuildCheckResponse_IRRELEVANT_TO_DEPS_GRAPH {
+	if res.PointlessBuildReason != testplans_pb.PointlessBuildCheckResponse_IRRELEVANT_TO_DEPS_GRAPH {
 		t.Errorf("expected IRRELEVANT_TO_DEPS_GRAPH, instead got result %v", res)
 	}
 }
@@ -141,7 +141,7 @@ func TestCheckBuilder_buildIrrelevantPaths(t *testing.T) {
 	if !res.BuildIsPointless.Value {
 		t.Errorf("expected build_is_pointless, instead got result %v", res)
 	}
-	if res.PointlessBuildReason != chromiumos.PointlessBuildCheckResponse_IRRELEVANT_TO_KNOWN_NON_PORTAGE_DIRECTORIES {
+	if res.PointlessBuildReason != testplans_pb.PointlessBuildCheckResponse_IRRELEVANT_TO_KNOWN_NON_PORTAGE_DIRECTORIES {
 		t.Errorf("expected IRRELEVANT_TO_KNOWN_NON_PORTAGE_DIRECTORIES, instead got result %v", res)
 	}
 }

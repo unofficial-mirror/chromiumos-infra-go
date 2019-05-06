@@ -12,8 +12,7 @@ import (
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/golang/protobuf/proto"
 	"github.com/maruel/subcommands"
-	"go.chromium.org/chromiumos/infra/proto/go/chromite/api"
-	"go.chromium.org/chromiumos/infra/proto/go/chromiumos"
+	testplans_pb "go.chromium.org/chromiumos/infra/proto/go/testplans"
 	"go.chromium.org/luci/auth"
 	"go.chromium.org/luci/auth/client/authcli"
 	bbproto "go.chromium.org/luci/buildbucket/proto"
@@ -61,12 +60,6 @@ func (c *checkBuild) Run(a subcommands.Application, args []string, env subcomman
 		return 1
 	}
 
-	dg, err := readDepsGraph(req.DepGraphPath)
-	if err != nil {
-		log.Print(err)
-		return 2
-	}
-
 	build, err := readBuildbucketBuild(req.BuildbucketProto)
 	if err != nil {
 		log.Print(err)
@@ -84,7 +77,7 @@ func (c *checkBuild) Run(a subcommands.Application, args []string, env subcomman
 		return 5
 	}
 
-	resp, err := pointless.CheckBuilder(build, changeRevs, dg, *repoToSrcRoot, buildIrrelevantPaths)
+	resp, err := pointless.CheckBuilder(build, changeRevs, req.DepGraph, *repoToSrcRoot, buildIrrelevantPaths)
 	if err != nil {
 		log.Printf("Error checking if build is pointless:\n%v", err)
 		return 6
@@ -104,32 +97,20 @@ type checkBuild struct {
 	outputJson string
 }
 
-func (c *checkBuild) readInputJson() (*chromiumos.PointlessBuildCheckRequest, error) {
+func (c *checkBuild) readInputJson() (*testplans_pb.PointlessBuildCheckRequest, error) {
 	inputBytes, err := ioutil.ReadFile(c.inputJson)
 	log.Printf("Request is:\n%s", string(inputBytes))
 	if err != nil {
 		return nil, fmt.Errorf("Failed reading input_json\n%v", err)
 	}
-	req := &chromiumos.PointlessBuildCheckRequest{}
+	req := &testplans_pb.PointlessBuildCheckRequest{}
 	if err := jsonpb.Unmarshal(bytes.NewReader(inputBytes), req); err != nil {
 		return nil, fmt.Errorf("Couldn't decode %s as a chromiumos.PointlessBuildCheckRequest\n%v", c.inputJson, err)
 	}
 	return req, nil
 }
 
-func readDepsGraph(dgPath string) (*api.DepGraph, error) {
-	dgBytes, err := ioutil.ReadFile(dgPath)
-	if err != nil {
-		return nil, fmt.Errorf("Failed reading deps graph file\n%v", err)
-	}
-	dg := &api.DepGraph{}
-	if err := jsonpb.Unmarshal(bytes.NewReader(dgBytes), dg); err != nil {
-		return nil, fmt.Errorf("Couldn't decode %s as a chromite_api.DepGraph\n%v", dgPath, err)
-	}
-	return dg, nil
-}
-
-func readBuildbucketBuild(bbBuildBytes *chromiumos.ProtoBytes) (*bbproto.Build, error) {
+func readBuildbucketBuild(bbBuildBytes *testplans_pb.ProtoBytes) (*bbproto.Build, error) {
 	bbBuild := &bbproto.Build{}
 	if err := proto.Unmarshal(bbBuildBytes.SerializedProto, bbBuild); err != nil {
 		return nil, fmt.Errorf("Couldn't decode %s as a Buildbucket Build\n%v", bbBuildBytes.String(), err)
@@ -178,7 +159,7 @@ func getRepoToSourceRoot(chromiumosCheckoutRoot, repoToolPath string) (*map[stri
 	return &repoToSrcRoot, nil
 }
 
-func (c *checkBuild) writeOutputJson(resp *chromiumos.PointlessBuildCheckResponse) error {
+func (c *checkBuild) writeOutputJson(resp *testplans_pb.PointlessBuildCheckResponse) error {
 	marshal := &jsonpb.Marshaler{EmitDefaults: true, Indent: "  "}
 	jsonOutput, err := marshal.MarshalToString(resp)
 	if err != nil {

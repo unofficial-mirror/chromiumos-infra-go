@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"github.com/golang/protobuf/ptypes/wrappers"
 	chromite "go.chromium.org/chromiumos/infra/proto/go/chromite/api"
-	"go.chromium.org/chromiumos/infra/proto/go/chromiumos"
+	testplans_pb "go.chromium.org/chromiumos/infra/proto/go/testplans"
 	bbproto "go.chromium.org/luci/buildbucket/proto"
 	"log"
 	"sort"
@@ -30,7 +30,7 @@ func CheckBuilder(
 	changeRevs *git.ChangeRevData,
 	depGraph *chromite.DepGraph,
 	repoToSrcRoot map[string]string,
-	buildIrrelevantPaths []string) (*chromiumos.PointlessBuildCheckResponse, error) {
+	buildIrrelevantPaths []string) (*testplans_pb.PointlessBuildCheckResponse, error) {
 
 	// Get all of the files referenced by each GerritCommit in the Build.
 	affectedFiles, err := extractAffectedFiles(build, changeRevs, repoToSrcRoot)
@@ -40,7 +40,7 @@ func CheckBuilder(
 	if len(affectedFiles) == 0 {
 		log.Printf("Builder %s: No affected files, so this can't be a CQ run. "+
 			"Aborting with BuildIsPointless := false", getBuilderName(build))
-		return &chromiumos.PointlessBuildCheckResponse{
+		return &testplans_pb.PointlessBuildCheckResponse{
 			BuildIsPointless: &wrappers.BoolValue{Value: false},
 		}, nil
 	}
@@ -51,9 +51,9 @@ func CheckBuilder(
 		log.Printf("Builder %s: All files ruled out by build-irrelevant paths. This means that "+
 			"none of the Gerrit changes in the build input could affect the outcome of the build",
 			getBuilderName(build))
-		return &chromiumos.PointlessBuildCheckResponse{
+		return &testplans_pb.PointlessBuildCheckResponse{
 			BuildIsPointless:     &wrappers.BoolValue{Value: true},
-			PointlessBuildReason: chromiumos.PointlessBuildCheckResponse_IRRELEVANT_TO_KNOWN_NON_PORTAGE_DIRECTORIES,
+			PointlessBuildReason: testplans_pb.PointlessBuildCheckResponse_IRRELEVANT_TO_KNOWN_NON_PORTAGE_DIRECTORIES,
 		}, nil
 	}
 	log.Printf("After considering build-irrelevant paths, we still must consider files:\n%v",
@@ -63,15 +63,15 @@ func CheckBuilder(
 	affectedFiles = filterByPortageDeps(affectedFiles, depGraph)
 	if len(affectedFiles) == 0 {
 		log.Printf("Builder %s: All files ruled out after checking dep graph", getBuilderName(build))
-		return &chromiumos.PointlessBuildCheckResponse{
+		return &testplans_pb.PointlessBuildCheckResponse{
 			BuildIsPointless:     &wrappers.BoolValue{Value: true},
-			PointlessBuildReason: chromiumos.PointlessBuildCheckResponse_IRRELEVANT_TO_DEPS_GRAPH,
+			PointlessBuildReason: testplans_pb.PointlessBuildCheckResponse_IRRELEVANT_TO_DEPS_GRAPH,
 		}, nil
 	}
 
 	log.Printf("Builder %s: This build is not pointless, due to files:\n%v",
 		getBuilderName(build), strings.Join(affectedFiles, "\n"))
-	return &chromiumos.PointlessBuildCheckResponse{
+	return &testplans_pb.PointlessBuildCheckResponse{
 		BuildIsPointless: &wrappers.BoolValue{Value: false},
 	}, nil
 }

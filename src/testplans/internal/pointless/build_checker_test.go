@@ -13,7 +13,7 @@ import (
 
 func makeBuildbucketBuild(changes []*bbproto.GerritChange) *bbproto.Build {
 	b := &bbproto.Build{
-		Input: &bbproto.Build_Input{},
+		Input:   &bbproto.Build_Input{},
 		Builder: &bbproto.BuilderID{Builder: "reef"},
 	}
 	for _, c := range changes {
@@ -35,7 +35,7 @@ func TestCheckBuilder_irrelevantToDepGraph(t *testing.T) {
 				Revision:  2,
 			},
 			Project: "chromiumos/public/example",
-			Files:   []string{"a/b/c"},
+			Files:   []string{"relevantfile", "irrelevantdir2"},
 		},
 	})
 	depGraph := &chromite.DepGraph{
@@ -46,9 +46,13 @@ func TestCheckBuilder_irrelevantToDepGraph(t *testing.T) {
 	repoToSrcRoot := map[string]string{
 		"chromiumos/public/example": "src/pub/ex",
 	}
-	buildIrrelevantPaths := []string{"src/internal/catpics"}
+	cfg := testplans_pb.BuildIrrelevanceCfg{
+		IrrelevantSourcePaths: []*testplans_pb.SourceTree{
+			{Path: "src/pub/ex/irrelevantdir"},
+		},
+	}
 
-	res, err := CheckBuilder(build, chRevData, depGraph, repoToSrcRoot, buildIrrelevantPaths)
+	res, err := CheckBuilder(build, chRevData, depGraph, repoToSrcRoot, cfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -96,9 +100,13 @@ func TestCheckBuilder_relevantToDepGraph(t *testing.T) {
 		"chromiumos/public/example":   "src/pub/ex",
 		"chromiumos/internal/example": "src/internal/ex",
 	}
-	buildIrrelevantPaths := []string{"src/internal/catpics"}
+	cfg := testplans_pb.BuildIrrelevanceCfg{
+		IrrelevantSourcePaths: []*testplans_pb.SourceTree{
+			{Path: "src/internal/catpics"},
+		},
+	}
 
-	res, err := CheckBuilder(build, chRevData, depGraph, repoToSrcRoot, buildIrrelevantPaths)
+	res, err := CheckBuilder(build, chRevData, depGraph, repoToSrcRoot, cfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -121,7 +129,11 @@ func TestCheckBuilder_buildIrrelevantPaths(t *testing.T) {
 				Revision:  2,
 			},
 			Project: "chromiumos/public/example",
-			Files:   []string{"chromite-maybe/config-thing/file1", "chromite-maybe/other-config/file2"},
+			Files: []string{
+				"chromite-maybe/config-thing/file1",
+				"chromite-maybe/other-config",
+				"chromite-maybe/somedir/img_123.jpg",
+			},
 		},
 	})
 	depGraph := &chromite.DepGraph{
@@ -132,9 +144,18 @@ func TestCheckBuilder_buildIrrelevantPaths(t *testing.T) {
 	repoToSrcRoot := map[string]string{
 		"chromiumos/public/example": "src/pub/ex",
 	}
-	buildIrrelevantPaths := []string{"src/pub/ex/chromite-maybe/config-thing", "src/pub/ex/chromite-maybe/other-config"}
 
-	res, err := CheckBuilder(build, chRevData, depGraph, repoToSrcRoot, buildIrrelevantPaths)
+	cfg := testplans_pb.BuildIrrelevanceCfg{
+		IrrelevantSourcePaths: []*testplans_pb.SourceTree{
+			{Path: "src/pub/ex/chromite-maybe/config-thing"},
+			{Path: "src/pub/ex/chromite-maybe/other-config"},
+		},
+		IrrelevantFileBaseNames: []*testplans_pb.FileBaseName{
+			{Name: "img_123.jpg"},
+		},
+	}
+
+	res, err := CheckBuilder(build, chRevData, depGraph, repoToSrcRoot, cfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -157,9 +178,9 @@ func TestCheckBuilder_noGerritChangesMeansNecessaryBuild(t *testing.T) {
 	repoToSrcRoot := map[string]string{
 		"chromiumos/public/example": "src/pub/ex",
 	}
-	buildIrrelevantPaths := []string{""}
+	cfg := testplans_pb.BuildIrrelevanceCfg{}
 
-	res, err := CheckBuilder(build, chRevData, depGraph, repoToSrcRoot, buildIrrelevantPaths)
+	res, err := CheckBuilder(build, chRevData, depGraph, repoToSrcRoot, cfg)
 	if err != nil {
 		t.Error(err)
 	}

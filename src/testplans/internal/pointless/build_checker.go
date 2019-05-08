@@ -10,6 +10,7 @@ import (
 	testplans_pb "go.chromium.org/chromiumos/infra/proto/go/testplans"
 	bbproto "go.chromium.org/luci/buildbucket/proto"
 	"log"
+	"path/filepath"
 	"sort"
 	"strings"
 	"testplans/internal/git"
@@ -30,7 +31,7 @@ func CheckBuilder(
 	changeRevs *git.ChangeRevData,
 	depGraph *chromite.DepGraph,
 	repoToSrcRoot map[string]string,
-	buildIrrelevantPaths []string) (*testplans_pb.PointlessBuildCheckResponse, error) {
+	cfg testplans_pb.BuildIrrelevanceCfg) (*testplans_pb.PointlessBuildCheckResponse, error) {
 
 	// Get all of the files referenced by each GerritCommit in the Build.
 	affectedFiles, err := extractAffectedFiles(build, changeRevs, repoToSrcRoot)
@@ -45,8 +46,8 @@ func CheckBuilder(
 		}, nil
 	}
 
-	// Filter out files that are irrelevant to Portage because of the BuildIrrelevantPaths.
-	affectedFiles = filterByBuildIrrelevantPaths(affectedFiles, buildIrrelevantPaths)
+	// Filter out files that are irrelevant to Portage because of the config.
+	affectedFiles = filterByBuildIrrelevantPaths(affectedFiles, cfg)
 	if len(affectedFiles) == 0 {
 		log.Printf("Builder %s: All files ruled out by build-irrelevant paths. This means that "+
 			"none of the Gerrit changes in the build input could affect the outcome of the build",
@@ -103,13 +104,24 @@ func extractAffectedFiles(build *bbproto.Build,
 	return allAffectedFiles, nil
 }
 
-func filterByBuildIrrelevantPaths(files, portageIrrelevantPaths []string) []string {
+func filterByBuildIrrelevantPaths(files []string, cfg testplans_pb.BuildIrrelevanceCfg) []string {
 	pipFilteredFiles := make([]string, 0)
 affectedFile:
 	for _, f := range files {
-		for _, pip := range portageIrrelevantPaths {
-			if strings.HasPrefix(f, pip) {
-				log.Printf("Ignoring file %s, since it's contained in Portage irrelevant path %s", f, pip)
+		for _, isp := range cfg.IrrelevantSourcePaths {
+			if f == isp.Path {
+				log.Printf("Ignoring file %s, since it matches Portage irrelevant path %s", f, isp.Path)
+				continue affectedFile
+			}
+			spAsDir := strings.TrimSuffix(isp.Path, "/") + "/"
+			if strings.HasPrefix(f, spAsDir) {
+				log.Printf("Ignoring file %s, since it's contained in Portage irrelevant dir %s", f, spAsDir)
+				continue affectedFile
+			}
+		}
+		for _, ifbn := range cfg.IrrelevantFileBaseNames {
+			if filepath.Base(f) == ifbn.Name {
+				log.Printf("Ignoring file %s, since it has Portage irrelevant file base name %s", f, ifbn)
 				continue affectedFile
 			}
 		}
@@ -134,8 +146,14 @@ func filterByPortageDeps(files []string, depGraph *chromite.DepGraph) []string {
 affectedFile:
 	for _, f := range files {
 		for _, pd := range portageDeps {
-			if strings.HasPrefix(f, pd) {
+			if f == pd {
 				log.Printf("Cannot ignore file %s due to Portage dependency %s", f, pd)
+				portageFilteredFiles = append(portageFilteredFiles, f)
+				continue affectedFile
+			}
+			pdAsDir := strings.TrimSuffix(pd, "/") + "/"
+			if strings.HasPrefix(f, pdAsDir) {
+				log.Printf("Cannot ignore file %s since it's in Portage dependency %s", f, pd)
 				portageFilteredFiles = append(portageFilteredFiles, f)
 				continue affectedFile
 			}

@@ -22,15 +22,14 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"strings"
 	"testplans/internal/git"
 	"testplans/internal/pointless"
 	"testplans/internal/repo"
 )
 
-var (
-	// TODO(crbug.com/956577): Define a config schema and move this list into Starlark, where it can
-	// be expanded upon.
-	buildIrrelevantPaths = []string{"chromite/config"}
+const (
+	buildIrrelevanceConfigPath = "testingconfig/generated/build_irrelevance_config.cfg"
 )
 
 func cmdCheckBuild(authOpts auth.Options) *subcommands.Command {
@@ -60,6 +59,12 @@ func (c *checkBuild) Run(a subcommands.Application, args []string, env subcomman
 		return 1
 	}
 
+	cfg, err := c.fetchConfigFromGitiles()
+	if err != nil {
+		log.Print(err)
+		return 2
+	}
+
 	build, err := readBuildbucketBuild(req.BuildbucketProto)
 	if err != nil {
 		log.Print(err)
@@ -77,7 +82,7 @@ func (c *checkBuild) Run(a subcommands.Application, args []string, env subcomman
 		return 5
 	}
 
-	resp, err := pointless.CheckBuilder(build, changeRevs, req.DepGraph, *repoToSrcRoot, buildIrrelevantPaths)
+	resp, err := pointless.CheckBuilder(build, changeRevs, req.DepGraph, *repoToSrcRoot, *cfg)
 	if err != nil {
 		log.Printf("Error checking if build is pointless:\n%v", err)
 		return 6
@@ -108,6 +113,33 @@ func (c *checkBuild) readInputJson() (*testplans_pb.PointlessBuildCheckRequest, 
 		return nil, fmt.Errorf("Couldn't decode %s as a chromiumos.PointlessBuildCheckRequest\n%v", c.inputJson, err)
 	}
 	return req, nil
+}
+
+func (c *checkBuild) fetchConfigFromGitiles() (*testplans_pb.BuildIrrelevanceCfg, error) {
+	// Create an authenticated client for Gerrit RPCs, then fetch all required CL data from Gerrit.
+	ctx := context.Background()
+	authOpts, err := c.authFlags.Options()
+	if err != nil {
+		return nil, err
+	}
+	authedClient, err := auth.NewAuthenticator(ctx, auth.SilentLogin, authOpts).Client()
+	if err != nil {
+		return nil, err
+	}
+	m, err := git.FetchFilesFromGitiles(authedClient, ctx,
+		"chrome-internal.googlesource.com",
+		"chromeos/infra/config",
+		"master",
+		[]string{buildIrrelevanceConfigPath})
+	if err != nil {
+		return nil, err
+	}
+	buildIrrelevanceConfig := &testplans_pb.BuildIrrelevanceCfg{}
+	if err := jsonpb.Unmarshal(strings.NewReader((*m)[buildIrrelevanceConfigPath]), buildIrrelevanceConfig); err != nil {
+		return nil, fmt.Errorf("Couldn't decode %s as a BuildIrrelevanceCfg\n%v", (*m)[buildIrrelevanceConfigPath], err)
+	}
+	log.Printf("Fetched config from Gitiles: %s\n", proto.MarshalTextString(buildIrrelevanceConfig))
+	return buildIrrelevanceConfig, nil
 }
 
 func readBuildbucketBuild(bbBuildBytes *testplans_pb.ProtoBytes) (*bbproto.Build, error) {

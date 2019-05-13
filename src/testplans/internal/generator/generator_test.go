@@ -5,6 +5,7 @@ package generator
 
 import (
 	"go.chromium.org/chromiumos/infra/proto/go/chromiumos"
+	"strings"
 	"testing"
 	"testplans/internal/git"
 
@@ -334,5 +335,26 @@ func TestCreateCombinedTestPlan_skipsPointlessBuild(t *testing.T) {
 
 	if diff := cmp.Diff(expectedTestPlan, actualTestPlan); diff != "" {
 		t.Errorf("CreateCombinedTestPlan bad result (-want/+got)\n%s", diff)
+	}
+}
+
+func TestCreateTestPlan_failsOnNoBuildTarget(t *testing.T) {
+	testReqs := &testplans.TargetTestRequirementsCfg{}
+	sourceTreeTestCfg := &testplans.SourceTreeTestCfg{}
+	bbBuilds := []*bbproto.Build{
+		// build target is empty. This should trigger an error
+		makeBuildbucketBuild("", bbproto.Status_FAILURE, []*bbproto.GerritChange{
+			{Host: "test-review.googlesource.com", Change: 123, Patchset: 2},
+		}),
+	}
+	chRevData := git.GetChangeRevsForTest([]*git.ChangeRev{})
+	repoToSrcRoot := map[string]string{}
+
+	_, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, chRevData, repoToSrcRoot)
+	if err == nil {
+		t.Error("expected an error, but got none")
+	}
+	if !strings.Contains(err.Error(), "build without a build_target") {
+		t.Errorf("expected error about missing build target. Instead: %v", err)
 	}
 }

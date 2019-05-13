@@ -90,8 +90,17 @@ perTargetTestReq:
 	return &testplans.GenerateTestPlanResponse{TestUnit: testUnits}, nil
 }
 
+// getBuildTarget returns the build target from the given build, or empty string if none is found.
 func getBuildTarget(bb *bbproto.Build) string {
-	return bb.Output.Properties.Fields["build_target"].GetStructValue().Fields["name"].GetStringValue()
+	btStruct, ok := bb.Output.Properties.Fields["build_target"]
+	if !ok {
+		return ""
+	}
+	bt, ok := btStruct.GetStructValue().Fields["name"]
+	if !ok {
+		return ""
+	}
+	return bt.GetStringValue()
 }
 
 // createTestUnits creates the final list of tests required for the GenerateTestPlanResponse.

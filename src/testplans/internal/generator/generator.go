@@ -6,6 +6,7 @@ package generator
 import (
 	"errors"
 	"fmt"
+	"github.com/golang/protobuf/proto"
 	"go.chromium.org/chromiumos/infra/proto/go/chromiumos"
 	"log"
 	"strings"
@@ -47,22 +48,27 @@ type targetBuildResult struct {
 func CreateTestPlan(
 	targetTestReqs *testplans.TargetTestRequirementsCfg,
 	sourceTreeCfg *testplans.SourceTreeTestCfg,
-	bbBuilds []*bbproto.Build,
+	unfilteredBbBuilds []*bbproto.Build,
 	changeRevs *git.ChangeRevData,
 	repoToSrcRoot map[string]string) (*testplans.GenerateTestPlanResponse, error) {
 	testPlan := &testplans.GenerateTestPlanResponse{}
 
 	btBuildReports := make(map[BuildTarget]bbproto.Build)
-	for _, bb := range bbBuilds {
+	// Filter out special builds like "chromite-cq" that don't have build targets.
+	filteredBbBuilds := make([]*bbproto.Build, 0)
+	for _, bb := range unfilteredBbBuilds {
 		bt := getBuildTarget(bb)
 		if len(bt) == 0 {
-			return testPlan, fmt.Errorf("Got a build without a build_target:\n%v", bb)
+			log.Printf("filtering out build without a build target:\n%s",
+				proto.MarshalTextString(bb.Builder))
+		} else {
+			btBuildReports[BuildTarget(bt)] = *bb
+			filteredBbBuilds = append(filteredBbBuilds, bb)
 		}
-		btBuildReports[BuildTarget(bt)] = *bb
 	}
 
 	// BuildTargets for which HW or VM testing may be skipped, due to source tree configuration.
-	skippableTests, err := extractSkippableTests(sourceTreeCfg, bbBuilds, changeRevs, repoToSrcRoot)
+	skippableTests, err := extractSkippableTests(sourceTreeCfg, filteredBbBuilds, changeRevs, repoToSrcRoot)
 	if err != nil {
 		return testPlan, err
 	}

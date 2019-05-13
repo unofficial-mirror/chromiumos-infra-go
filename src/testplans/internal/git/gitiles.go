@@ -14,6 +14,8 @@ import (
 	gitilespb "go.chromium.org/luci/common/proto/gitiles"
 	"io"
 	"net/http"
+	"testplans/internal/shared"
+	"time"
 )
 
 var (
@@ -47,17 +49,26 @@ func FetchFilesFromGitiles(authedClient *http.Client, ctx context.Context, host,
 }
 
 func obtainGitilesBytes(ctx context.Context, gc gitilespb.GitilesClient, project string, ref string) (contents []byte, err error) {
-	req := &gitilespb.ArchiveRequest{
-		Project: project,
-		Ref:     ref,
-		Format:  gitilespb.ArchiveRequest_GZIP,
-	}
-	a, err := gc.Archive(ctx, req)
-	if err != nil {
-		return nil, errors.Annotate(err, "obtain gitiles archive").Err()
-	}
-	logging.Debugf(ctx, "Gitiles archive %+v size: %d", req, len(a.Contents))
-
+	ctx, _ = context.WithTimeout(ctx, 5 * time.Minute)
+	ch := make(chan *gitilespb.ArchiveResponse, 1)
+	shared.DoWithRetry(ctx, shared.DefaultOpts, func() error {
+		// This sets the deadline for the individual API call, while the outer context sets
+		// an overall timeout for all attempts.
+		innerCtx, _ := context.WithTimeout(ctx, 30 * time.Second)
+		req := &gitilespb.ArchiveRequest{
+			Project: project,
+			Ref:     ref,
+			Format:  gitilespb.ArchiveRequest_GZIP,
+		}
+		a, err := gc.Archive(innerCtx, req)
+		if err != nil {
+			return errors.Annotate(err, "obtain gitiles archive").Err()
+		}
+		logging.Debugf(ctx, "Gitiles archive %+v size: %d", req, len(a.Contents))
+		ch <- a
+		return nil
+	})
+	a := <- ch
 	return a.Contents, nil
 }
 

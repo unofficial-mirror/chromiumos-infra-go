@@ -9,6 +9,8 @@ import (
 	"go.chromium.org/luci/common/api/gerrit"
 	gerritpb "go.chromium.org/luci/common/proto/gerrit"
 	"net/http"
+	"testplans/internal/shared"
+	"time"
 )
 
 // ChangeRevKey is the necessary set of data for looking up a single Gerrit revision.
@@ -45,24 +47,34 @@ func GetChangeRev(authedClient *http.Client, ctx context.Context, changeNum int6
 			return nil, err
 		}
 	}
-	ch, err := g.GetChange(ctx, &gerritpb.GetChangeRequest{
-		Number: changeNum,
-		Options: []gerritpb.QueryOption{
-			gerritpb.QueryOption_ALL_REVISIONS,
-			gerritpb.QueryOption_ALL_FILES,
-		}})
-	if err != nil {
-		return nil, err
-	}
-	for _, v := range ch.GetRevisions() {
+	ctx, _ = context.WithTimeout(ctx, 5 * time.Minute)
+	ch := make(chan *gerritpb.ChangeInfo, 1)
+	shared.DoWithRetry(ctx, shared.DefaultOpts, func() error {
+		// This sets the deadline for the individual API call, while the outer context sets
+		// an overall timeout for all attempts.
+		innerCtx, _ := context.WithTimeout(ctx, 30 * time.Second)
+		change, err := g.GetChange(innerCtx, &gerritpb.GetChangeRequest{
+			Number: changeNum,
+			Options: []gerritpb.QueryOption{
+				gerritpb.QueryOption_ALL_REVISIONS,
+				gerritpb.QueryOption_ALL_FILES,
+			}})
+		if err != nil {
+			return err
+		}
+		ch <- change
+		return nil
+	})
+	change := <- ch
+	for _, v := range change.GetRevisions() {
 		if v.Number == revision {
 			return &ChangeRev{
 				ChangeRevKey: ChangeRevKey{
 					Host:      host,
-					ChangeNum: ch.Number,
+					ChangeNum: change.Number,
 					Revision:  v.Number,
 				},
-				Project: ch.Project,
+				Project: change.Project,
 				Files:   getKeys(v.Files),
 			}, nil
 		}

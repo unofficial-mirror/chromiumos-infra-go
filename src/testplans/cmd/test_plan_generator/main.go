@@ -33,6 +33,10 @@ const (
 	targetTestRequirementsPath = "testingconfig/generated/target_test_requirements.cfg"
 )
 
+var (
+	unmarshaler = jsonpb.Unmarshaler{AllowUnknownFields:true}
+)
+
 func cmdGenTestPlan(authOpts auth.Options) *subcommands.Command {
 	return &subcommands.Command{
 		UsageLine: "gen-test-plan --input_json=/path/to/input.json --output_json=/path/to/output.json",
@@ -107,7 +111,7 @@ func (c *getTestPlanRun) readInputJson() (*testplans.GenerateTestPlanRequest, er
 		return nil, fmt.Errorf("Failed reading input_json\n%v", err)
 	}
 	req := &testplans.GenerateTestPlanRequest{}
-	if err := jsonpb.Unmarshal(bytes.NewReader(inputBytes), req); err != nil {
+	if err := unmarshaler.Unmarshal(bytes.NewReader(inputBytes), req); err != nil {
 		return nil, fmt.Errorf("Couldn't decode %s as a GenerateTestPlanRequest\n%v", c.inputJson, err)
 	}
 	return req, nil
@@ -133,11 +137,11 @@ func (c *getTestPlanRun) fetchConfigFromGitiles() (*testplans.SourceTreeTestCfg,
 		return nil, nil, err
 	}
 	sourceTreeConfig := &testplans.SourceTreeTestCfg{}
-	if err := jsonpb.Unmarshal(strings.NewReader((*m)[sourceTreeTestConfigPath]), sourceTreeConfig); err != nil {
+	if err := unmarshaler.Unmarshal(strings.NewReader((*m)[sourceTreeTestConfigPath]), sourceTreeConfig); err != nil {
 		return nil, nil, fmt.Errorf("Couldn't decode %s as a SourceTreeTestCfg\n%v", (*m)[sourceTreeTestConfigPath], err)
 	}
 	testReqsConfig := &testplans.TargetTestRequirementsCfg{}
-	if err := jsonpb.Unmarshal(strings.NewReader((*m)[targetTestRequirementsPath]), testReqsConfig); err != nil {
+	if err := unmarshaler.Unmarshal(strings.NewReader((*m)[targetTestRequirementsPath]), testReqsConfig); err != nil {
 		return nil, nil, fmt.Errorf("Couldn't decode %s as a TargetTestRequirementsCfg\n%s",
 			targetTestRequirementsPath, err)
 	}

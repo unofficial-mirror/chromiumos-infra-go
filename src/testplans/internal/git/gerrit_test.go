@@ -31,7 +31,6 @@ func TestGetChangeRev_success(t *testing.T) {
 					Number: revision,
 					Files: map[string]*gerritpb.FileInfo{
 						"/file/1": {},
-						"/file/2": {},
 					},
 				},
 			},
@@ -49,7 +48,6 @@ func TestGetChangeRev_success(t *testing.T) {
 		Project: project,
 		Files: []string{
 			"/file/1",
-			"/file/2",
 		},
 	}
 

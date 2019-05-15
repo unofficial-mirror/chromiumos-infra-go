@@ -48,13 +48,13 @@ func FetchFilesFromGitiles(authedClient *http.Client, ctx context.Context, host,
 	return extractGitilesArchive(ctx, contents, paths)
 }
 
-func obtainGitilesBytes(ctx context.Context, gc gitilespb.GitilesClient, project string, ref string) (contents []byte, err error) {
-	ctx, _ = context.WithTimeout(ctx, 5 * time.Minute)
+func obtainGitilesBytes(ctx context.Context, gc gitilespb.GitilesClient, project string, ref string) ([]byte, error) {
+	ctx, _ = context.WithTimeout(ctx, 5*time.Minute)
 	ch := make(chan *gitilespb.ArchiveResponse, 1)
-	shared.DoWithRetry(ctx, shared.DefaultOpts, func() error {
+	err := shared.DoWithRetry(ctx, shared.DefaultOpts, func() error {
 		// This sets the deadline for the individual API call, while the outer context sets
 		// an overall timeout for all attempts.
-		innerCtx, _ := context.WithTimeout(ctx, 30 * time.Second)
+		innerCtx, _ := context.WithTimeout(ctx, 30*time.Second)
 		req := &gitilespb.ArchiveRequest{
 			Project: project,
 			Ref:     ref,
@@ -68,7 +68,10 @@ func obtainGitilesBytes(ctx context.Context, gc gitilespb.GitilesClient, project
 		ch <- a
 		return nil
 	})
-	a := <- ch
+	if err != nil {
+		return nil, err
+	}
+	a := <-ch
 	return a.Contents, nil
 }
 

@@ -98,7 +98,7 @@ func TestCreateCombinedTestPlan_success(t *testing.T) {
 	bbBuilds := []*bbproto.Build{
 		makeBuildbucketBuild("kevin", bbproto.Status_SUCCESS, []*bbproto.GerritChange{
 			{Host: "test-review.googlesource.com", Change: 123, Patchset: 2},
-		}, false),
+		}, true),
 		makeBuildbucketBuild("reef", bbproto.Status_SUCCESS, []*bbproto.GerritChange{
 			{Host: "test-review.googlesource.com", Change: 123, Patchset: 2},
 		}, true),
@@ -411,5 +411,54 @@ func TestCreateTestPlan_succeedsOnNoBuildTarget(t *testing.T) {
 	_, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, chRevData, repoToSrcRoot)
 	if err != nil {
 		t.Errorf("expected no error, but got %v", err)
+	}
+}
+
+func TestCreateCombinedTestPlan_skipsNonCritical(t *testing.T) {
+	// In this test, the build is not critical, so no test unit will be produced.
+
+	reefGceTestCfg := &testplans.GceTestCfg{GceTest: []*testplans.GceTestCfg_GceTest{
+		{TestType: "GCE reef"},
+	}}
+	testReqs := &testplans.TargetTestRequirementsCfg{
+		PerTargetTestRequirements: []*testplans.PerTargetTestRequirements{
+			{TargetCriteria: &testplans.TargetCriteria{
+				TargetType: &testplans.TargetCriteria_BuildTarget{BuildTarget: "reef"}},
+				GceTestCfg: reefGceTestCfg},
+		},
+	}
+	sourceTreeTestCfg := &testplans.SourceTreeTestCfg{
+		SourceTreeTestRestriction: []*testplans.SourceTreeTestRestriction{
+			{SourceTree: &testplans.SourceTree{Path: "hw/tests/not/needed/here"},
+				TestRestriction: &testplans.TestRestriction{DisableHwTests: true}}}}
+	bbBuilds := []*bbproto.Build{
+		makeBuildbucketBuild("reef", bbproto.Status_SUCCESS, []*bbproto.GerritChange{
+			{Host: "test-review.googlesource.com", Change: 123, Patchset: 2},
+		}, false),
+	}
+	chRevData := git.GetChangeRevsForTest([]*git.ChangeRev{
+		{
+			ChangeRevKey: git.ChangeRevKey{
+				Host:      "test-review.googlesource.com",
+				ChangeNum: 123,
+				Revision:  2,
+			},
+			Project: "chromiumos/repo/name",
+			Files:   []string{"a/b/c"},
+		},
+	})
+	repoToSrcRoot := map[string]string{"chromiumos/repo/name": "src/to/file"}
+
+	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, chRevData, repoToSrcRoot)
+	if err != nil {
+		t.Error(err)
+	}
+
+	expectedTestPlan := &testplans.GenerateTestPlanResponse{
+		TestUnit:     []*testplans.TestUnit{},
+		GceTestUnits: []*testplans.GceTestUnit{}}
+
+	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, cmpopts.EquateEmpty()); diff != "" {
+		t.Errorf("CreateCombinedTestPlan bad result (-want/+got)\n%s", diff)
 	}
 }

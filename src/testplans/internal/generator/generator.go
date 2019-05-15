@@ -137,7 +137,12 @@ targetLoop:
 		pttr := tbr.perTargetTestReqs
 		bt := chromiumos.BuildTarget{Name: string(tbr.buildTarget)}
 		tuc := &testplans.TestUnitCommon{BuildTarget: &bt, BuildPayload: bp}
-		critical := &wrappers.BoolValue{Value: tbr.buildReport.Critical != bbproto.Trinary_NO}
+		isCritical := tbr.buildReport.Critical != bbproto.Trinary_NO
+		if !isCritical {
+			log.Printf("Build target %s is not critical. Skipping...", tbr.buildTarget)
+			continue targetLoop
+		}
+		critical := &wrappers.BoolValue{Value: isCritical}
 		if pttr.GceTestCfg != nil {
 			for _, gce := range pttr.GceTestCfg.GceTest {
 				gce.Common = withCritical(gce.Common, critical)

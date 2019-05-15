@@ -120,6 +120,7 @@ github.com/texttheater/golang-levenshtein v0.0.0-20180516184445-d188e65d659e/go.
 go.chromium.org/chromiumos/infra/proto v0.0.0-20190514195506-9aeeb525f8a2 h1:gljjPuw1pRc2lK9PLb6VvGvXgNDOuKCEmHnKlhxHUcg=
 go.chromium.org/chromiumos/infra/proto v0.0.0-20190514223940-f962e75b3f92 h1:qLY0UEyKr26Er3Ilv+7RuRgj5SGWtChdLFztrOxjB6g=
 go.chromium.org/chromiumos/infra/proto v0.0.0-20190514225112-82c9d54cbe67 h1:oF/0U7DfnhRgov+m3xk3u8KC9yrjuKP+VTZ0CWkOOkw=
+go.chromium.org/chromiumos/infra/proto v0.0.0-20190516043545-0b3cc740c3cb h1:sjs4greMgtc8PqFEqVvKMSnDiDivuFq0RGyeZuaSWRs=
 go.chromium.org/chromiumos/infra/proto/go v0.0.0-20190506153826-232eeaaa29a9 h1:87ML72wybRl6dKe4qyvTH5Y6ihvrTxT13+xTsz7F6tE=
 go.chromium.org/chromiumos/infra/proto/go v0.0.0-20190506153826-232eeaaa29a9/go.mod h1:Y1AiM5bpNKKecKy3wgiBwF9q1PJ/f57z86DpkNrMehk=
 go.chromium.org/chromiumos/infra/proto/go v0.0.0-20190514195506-9aeeb525f8a2 h1:kAJWnYFu1Vvk3RdZLKz9rDDBsi4m8WPDXv7r9plSEaY=
@@ -128,6 +129,8 @@ go.chromium.org/chromiumos/infra/proto/go v0.0.0-20190514223940-f962e75b3f92 h1:
 go.chromium.org/chromiumos/infra/proto/go v0.0.0-20190514223940-f962e75b3f92/go.mod h1:Y1AiM5bpNKKecKy3wgiBwF9q1PJ/f57z86DpkNrMehk=
 go.chromium.org/chromiumos/infra/proto/go v0.0.0-20190514225112-82c9d54cbe67 h1:gTOb9jvLQwIgx+fRhTV1TIUwWoB5SMBdvsZG+0R6/oA=
 go.chromium.org/chromiumos/infra/proto/go v0.0.0-20190514225112-82c9d54cbe67/go.mod h1:Y1AiM5bpNKKecKy3wgiBwF9q1PJ/f57z86DpkNrMehk=
+go.chromium.org/chromiumos/infra/proto/go v0.0.0-20190516043545-0b3cc740c3cb h1:4D0aQ9N/vMdx7Z09a8IZ0UQW4y6Nku1PJAdNnbhDh5s=
+go.chromium.org/chromiumos/infra/proto/go v0.0.0-20190516043545-0b3cc740c3cb/go.mod h1:Y1AiM5bpNKKecKy3wgiBwF9q1PJ/f57z86DpkNrMehk=
 go.chromium.org/luci v0.0.0-20190404171609-14fb4fbce8ea h1:qf3Ri7sv3yJPL4E0iq4hBYn3AFSf2dNNJpuZDBXAT2E=
 go.chromium.org/luci v0.0.0-20190404171609-14fb4fbce8ea/go.mod h1:MIQewVTLvOvc0UioV0JNqTNO/RspKFS0XEeoKrOxsdM=
 go.opencensus.io v0.18.0/go.mod h1:vKdFvxhtzZ9onBp9VKHK8z/sRpBMnKAsufL7wlDrCOA=

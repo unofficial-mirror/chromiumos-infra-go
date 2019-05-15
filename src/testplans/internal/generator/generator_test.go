@@ -122,43 +122,6 @@ func TestCreateCombinedTestPlan_success(t *testing.T) {
 	}
 
 	expectedTestPlan := &testplans.GenerateTestPlanResponse{
-		TestUnit: []*testplans.TestUnit{
-			{
-				BuildTarget: &chromiumos.BuildTarget{Name: "reef"},
-				TestCfg:     &testplans.TestUnit_GceTestCfg{GceTestCfg: reefGceTestCfg},
-				BuildPayload: &testplans.BuildPayload{
-					ArtifactsGsBucket: GS_BUCKET,
-					ArtifactsGsPath:   GS_PATH_PREFIX + "reef",
-				}},
-			{
-				BuildTarget: &chromiumos.BuildTarget{Name: "reef"},
-				TestCfg:     &testplans.TestUnit_MoblabVmTestCfg{MoblabVmTestCfg: reefMoblabVmTestCfg},
-				BuildPayload: &testplans.BuildPayload{
-					ArtifactsGsBucket: GS_BUCKET,
-					ArtifactsGsPath:   GS_PATH_PREFIX + "reef",
-				}},
-			{
-				BuildTarget: &chromiumos.BuildTarget{Name: "kevin"},
-				TestCfg:     &testplans.TestUnit_HwTestCfg{HwTestCfg: kevinHWTestCfg},
-				BuildPayload: &testplans.BuildPayload{
-					ArtifactsGsBucket: GS_BUCKET,
-					ArtifactsGsPath:   GS_PATH_PREFIX + "kevin",
-				}},
-			{
-				BuildTarget: &chromiumos.BuildTarget{Name: "kevin"},
-				TestCfg:     &testplans.TestUnit_TastVmTestCfg{TastVmTestCfg: kevinTastVMTestCfg},
-				BuildPayload: &testplans.BuildPayload{
-					ArtifactsGsBucket: GS_BUCKET,
-					ArtifactsGsPath:   GS_PATH_PREFIX + "kevin",
-				}},
-			{
-				BuildTarget: &chromiumos.BuildTarget{Name: "kevin"},
-				TestCfg:     &testplans.TestUnit_VmTestCfg{VmTestCfg: kevinVMTestCfg},
-				BuildPayload: &testplans.BuildPayload{
-					ArtifactsGsBucket: GS_BUCKET,
-					ArtifactsGsPath:   GS_PATH_PREFIX + "kevin",
-				}},
-		},
 		GceTestUnits: []*testplans.GceTestUnit{
 			{Common: &testplans.TestUnitCommon{
 				BuildPayload: &testplans.BuildPayload{
@@ -260,15 +223,6 @@ func TestCreateCombinedTestPlan_successDespiteOneFailedBuilder(t *testing.T) {
 	}
 
 	expectedTestPlan := &testplans.GenerateTestPlanResponse{
-		TestUnit: []*testplans.TestUnit{
-			{
-				BuildTarget: &chromiumos.BuildTarget{Name: "reef"},
-				TestCfg:     &testplans.TestUnit_GceTestCfg{GceTestCfg: reefGceTestCfg},
-				BuildPayload: &testplans.BuildPayload{
-					ArtifactsGsBucket: GS_BUCKET,
-					ArtifactsGsPath:   GS_PATH_PREFIX + "reef",
-				}},
-		},
 		GceTestUnits: []*testplans.GceTestUnit{
 			{Common: &testplans.TestUnitCommon{
 				BuildPayload: &testplans.BuildPayload{
@@ -325,8 +279,7 @@ func TestCreateCombinedTestPlan_skipsUnnecessaryHardwareTest(t *testing.T) {
 		t.Error(err)
 	}
 
-	expectedTestPlan := &testplans.GenerateTestPlanResponse{
-		TestUnit: []*testplans.TestUnit{}}
+	expectedTestPlan := &testplans.GenerateTestPlanResponse{}
 
 	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, cmpopts.EquateEmpty()); diff != "" {
 		t.Errorf("CreateCombinedTestPlan bad result (-want/+got)\n%s", diff)
@@ -390,8 +343,7 @@ func TestCreateCombinedTestPlan_skipsPointlessBuild(t *testing.T) {
 		t.Error(err)
 	}
 
-	expectedTestPlan := &testplans.GenerateTestPlanResponse{
-		TestUnit: []*testplans.TestUnit{}}
+	expectedTestPlan := &testplans.GenerateTestPlanResponse{}
 
 	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, cmpopts.EquateEmpty()); diff != "" {
 		t.Errorf("CreateCombinedTestPlan bad result (-want/+got)\n%s", diff)
@@ -455,7 +407,6 @@ func TestCreateCombinedTestPlan_skipsNonCritical(t *testing.T) {
 	}
 
 	expectedTestPlan := &testplans.GenerateTestPlanResponse{
-		TestUnit:     []*testplans.TestUnit{},
 		GceTestUnits: []*testplans.GceTestUnit{}}
 
 	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, cmpopts.EquateEmpty()); diff != "" {

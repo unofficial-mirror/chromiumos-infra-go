@@ -147,11 +147,6 @@ targetLoop:
 			for _, gce := range pttr.GceTestCfg.GceTest {
 				gce.Common = withCritical(gce.Common, critical)
 			}
-			resp.TestUnit = append(resp.TestUnit,
-				&testplans.TestUnit{
-					BuildTarget:  &bt,
-					BuildPayload: bp,
-					TestCfg:      &testplans.TestUnit_GceTestCfg{GceTestCfg: pttr.GceTestCfg}})
 			resp.GceTestUnits = append(resp.GceTestUnits, &testplans.GceTestUnit{
 				Common:     tuc,
 				GceTestCfg: pttr.GceTestCfg})
@@ -163,11 +158,6 @@ targetLoop:
 				for _, hw := range pttr.HwTestCfg.HwTest {
 					hw.Common = withCritical(hw.Common, critical)
 				}
-				resp.TestUnit = append(resp.TestUnit,
-					&testplans.TestUnit{
-						BuildTarget:  &bt,
-						BuildPayload: bp,
-						TestCfg:      &testplans.TestUnit_HwTestCfg{HwTestCfg: pttr.HwTestCfg}})
 				resp.HwTestUnits = append(resp.HwTestUnits, &testplans.HwTestUnit{
 					Common:    tuc,
 					HwTestCfg: pttr.HwTestCfg})
@@ -177,11 +167,6 @@ targetLoop:
 			for _, moblab := range pttr.MoblabVmTestCfg.MoblabTest {
 				moblab.Common = withCritical(moblab.Common, critical)
 			}
-			resp.TestUnit = append(resp.TestUnit,
-				&testplans.TestUnit{
-					BuildTarget:  &bt,
-					BuildPayload: bp,
-					TestCfg:      &testplans.TestUnit_MoblabVmTestCfg{MoblabVmTestCfg: pttr.MoblabVmTestCfg}})
 			resp.MoblabVmTestUnits = append(resp.MoblabVmTestUnits, &testplans.MoblabVmTestUnit{
 				Common:          tuc,
 				MoblabVmTestCfg: pttr.MoblabVmTestCfg})
@@ -190,11 +175,6 @@ targetLoop:
 			for _, tastVm := range pttr.TastVmTestCfg.TastVmTest {
 				tastVm.Common = withCritical(tastVm.Common, critical)
 			}
-			resp.TestUnit = append(resp.TestUnit,
-				&testplans.TestUnit{
-					BuildTarget:  &bt,
-					BuildPayload: bp,
-					TestCfg:      &testplans.TestUnit_TastVmTestCfg{TastVmTestCfg: pttr.TastVmTestCfg}})
 			resp.TastVmTestUnits = append(resp.TastVmTestUnits, &testplans.TastVmTestUnit{
 				Common:        tuc,
 				TastVmTestCfg: pttr.TastVmTestCfg})
@@ -206,11 +186,6 @@ targetLoop:
 				for _, vm := range pttr.VmTestCfg.VmTest {
 					vm.Common = withCritical(vm.Common, critical)
 				}
-				resp.TestUnit = append(resp.TestUnit,
-					&testplans.TestUnit{
-						BuildTarget:  &bt,
-						BuildPayload: bp,
-						TestCfg:      &testplans.TestUnit_VmTestCfg{VmTestCfg: pttr.VmTestCfg}})
 				resp.VmTestUnits = append(resp.VmTestUnits, &testplans.VmTestUnit{
 					Common:    tuc,
 					VmTestCfg: pttr.VmTestCfg})

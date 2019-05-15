@@ -7,13 +7,13 @@ import (
 	"errors"
 	"fmt"
 	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes/wrappers"
 	"go.chromium.org/chromiumos/infra/proto/go/chromiumos"
+	"go.chromium.org/chromiumos/infra/proto/go/testplans"
+	bbproto "go.chromium.org/luci/buildbucket/proto"
 	"log"
 	"strings"
 	"testplans/internal/git"
-
-	"go.chromium.org/chromiumos/infra/proto/go/testplans"
-	bbproto "go.chromium.org/luci/buildbucket/proto"
 )
 
 type testType int
@@ -88,12 +88,7 @@ perTargetTestReq:
 		targetBuildResults = append(targetBuildResults, *tbr)
 	}
 
-	// The final list of TestUnits needed for the test plan.
-	testUnits, err := createTestUnits(targetBuildResults, skippableTests)
-	if err != nil {
-		return testPlan, err
-	}
-	return &testplans.GenerateTestPlanResponse{TestUnit: testUnits}, nil
+	return createResponse(targetBuildResults, skippableTests)
 }
 
 // getBuildTarget returns the build target from the given build, or empty string if none is found.
@@ -109,12 +104,12 @@ func getBuildTarget(bb *bbproto.Build) string {
 	return bt.GetStringValue()
 }
 
-// createTestUnits creates the final list of tests required for the GenerateTestPlanResponse.
-func createTestUnits(
+// createResponse creates the final GenerateTestPlanResponse.
+func createResponse(
 	targetBuildResults []targetBuildResult,
-	skippableTests map[BuildTarget]map[testType]bool) ([]*testplans.TestUnit, error) {
+	skippableTests map[BuildTarget]map[testType]bool) (*testplans.GenerateTestPlanResponse, error) {
 
-	testUnits := make([]*testplans.TestUnit, 0)
+	resp := &testplans.GenerateTestPlanResponse{}
 targetLoop:
 	for _, tbr := range targetBuildResults {
 		pointlessBuild, ok := tbr.buildReport.Output.Properties.Fields["pointless_build"]
@@ -141,51 +136,94 @@ targetLoop:
 		}
 		pttr := tbr.perTargetTestReqs
 		bt := chromiumos.BuildTarget{Name: string(tbr.buildTarget)}
+		tuc := &testplans.TestUnitCommon{BuildTarget: &bt, BuildPayload: bp}
+		critical := &wrappers.BoolValue{Value: tbr.buildReport.Critical != bbproto.Trinary_NO}
 		if pttr.GceTestCfg != nil {
-			testUnits = append(testUnits,
+			for _, gce := range pttr.GceTestCfg.GceTest {
+				gce.Common = withCritical(gce.Common, critical)
+			}
+			resp.TestUnit = append(resp.TestUnit,
 				&testplans.TestUnit{
 					BuildTarget:  &bt,
 					BuildPayload: bp,
 					TestCfg:      &testplans.TestUnit_GceTestCfg{GceTestCfg: pttr.GceTestCfg}})
+			resp.GceTestUnits = append(resp.GceTestUnits, &testplans.GceTestUnit{
+				Common:     tuc,
+				GceTestCfg: pttr.GceTestCfg})
 		}
 		if pttr.HwTestCfg != nil {
 			if skippableTests[tbr.buildTarget][hw] {
 				log.Printf("No HW testing needed for %s", tbr.buildTarget)
 			} else {
-				testUnits = append(testUnits,
+				for _, hw := range pttr.HwTestCfg.HwTest {
+					hw.Common = withCritical(hw.Common, critical)
+				}
+				resp.TestUnit = append(resp.TestUnit,
 					&testplans.TestUnit{
 						BuildTarget:  &bt,
 						BuildPayload: bp,
 						TestCfg:      &testplans.TestUnit_HwTestCfg{HwTestCfg: pttr.HwTestCfg}})
+				resp.HwTestUnits = append(resp.HwTestUnits, &testplans.HwTestUnit{
+					Common:    tuc,
+					HwTestCfg: pttr.HwTestCfg})
 			}
 		}
 		if pttr.MoblabVmTestCfg != nil {
-			testUnits = append(testUnits,
+			for _, moblab := range pttr.MoblabVmTestCfg.MoblabTest {
+				moblab.Common = withCritical(moblab.Common, critical)
+			}
+			resp.TestUnit = append(resp.TestUnit,
 				&testplans.TestUnit{
 					BuildTarget:  &bt,
 					BuildPayload: bp,
 					TestCfg:      &testplans.TestUnit_MoblabVmTestCfg{MoblabVmTestCfg: pttr.MoblabVmTestCfg}})
+			resp.MoblabVmTestUnits = append(resp.MoblabVmTestUnits, &testplans.MoblabVmTestUnit{
+				Common:          tuc,
+				MoblabVmTestCfg: pttr.MoblabVmTestCfg})
 		}
 		if pttr.TastVmTestCfg != nil {
-			testUnits = append(testUnits,
+			for _, tastVm := range pttr.TastVmTestCfg.TastVmTest {
+				tastVm.Common = withCritical(tastVm.Common, critical)
+			}
+			resp.TestUnit = append(resp.TestUnit,
 				&testplans.TestUnit{
 					BuildTarget:  &bt,
 					BuildPayload: bp,
 					TestCfg:      &testplans.TestUnit_TastVmTestCfg{TastVmTestCfg: pttr.TastVmTestCfg}})
+			resp.TastVmTestUnits = append(resp.TastVmTestUnits, &testplans.TastVmTestUnit{
+				Common:        tuc,
+				TastVmTestCfg: pttr.TastVmTestCfg})
 		}
 		if pttr.VmTestCfg != nil {
 			if skippableTests[tbr.buildTarget][vm] {
 				log.Printf("No VM testing needed for %s", tbr.buildTarget)
 			} else {
-				testUnits = append(testUnits,
+				for _, vm := range pttr.VmTestCfg.VmTest {
+					vm.Common = withCritical(vm.Common, critical)
+				}
+				resp.TestUnit = append(resp.TestUnit,
 					&testplans.TestUnit{
 						BuildTarget:  &bt,
 						BuildPayload: bp,
 						TestCfg:      &testplans.TestUnit_VmTestCfg{VmTestCfg: pttr.VmTestCfg}})
+				resp.VmTestUnits = append(resp.VmTestUnits, &testplans.VmTestUnit{
+					Common:    tuc,
+					VmTestCfg: pttr.VmTestCfg})
 			}
 		}
 	}
-	return testUnits, nil
+	return resp, nil
+}
+
+func withCritical(tsc *testplans.TestSuiteCommon, critical *wrappers.BoolValue) *testplans.TestSuiteCommon {
+	if tsc == nil {
+		tsc = &testplans.TestSuiteCommon{}
+	}
+	tsc.Critical = critical
+	if !critical.Value {
+		log.Printf("Marking %s as not critical", tsc.DisplayName)
+	}
+	return tsc
 }
 
 // extractSkippableTests maps BuildTargets to the test types that can be skipped for those targets,

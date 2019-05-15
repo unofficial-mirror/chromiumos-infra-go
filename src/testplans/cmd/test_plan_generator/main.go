@@ -34,7 +34,7 @@ const (
 )
 
 var (
-	unmarshaler = jsonpb.Unmarshaler{AllowUnknownFields:true}
+	unmarshaler = jsonpb.Unmarshaler{AllowUnknownFields: true}
 )
 
 func cmdGenTestPlan(authOpts auth.Options) *subcommands.Command {

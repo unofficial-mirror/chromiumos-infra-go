@@ -4,14 +4,15 @@
 package generator
 
 import (
-	"go.chromium.org/chromiumos/infra/proto/go/chromiumos"
-	"testing"
-	"testplans/internal/git"
-
 	_struct "github.com/golang/protobuf/ptypes/struct"
+	"github.com/golang/protobuf/ptypes/wrappers"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
+	"go.chromium.org/chromiumos/infra/proto/go/chromiumos"
 	"go.chromium.org/chromiumos/infra/proto/go/testplans"
 	bbproto "go.chromium.org/luci/buildbucket/proto"
+	"testing"
+	"testplans/internal/git"
 )
 
 const (
@@ -19,9 +20,16 @@ const (
 	GS_PATH_PREFIX = "gs/path/"
 )
 
-func makeBuildbucketBuild(buildTarget string, status bbproto.Status, changes []*bbproto.GerritChange) *bbproto.Build {
+func makeBuildbucketBuild(buildTarget string, status bbproto.Status, changes []*bbproto.GerritChange, critical bool) *bbproto.Build {
+	var criticalVal bbproto.Trinary
+	if critical {
+		criticalVal = bbproto.Trinary_YES
+	} else {
+		criticalVal = bbproto.Trinary_NO
+	}
 	b := &bbproto.Build{
-		Input: &bbproto.Build_Input{},
+		Critical: criticalVal,
+		Input:    &bbproto.Build_Input{},
 		Output: &bbproto.Build_Output{
 			Properties: &_struct.Struct{
 				Fields: map[string]*_struct.Value{
@@ -53,10 +61,10 @@ func makeBuildbucketBuild(buildTarget string, status bbproto.Status, changes []*
 
 func TestCreateCombinedTestPlan_success(t *testing.T) {
 	reefGceTestCfg := &testplans.GceTestCfg{GceTest: []*testplans.GceTestCfg_GceTest{
-		{TestType: "GCE reef"},
+		{TestType: "GCE reef", Common: &testplans.TestSuiteCommon{Critical: &wrappers.BoolValue{Value: true}}},
 	}}
 	reefMoblabVmTestCfg := &testplans.MoblabVmTestCfg{MoblabTest: []*testplans.MoblabVmTestCfg_MoblabTest{
-		{TestType: "Moblab reef"},
+		{TestType: "Moblab reef", Common: &testplans.TestSuiteCommon{Critical: &wrappers.BoolValue{Value: true}}},
 	}}
 	kevinHWTestCfg := &testplans.HwTestCfg{HwTest: []*testplans.HwTestCfg_HwTest{
 		{
@@ -90,10 +98,10 @@ func TestCreateCombinedTestPlan_success(t *testing.T) {
 	bbBuilds := []*bbproto.Build{
 		makeBuildbucketBuild("kevin", bbproto.Status_SUCCESS, []*bbproto.GerritChange{
 			{Host: "test-review.googlesource.com", Change: 123, Patchset: 2},
-		}),
+		}, false),
 		makeBuildbucketBuild("reef", bbproto.Status_SUCCESS, []*bbproto.GerritChange{
 			{Host: "test-review.googlesource.com", Change: 123, Patchset: 2},
-		}),
+		}, true),
 	}
 	chRevData := git.GetChangeRevsForTest([]*git.ChangeRev{
 		{
@@ -150,9 +158,53 @@ func TestCreateCombinedTestPlan_success(t *testing.T) {
 					ArtifactsGsBucket: GS_BUCKET,
 					ArtifactsGsPath:   GS_PATH_PREFIX + "kevin",
 				}},
+		},
+		GceTestUnits: []*testplans.GceTestUnit{
+			{Common: &testplans.TestUnitCommon{
+				BuildPayload: &testplans.BuildPayload{
+					ArtifactsGsBucket: GS_BUCKET,
+					ArtifactsGsPath:   GS_PATH_PREFIX + "reef",
+				},
+				BuildTarget: &chromiumos.BuildTarget{Name: "reef"}},
+				GceTestCfg: reefGceTestCfg},
+		},
+		MoblabVmTestUnits: []*testplans.MoblabVmTestUnit{
+			{Common: &testplans.TestUnitCommon{
+				BuildPayload: &testplans.BuildPayload{
+					ArtifactsGsBucket: GS_BUCKET,
+					ArtifactsGsPath:   GS_PATH_PREFIX + "reef",
+				},
+				BuildTarget: &chromiumos.BuildTarget{Name: "reef"}},
+				MoblabVmTestCfg: reefMoblabVmTestCfg},
+		},
+		HwTestUnits: []*testplans.HwTestUnit{
+			{Common: &testplans.TestUnitCommon{
+				BuildPayload: &testplans.BuildPayload{
+					ArtifactsGsBucket: GS_BUCKET,
+					ArtifactsGsPath:   GS_PATH_PREFIX + "kevin",
+				},
+				BuildTarget: &chromiumos.BuildTarget{Name: "kevin"}},
+				HwTestCfg: kevinHWTestCfg},
+		},
+		TastVmTestUnits: []*testplans.TastVmTestUnit{
+			{Common: &testplans.TestUnitCommon{
+				BuildPayload: &testplans.BuildPayload{
+					ArtifactsGsBucket: GS_BUCKET,
+					ArtifactsGsPath:   GS_PATH_PREFIX + "kevin",
+				},
+				BuildTarget: &chromiumos.BuildTarget{Name: "kevin"}},
+				TastVmTestCfg: kevinTastVMTestCfg},
+		},
+		VmTestUnits: []*testplans.VmTestUnit{
+			{Common: &testplans.TestUnitCommon{
+				BuildPayload: &testplans.BuildPayload{
+					ArtifactsGsBucket: GS_BUCKET,
+					ArtifactsGsPath:   GS_PATH_PREFIX + "kevin",
+				},
+				BuildTarget: &chromiumos.BuildTarget{Name: "kevin"}},
+				VmTestCfg: kevinVMTestCfg},
 		}}
-
-	if diff := cmp.Diff(expectedTestPlan, actualTestPlan); diff != "" {
+	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, cmpopts.EquateEmpty()); diff != "" {
 		t.Errorf("CreateCombinedTestPlan bad result (-want/+got)\n%s", diff)
 	}
 }
@@ -184,10 +236,10 @@ func TestCreateCombinedTestPlan_successDespiteOneFailedBuilder(t *testing.T) {
 	bbBuilds := []*bbproto.Build{
 		makeBuildbucketBuild("kevin", bbproto.Status_FAILURE, []*bbproto.GerritChange{
 			{Host: "test-review.googlesource.com", Change: 123, Patchset: 2},
-		}),
+		}, true),
 		makeBuildbucketBuild("reef", bbproto.Status_SUCCESS, []*bbproto.GerritChange{
 			{Host: "test-review.googlesource.com", Change: 123, Patchset: 2},
-		}),
+		}, true),
 	}
 	chRevData := git.GetChangeRevsForTest([]*git.ChangeRev{
 		{
@@ -216,9 +268,18 @@ func TestCreateCombinedTestPlan_successDespiteOneFailedBuilder(t *testing.T) {
 					ArtifactsGsBucket: GS_BUCKET,
 					ArtifactsGsPath:   GS_PATH_PREFIX + "reef",
 				}},
+		},
+		GceTestUnits: []*testplans.GceTestUnit{
+			{Common: &testplans.TestUnitCommon{
+				BuildPayload: &testplans.BuildPayload{
+					ArtifactsGsBucket: GS_BUCKET,
+					ArtifactsGsPath:   GS_PATH_PREFIX + "reef",
+				},
+				BuildTarget: &chromiumos.BuildTarget{Name: "reef"}},
+				GceTestCfg: reefGceTestCfg},
 		}}
 
-	if diff := cmp.Diff(expectedTestPlan, actualTestPlan); diff != "" {
+	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, cmpopts.EquateEmpty()); diff != "" {
 		t.Errorf("CreateCombinedTestPlan bad result (-want/+got)\n%s", diff)
 	}
 }
@@ -244,7 +305,7 @@ func TestCreateCombinedTestPlan_skipsUnnecessaryHardwareTest(t *testing.T) {
 	bbBuilds := []*bbproto.Build{
 		makeBuildbucketBuild("kevin", bbproto.Status_SUCCESS, []*bbproto.GerritChange{
 			{Host: "test-review.googlesource.com", Change: 123, Patchset: 2},
-		}),
+		}, true),
 	}
 	chRevData := git.GetChangeRevsForTest([]*git.ChangeRev{
 		{
@@ -267,7 +328,7 @@ func TestCreateCombinedTestPlan_skipsUnnecessaryHardwareTest(t *testing.T) {
 	expectedTestPlan := &testplans.GenerateTestPlanResponse{
 		TestUnit: []*testplans.TestUnit{}}
 
-	if diff := cmp.Diff(expectedTestPlan, actualTestPlan); diff != "" {
+	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, cmpopts.EquateEmpty()); diff != "" {
 		t.Errorf("CreateCombinedTestPlan bad result (-want/+got)\n%s", diff)
 	}
 }
@@ -308,7 +369,7 @@ func TestCreateCombinedTestPlan_skipsPointlessBuild(t *testing.T) {
 				TestRestriction: &testplans.TestRestriction{DisableHwTests: true}}}}
 	bbBuild := makeBuildbucketBuild("kevin", bbproto.Status_SUCCESS, []*bbproto.GerritChange{
 		{Host: "test-review.googlesource.com", Change: 123, Patchset: 2},
-	})
+	}, true)
 	bbBuild.Output.Properties.Fields["pointless_build"] = &_struct.Value{Kind: &_struct.Value_BoolValue{BoolValue: true}}
 	bbBuilds := []*bbproto.Build{bbBuild}
 	chRevData := git.GetChangeRevsForTest([]*git.ChangeRev{
@@ -332,7 +393,7 @@ func TestCreateCombinedTestPlan_skipsPointlessBuild(t *testing.T) {
 	expectedTestPlan := &testplans.GenerateTestPlanResponse{
 		TestUnit: []*testplans.TestUnit{}}
 
-	if diff := cmp.Diff(expectedTestPlan, actualTestPlan); diff != "" {
+	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, cmpopts.EquateEmpty()); diff != "" {
 		t.Errorf("CreateCombinedTestPlan bad result (-want/+got)\n%s", diff)
 	}
 }
@@ -342,7 +403,7 @@ func TestCreateTestPlan_succeedsOnNoBuildTarget(t *testing.T) {
 	sourceTreeTestCfg := &testplans.SourceTreeTestCfg{}
 	bbBuilds := []*bbproto.Build{
 		// build target is empty.
-		makeBuildbucketBuild("", bbproto.Status_FAILURE, []*bbproto.GerritChange{}),
+		makeBuildbucketBuild("", bbproto.Status_FAILURE, []*bbproto.GerritChange{}, true),
 	}
 	chRevData := git.GetChangeRevsForTest([]*git.ChangeRev{})
 	repoToSrcRoot := map[string]string{}

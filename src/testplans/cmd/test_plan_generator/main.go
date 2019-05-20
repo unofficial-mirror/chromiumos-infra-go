@@ -6,7 +6,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"github.com/golang/protobuf/jsonpb"
@@ -78,7 +77,7 @@ func (c *getTestPlanRun) Run(a subcommands.Application, args []string, env subco
 		log.Print(err)
 		return 4
 	}
-	repoToSrcRoot, err := getRepoToSourceRoot(req.ChromiumosCheckoutRoot, req.RepoToolPath)
+	repoToSrcRoot, err := c.getRepoToSourceRoot(req.ManifestCommit)
 	if err != nil {
 		log.Print(err)
 		return 5
@@ -190,17 +189,21 @@ func (c *getTestPlanRun) fetchGerritData(bbBuilds []*bbproto.Build) (*git.Change
 	return chRevData, nil
 }
 
-func getRepoToSourceRoot(chromiumosCheckoutRoot, repoToolPath string) (*map[string]string, error) {
-	// Run the repo tool to get a mapping from Gerrit project to source root.
-	if chromiumosCheckoutRoot == "" {
-		log.Printf("Must set request ChromiumosCheckoutRoot")
-		return nil, errors.New("Must set request ChromiumosCheckoutRoot")
+func (c *getTestPlanRun) getRepoToSourceRoot(manifestCommit string) (*map[string]string, error) {
+	ctx := context.Background()
+	authOpts, err := c.authFlags.Options()
+	if err != nil {
+		return nil, err
 	}
-	// If the path isn't set, assume repo is just on the caller's $PATH.
-	if repoToolPath == "" {
-		repoToolPath = "repo"
+	authedClient, err := auth.NewAuthenticator(ctx, auth.SilentLogin, authOpts).Client()
+	if err != nil {
+		return nil, err
 	}
-	repoToSrcRoot, err := repo.GetRepoToSourceRoot(chromiumosCheckoutRoot, repoToolPath)
+	if manifestCommit == "" {
+		log.Print("No manifestCommit provided. Using 'snapshot' instead.")
+		manifestCommit = "snapshot"
+	}
+	repoToSrcRoot, err := repo.GetRepoToSourceRootFromManifests(authedClient, ctx, manifestCommit)
 	if err != nil {
 		return nil, fmt.Errorf("Error with repo tool call\n%v", err)
 	}

@@ -41,7 +41,7 @@ hTPnBcGXkjUAEgAA
 	project := "chromiumos/for/the/win"
 	ref := "master"
 	paths := []string{"dir/file1"}
-	mockGitiles = gitilesMock
+	MockGitiles = gitilesMock
 
 	m, err := FetchFilesFromGitiles(http.DefaultClient, context.Background(), host, project, ref, paths)
 	if err != nil {

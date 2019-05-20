@@ -20,7 +20,7 @@ import (
 
 var (
 	// Override this to use a mock GitilesClient rather than the real one.
-	mockGitiles gitilespb.GitilesClient
+	MockGitiles gitilespb.GitilesClient
 )
 
 // FetchFilesFromGitiles fetches file contents from gitiles.
@@ -34,8 +34,8 @@ var (
 func FetchFilesFromGitiles(authedClient *http.Client, ctx context.Context, host, project, ref string, paths []string) (*map[string]string, error) {
 	var gc gitilespb.GitilesClient
 	var err error
-	if mockGitiles != nil {
-		gc = mockGitiles
+	if MockGitiles != nil {
+		gc = MockGitiles
 	} else {
 		if gc, err = gitiles.NewRESTClient(authedClient, host, true); err != nil {
 			return nil, err

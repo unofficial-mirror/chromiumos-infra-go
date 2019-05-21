@@ -188,3 +188,38 @@ func TestCheckBuilder_noGerritChangesMeansNecessaryBuild(t *testing.T) {
 		t.Errorf("expected !build_is_pointless, instead got result %v", res)
 	}
 }
+
+func TestCheckBuild_nilDepGraphSuccessWithNoFilter(t *testing.T) {
+	// In this test, no DepGraph is provided. We expect the checker to finish successfully, and to not
+	// filter out the files.
+
+	build := makeBuildbucketBuild([]*bbproto.GerritChange{
+		{Host: "test-review.googlesource.com", Change: 123, Patchset: 2, Project: "chromiumos/public/example"}})
+	chRevData := git.GetChangeRevsForTest([]*git.ChangeRev{
+		{
+			ChangeRevKey: git.ChangeRevKey{
+				Host:      "test-review.googlesource.com",
+				ChangeNum: 123,
+				Revision:  2,
+			},
+			Project: "chromiumos/public/example",
+			Files:   []string{"a/b/c"},
+		},
+	})
+	repoToSrcRoot := map[string]string{
+		"chromiumos/public/example":   "src/pub/ex",
+	}
+	cfg := testplans_pb.BuildIrrelevanceCfg{
+		IrrelevantSourcePaths: []*testplans_pb.SourceTree{
+			{Path: "src/internal/catpics"},
+		},
+	}
+
+	res, err := CheckBuilder(build, chRevData, nil, repoToSrcRoot, cfg)
+	if err != nil {
+		t.Error(err)
+	}
+	if res.BuildIsPointless.Value {
+		t.Errorf("expected !build_is_pointless, instead got result %v", res)
+	}
+}

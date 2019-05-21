@@ -132,6 +132,10 @@ affectedFile:
 }
 
 func filterByPortageDeps(files []string, depGraph *chromite.DepGraph) []string {
+	if depGraph == nil {
+		log.Printf("No Portage DepGraph was provided, so no files can be filtered out by this rule.")
+		return files
+	}
 	portageDeps := make([]string, 0)
 	for _, pd := range depGraph.PackageDeps {
 		for _, sp := range pd.DependencySourcePaths {

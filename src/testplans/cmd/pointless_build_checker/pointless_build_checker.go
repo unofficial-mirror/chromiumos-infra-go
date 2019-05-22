@@ -31,6 +31,10 @@ const (
 	buildIrrelevanceConfigPath = "testingconfig/generated/build_irrelevance_config.cfg"
 )
 
+var (
+	unmarshaler = jsonpb.Unmarshaler{AllowUnknownFields: true}
+)
+
 func cmdCheckBuild(authOpts auth.Options) *subcommands.Command {
 	return &subcommands.Command{
 		UsageLine: "check-build --input_json=/path/to/input.json --output_json=/path/to/output.json",
@@ -108,7 +112,7 @@ func (c *checkBuild) readInputJson() (*testplans_pb.PointlessBuildCheckRequest, 
 		return nil, fmt.Errorf("Failed reading input_json\n%v", err)
 	}
 	req := &testplans_pb.PointlessBuildCheckRequest{}
-	if err := jsonpb.Unmarshal(bytes.NewReader(inputBytes), req); err != nil {
+	if err := unmarshaler.Unmarshal(bytes.NewReader(inputBytes), req); err != nil {
 		return nil, fmt.Errorf("Couldn't decode %s as a chromiumos.PointlessBuildCheckRequest\n%v", c.inputJson, err)
 	}
 	return req, nil
@@ -134,7 +138,7 @@ func (c *checkBuild) fetchConfigFromGitiles() (*testplans_pb.BuildIrrelevanceCfg
 		return nil, err
 	}
 	buildIrrelevanceConfig := &testplans_pb.BuildIrrelevanceCfg{}
-	if err := jsonpb.Unmarshal(strings.NewReader((*m)[buildIrrelevanceConfigPath]), buildIrrelevanceConfig); err != nil {
+	if err := unmarshaler.Unmarshal(strings.NewReader((*m)[buildIrrelevanceConfigPath]), buildIrrelevanceConfig); err != nil {
 		return nil, fmt.Errorf("Couldn't decode %s as a BuildIrrelevanceCfg\n%v", (*m)[buildIrrelevanceConfigPath], err)
 	}
 	log.Printf("Fetched config from Gitiles: %s\n", proto.MarshalTextString(buildIrrelevanceConfig))

@@ -5,6 +5,7 @@ package pointless
 
 import (
 	"fmt"
+	"github.com/bmatcuk/doublestar"
 	"github.com/golang/protobuf/ptypes/wrappers"
 	chromite "go.chromium.org/chromiumos/infra/proto/go/chromite/api"
 	testplans_pb "go.chromium.org/chromiumos/infra/proto/go/testplans"
@@ -108,6 +109,16 @@ func filterByBuildIrrelevantPaths(files []string, cfg testplans_pb.BuildIrreleva
 	pipFilteredFiles := make([]string, 0)
 affectedFile:
 	for _, f := range files {
+		for _, pattern := range cfg.IrrelevantFilePatterns {
+			match, err := doublestar.Match(pattern.Pattern, f)
+			if err != nil {
+				log.Fatalf("Failed to match pattern %s against file %s: %v", pattern, f, err)
+			}
+			if match {
+				log.Printf("Ignoring file %s, since it matches Portage irrelevant pattern %s", f, pattern.Pattern)
+				continue affectedFile
+			}
+		}
 		for _, isp := range cfg.IrrelevantSourcePaths {
 			if f == isp.Path {
 				log.Printf("Ignoring file %s, since it matches Portage irrelevant path %s", f, isp.Path)

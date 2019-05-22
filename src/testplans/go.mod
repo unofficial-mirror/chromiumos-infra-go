@@ -4,6 +4,7 @@ go 1.12
 
 require (
 	cloud.google.com/go v0.37.2 // indirect
+	github.com/bmatcuk/doublestar v1.1.1
 	github.com/golang/mock v1.2.0
 	github.com/golang/protobuf v1.3.1
 	github.com/google/go-cmp v0.2.0
@@ -15,7 +16,7 @@ require (
 	github.com/smartystreets/assertions v0.0.0-20190401211740-f487f9de1cd3 // indirect
 	github.com/smartystreets/goconvey v0.0.0-20190330032615-68dc04aab96a // indirect
 	github.com/texttheater/golang-levenshtein v0.0.0-20180516184445-d188e65d659e // indirect
-	go.chromium.org/chromiumos/infra/proto/go v0.0.0-20190521155230-020e6e4c3db7
+	go.chromium.org/chromiumos/infra/proto/go v0.0.0-20190522220408-28d21b420351
 	go.chromium.org/luci v0.0.0-20190404171609-14fb4fbce8ea
 	golang.org/x/oauth2 v0.0.0-20190402181905-9f3314589c9a // indirect
 	google.golang.org/grpc v1.19.1 // indirect

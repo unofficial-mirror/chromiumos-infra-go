@@ -4,6 +4,7 @@
 package pointless
 
 import (
+	"github.com/bmatcuk/doublestar"
 	chromite "go.chromium.org/chromiumos/infra/proto/go/chromite/api"
 	testplans_pb "go.chromium.org/chromiumos/infra/proto/go/testplans"
 	bbproto "go.chromium.org/luci/buildbucket/proto"
@@ -133,6 +134,7 @@ func TestCheckBuilder_buildIrrelevantPaths(t *testing.T) {
 				"chromite-maybe/config-thing/file1",
 				"chromite-maybe/other-config",
 				"chromite-maybe/somedir/img_123.jpg",
+				"chromite-maybe/someotherdir/ignore_me.txt",
 			},
 		},
 	})
@@ -146,6 +148,9 @@ func TestCheckBuilder_buildIrrelevantPaths(t *testing.T) {
 	}
 
 	cfg := testplans_pb.BuildIrrelevanceCfg{
+		IrrelevantFilePatterns: []*testplans_pb.FilePattern{
+			{Pattern: "**/ignore_me.txt"},
+		},
 		IrrelevantSourcePaths: []*testplans_pb.SourceTree{
 			{Path: "src/pub/ex/chromite-maybe/config-thing"},
 			{Path: "src/pub/ex/chromite-maybe/other-config"},
@@ -207,7 +212,7 @@ func TestCheckBuild_nilDepGraphSuccessWithNoFilter(t *testing.T) {
 		},
 	})
 	repoToSrcRoot := map[string]string{
-		"chromiumos/public/example":   "src/pub/ex",
+		"chromiumos/public/example": "src/pub/ex",
 	}
 	cfg := testplans_pb.BuildIrrelevanceCfg{
 		IrrelevantSourcePaths: []*testplans_pb.SourceTree{
@@ -222,4 +227,38 @@ func TestCheckBuild_nilDepGraphSuccessWithNoFilter(t *testing.T) {
 	if res.BuildIsPointless.Value {
 		t.Errorf("expected !build_is_pointless, instead got result %v", res)
 	}
+}
+
+func match(t *testing.T, pattern, name string) {
+	m, err := doublestar.Match(pattern, name)
+	if err != nil {
+		t.Errorf("error trying to match pattern %s against name %s: %v", pattern, name, err)
+	} else {
+		if !m {
+			t.Errorf("expected pattern %s to match against name %s, but it did not match", pattern, name)
+		}
+	}
+}
+
+func notMatch(t *testing.T, pattern, name string) {
+	m, err := doublestar.Match(pattern, name)
+	if err != nil {
+		t.Errorf("error trying to match pattern %s against name %s: %v", pattern, name, err)
+	} else {
+		if m {
+			t.Errorf("expected pattern %s not to match against name %s, but it did match", pattern, name)
+		}
+	}
+}
+
+func TestDoubleStar(t *testing.T) {
+	// A test that demonstrates/verifies operation of the doublestar matching package.
+
+	match(t, "**/OWNERS", "OWNERS")
+	match(t, "**/OWNERS", "some/deep/subdir/OWNERS")
+	notMatch(t, "**/OWNERS", "OWNERS/fds")
+
+	match(t, "chromite/config/**", "chromite/config/config_dump.json")
+
+	match(t, "**/*.md", "a/b/c/README.md")
 }

@@ -11,7 +11,6 @@ import (
 	testplans_pb "go.chromium.org/chromiumos/infra/proto/go/testplans"
 	bbproto "go.chromium.org/luci/buildbucket/proto"
 	"log"
-	"path/filepath"
 	"sort"
 	"strings"
 	"testplans/internal/git"
@@ -116,23 +115,6 @@ affectedFile:
 			}
 			if match {
 				log.Printf("Ignoring file %s, since it matches Portage irrelevant pattern %s", f, pattern.Pattern)
-				continue affectedFile
-			}
-		}
-		for _, isp := range cfg.IrrelevantSourcePaths {
-			if f == isp.Path {
-				log.Printf("Ignoring file %s, since it matches Portage irrelevant path %s", f, isp.Path)
-				continue affectedFile
-			}
-			spAsDir := strings.TrimSuffix(isp.Path, "/") + "/"
-			if strings.HasPrefix(f, spAsDir) {
-				log.Printf("Ignoring file %s, since it's contained in Portage irrelevant dir %s", f, spAsDir)
-				continue affectedFile
-			}
-		}
-		for _, ifbn := range cfg.IrrelevantFileBaseNames {
-			if filepath.Base(f) == ifbn.Name {
-				log.Printf("Ignoring file %s, since it has Portage irrelevant file base name %s", f, ifbn)
 				continue affectedFile
 			}
 		}

@@ -47,11 +47,7 @@ func TestCheckBuilder_irrelevantToDepGraph(t *testing.T) {
 	repoToSrcRoot := map[string]string{
 		"chromiumos/public/example": "src/pub/ex",
 	}
-	cfg := testplans_pb.BuildIrrelevanceCfg{
-		IrrelevantSourcePaths: []*testplans_pb.SourceTree{
-			{Path: "src/pub/ex/irrelevantdir"},
-		},
-	}
+	cfg := testplans_pb.BuildIrrelevanceCfg{}
 
 	res, err := CheckBuilder(build, chRevData, depGraph, repoToSrcRoot, cfg)
 	if err != nil {
@@ -101,11 +97,7 @@ func TestCheckBuilder_relevantToDepGraph(t *testing.T) {
 		"chromiumos/public/example":   "src/pub/ex",
 		"chromiumos/internal/example": "src/internal/ex",
 	}
-	cfg := testplans_pb.BuildIrrelevanceCfg{
-		IrrelevantSourcePaths: []*testplans_pb.SourceTree{
-			{Path: "src/internal/catpics"},
-		},
-	}
+	cfg := testplans_pb.BuildIrrelevanceCfg{}
 
 	res, err := CheckBuilder(build, chRevData, depGraph, repoToSrcRoot, cfg)
 	if err != nil {
@@ -131,9 +123,6 @@ func TestCheckBuilder_buildIrrelevantPaths(t *testing.T) {
 			},
 			Project: "chromiumos/public/example",
 			Files: []string{
-				"chromite-maybe/config-thing/file1",
-				"chromite-maybe/other-config",
-				"chromite-maybe/somedir/img_123.jpg",
 				"chromite-maybe/someotherdir/ignore_me.txt",
 			},
 		},
@@ -150,13 +139,6 @@ func TestCheckBuilder_buildIrrelevantPaths(t *testing.T) {
 	cfg := testplans_pb.BuildIrrelevanceCfg{
 		IrrelevantFilePatterns: []*testplans_pb.FilePattern{
 			{Pattern: "**/ignore_me.txt"},
-		},
-		IrrelevantSourcePaths: []*testplans_pb.SourceTree{
-			{Path: "src/pub/ex/chromite-maybe/config-thing"},
-			{Path: "src/pub/ex/chromite-maybe/other-config"},
-		},
-		IrrelevantFileBaseNames: []*testplans_pb.FileBaseName{
-			{Name: "img_123.jpg"},
 		},
 	}
 
@@ -214,11 +196,7 @@ func TestCheckBuild_nilDepGraphSuccessWithNoFilter(t *testing.T) {
 	repoToSrcRoot := map[string]string{
 		"chromiumos/public/example": "src/pub/ex",
 	}
-	cfg := testplans_pb.BuildIrrelevanceCfg{
-		IrrelevantSourcePaths: []*testplans_pb.SourceTree{
-			{Path: "src/internal/catpics"},
-		},
-	}
+	cfg := testplans_pb.BuildIrrelevanceCfg{}
 
 	res, err := CheckBuilder(build, chRevData, nil, repoToSrcRoot, cfg)
 	if err != nil {

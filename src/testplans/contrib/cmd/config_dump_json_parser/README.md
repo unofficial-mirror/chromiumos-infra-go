@@ -17,5 +17,5 @@ ${HOME}/chromiumos/chromite/bin/cbuildbot_view_config --full > ${HOME}/tmp/confi
 Now run the script:
 
 ```shell
-go run cmd/dev_config_dump_json_parser/main.go --config_dump_json_path=${HOME}/tmp/config_dump.json
+go run contrib/cmd/config_dump_json_parser/main.go --config_dump_json_path=${HOME}/tmp/config_dump.json
 ```

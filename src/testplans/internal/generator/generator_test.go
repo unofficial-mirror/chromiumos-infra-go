@@ -45,6 +45,11 @@ func makeBuildbucketBuild(buildTarget string, status bbproto.Status, changes []*
 							Fields: map[string]*_struct.Value{
 								"gs_bucket": {Kind: &_struct.Value_StringValue{StringValue: GS_BUCKET}},
 								"gs_path":   {Kind: &_struct.Value_StringValue{StringValue: GS_PATH_PREFIX + buildTarget}},
+								"files_by_artifact": {Kind: &_struct.Value_StructValue{StructValue: &_struct.Struct{
+									Fields: map[string]*_struct.Value{
+										"AUTOTEST_FILES": {Kind: &_struct.Value_ListValue{}},
+									},
+								}}},
 							},
 						}},
 					},
@@ -59,7 +64,52 @@ func makeBuildbucketBuild(buildTarget string, status bbproto.Status, changes []*
 	return b
 }
 
-func TestCreateCombinedTestPlan_success(t *testing.T) {
+func TestCreateCombinedTestPlan_oneUnitSuccess(t *testing.T) {
+	kevinHWTestCfg := &testplans.HwTestCfg{HwTest: []*testplans.HwTestCfg_HwTest{
+		{
+			Suite:       "HW kevin",
+			SkylabBoard: "kev",
+		},
+	}}
+	testReqs := &testplans.TargetTestRequirementsCfg{
+		PerTargetTestRequirements: []*testplans.PerTargetTestRequirements{
+			{TargetCriteria: &testplans.TargetCriteria{
+				TargetType: &testplans.TargetCriteria_BuildTarget{BuildTarget: "kevin"}},
+				HwTestCfg: kevinHWTestCfg},
+		},
+	}
+	sourceTreeTestCfg := &testplans.SourceTreeTestCfg{
+		SourceTreeTestRestriction: []*testplans.SourceTreeTestRestriction{
+			{SourceTree: &testplans.SourceTree{Path: "hw/tests/not/needed/here"},
+				TestRestriction: &testplans.TestRestriction{DisableHwTests: true}}}}
+	bbBuilds := []*bbproto.Build{
+		makeBuildbucketBuild("kevin", bbproto.Status_SUCCESS, []*bbproto.GerritChange{}, true),
+	}
+	chRevData := git.GetChangeRevsForTest([]*git.ChangeRev{})
+	repoToSrcRoot := map[string]string{"chromiumos/repo/name": "src/to/file"}
+
+	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, chRevData, repoToSrcRoot)
+	if err != nil {
+		t.Error(err)
+	}
+
+	expectedTestPlan := &testplans.GenerateTestPlanResponse{
+		HwTestUnits: []*testplans.HwTestUnit{
+			{Common: &testplans.TestUnitCommon{
+				BuildPayload: &testplans.BuildPayload{
+					ArtifactsGsBucket: GS_BUCKET,
+					ArtifactsGsPath:   GS_PATH_PREFIX + "kevin",
+				},
+				BuildTarget: &chromiumos.BuildTarget{Name: "kevin"}},
+				HwTestCfg: kevinHWTestCfg},
+		},
+	}
+	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, cmpopts.EquateEmpty()); diff != "" {
+		t.Errorf("CreateCombinedTestPlan bad result (-want/+got)\n%s", diff)
+	}
+}
+
+func TestCreateCombinedTestPlan_manyUnitSuccess(t *testing.T) {
 	reefGceTestCfg := &testplans.GceTestCfg{GceTest: []*testplans.GceTestCfg_GceTest{
 		{TestType: "GCE reef", Common: &testplans.TestSuiteCommon{Critical: &wrappers.BoolValue{Value: true}}},
 	}}
@@ -409,6 +459,46 @@ func TestCreateCombinedTestPlan_skipsNonCritical(t *testing.T) {
 	expectedTestPlan := &testplans.GenerateTestPlanResponse{
 		GceTestUnits: []*testplans.GceTestUnit{}}
 
+	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, cmpopts.EquateEmpty()); diff != "" {
+		t.Errorf("CreateCombinedTestPlan bad result (-want/+got)\n%s", diff)
+	}
+}
+
+func TestCreateCombinedTestPlan_ignoresNonArtifactBuild(t *testing.T) {
+	kevinHWTestCfg := &testplans.HwTestCfg{HwTest: []*testplans.HwTestCfg_HwTest{
+		{
+			Suite:       "HW kevin",
+			SkylabBoard: "kev",
+		},
+	}}
+	testReqs := &testplans.TargetTestRequirementsCfg{
+		PerTargetTestRequirements: []*testplans.PerTargetTestRequirements{
+			{TargetCriteria: &testplans.TargetCriteria{
+				TargetType: &testplans.TargetCriteria_BuildTarget{BuildTarget: "kevin"}},
+				HwTestCfg: kevinHWTestCfg},
+		},
+	}
+	sourceTreeTestCfg := &testplans.SourceTreeTestCfg{
+		SourceTreeTestRestriction: []*testplans.SourceTreeTestRestriction{
+			{SourceTree: &testplans.SourceTree{Path: "hw/tests/not/needed/here"},
+				TestRestriction: &testplans.TestRestriction{DisableHwTests: true}}}}
+	build := makeBuildbucketBuild("kevin", bbproto.Status_SUCCESS, []*bbproto.GerritChange{}, true)
+
+	// Remove the AUTOTEST_FILES files_by_artifact key, thus making this whole
+	// build unusable for testing.
+	delete(
+		build.GetOutput().GetProperties().GetFields()["artifacts"].GetStructValue().GetFields()["files_by_artifact"].GetStructValue().GetFields(),
+		"AUTOTEST_FILES")
+	bbBuilds := []*bbproto.Build{build}
+	chRevData := git.GetChangeRevsForTest([]*git.ChangeRev{})
+	repoToSrcRoot := map[string]string{"chromiumos/repo/name": "src/to/file"}
+
+	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, chRevData, repoToSrcRoot)
+	if err != nil {
+		t.Error(err)
+	}
+
+	expectedTestPlan := &testplans.GenerateTestPlanResponse{}
 	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, cmpopts.EquateEmpty()); diff != "" {
 		t.Errorf("CreateCombinedTestPlan bad result (-want/+got)\n%s", diff)
 	}

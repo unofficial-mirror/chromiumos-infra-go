@@ -6,7 +6,6 @@ package generator
 import (
 	"errors"
 	"fmt"
-	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/wrappers"
 	"go.chromium.org/chromiumos/infra/proto/go/chromiumos"
 	"go.chromium.org/chromiumos/infra/proto/go/testplans"
@@ -59,8 +58,11 @@ func CreateTestPlan(
 	for _, bb := range unfilteredBbBuilds {
 		bt := getBuildTarget(bb)
 		if len(bt) == 0 {
-			log.Printf("filtering out build without a build target:\n%s",
-				proto.MarshalTextString(bb.Builder))
+			log.Printf("filtering out build without a build target: %s", bb.GetBuilder().GetBuilder())
+		} else if isPointlessBuild(bb) {
+			log.Printf("filtering out because marked as pointless: %s", bb.GetBuilder().GetBuilder())
+		} else if !hasTestArtifacts(bb) {
+			log.Printf("filtering out with missing test artifacts: %s", bb.GetBuilder().GetBuilder())
 		} else {
 			btBuildReports[BuildTarget(bt)] = *bb
 			filteredBbBuilds = append(filteredBbBuilds, bb)
@@ -91,6 +93,39 @@ perTargetTestReq:
 	return createResponse(targetBuildResults, skippableTests)
 }
 
+func isPointlessBuild(bb *bbproto.Build) bool {
+	pointlessBuild, ok := bb.GetOutput().GetProperties().GetFields()["pointless_build"]
+	return ok && pointlessBuild.GetBoolValue()
+}
+
+func hasTestArtifacts(b *bbproto.Build) bool {
+	art, ok := b.GetOutput().GetProperties().GetFields()["artifacts"]
+	if !ok {
+		return false
+	}
+	fba, ok := art.GetStructValue().GetFields()["files_by_artifact"]
+	if !ok {
+		return false
+	}
+
+	// The presence of any one of these artifacts is enough to tell us that this
+	// build should be considered for testing.
+	testArtifacts := []string{
+		"AUTOTEST_FILES",
+		"IMAGE_ZIP",
+		"PINNED_GUEST_IMAGES",
+		"TAST_FILES",
+		"TEST_UPDATE_PAYLOAD",
+	}
+	fileToArtifact := fba.GetStructValue().GetFields()
+	for _, ta := range testArtifacts {
+		if _, ok := fileToArtifact[ta]; ok {
+			return true
+		}
+	}
+	return false
+}
+
 // getBuildTarget returns the build target from the given build, or empty string if none is found.
 func getBuildTarget(bb *bbproto.Build) string {
 	btStruct, ok := bb.Output.Properties.Fields["build_target"]
@@ -112,12 +147,6 @@ func createResponse(
 	resp := &testplans.GenerateTestPlanResponse{}
 targetLoop:
 	for _, tbr := range targetBuildResults {
-		pointlessBuild, ok := tbr.buildReport.Output.Properties.Fields["pointless_build"]
-		if ok && pointlessBuild.GetBoolValue() {
-			// Build terminated early and successfully. No need to test it.
-			log.Printf("Skipping build %s because it's marked as pointless", tbr.buildTarget)
-			continue targetLoop
-		}
 		art, ok := tbr.buildReport.Output.Properties.Fields["artifacts"]
 		if !ok {
 			return nil, fmt.Errorf("found no artifacts output property for build_target %s", tbr.buildTarget)
@@ -278,16 +307,6 @@ func pickBuilderToTest(buildTargets []BuildTarget, btBuildReports map[BuildTarge
 			log.Printf("No build found for BuildTarget %s", bt)
 			continue
 		}
-
-		// TODO: Handle early termination case. As of 2019-04-05, it's not defined yet how the builder
-		// will report that it terminated early.
-		// Below is what the logic might look like:
-		//
-		//if br.EarlyTerminationStatus != testplans.BuildReport_NOT_TERMINATED_EARLY &&
-		//	br.EarlyTerminationStatus != testplans.BuildReport_EARLY_TERMINATION_STATUS_UNSPECIFIED {
-		//	log.Printf("Disregarding %s because its EarlyTerminationStatus is %v", br.BuildTarget, br.EarlyTerminationStatus)
-		//	continue
-		//}
 		relevantReports[bt] = br
 	}
 	if len(relevantReports) == 0 {
@@ -313,11 +332,9 @@ func canDisableTesting(
 	changeRevs *git.ChangeRevData,
 	repoToSrcRoot map[string]string,
 	tt testType) (bool, error) {
-	if len(buildResult.Input.GerritChanges) == 0 && buildResult.Input.GitilesCommit != nil {
-		// In this case, the build is being performed at a particular commit, rather than for a range
-		// of unmerged Gerrit CLs. The disabling of testing in this method is only applicable in the
-		// Gerrit CLs case.
-		log.Printf("Found a Gitiles-based build for %s, so no tests will be skipped", getBuildTarget(buildResult))
+	if len(buildResult.Input.GerritChanges) == 0 {
+		// This happens during postsubmit runs, for example.
+		log.Printf("build doesn't contain gerrit_changes %s, so no tests will be skipped", getBuildTarget(buildResult))
 		return false, nil
 	}
 	fileCount := 0

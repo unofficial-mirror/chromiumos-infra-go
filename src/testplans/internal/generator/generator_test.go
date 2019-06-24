@@ -336,6 +336,79 @@ func TestCreateCombinedTestPlan_skipsUnnecessaryHardwareTest(t *testing.T) {
 	}
 }
 
+func TestCreateCombinedTestPlan_doesOnlyTest(t *testing.T) {
+	kevinHWTestCfg := &testplans.HwTestCfg{HwTest: []*testplans.HwTestCfg_HwTest{
+		{
+			Suite:       "HW kevin",
+			SkylabBoard: "kev",
+		},
+	}}
+	bobHWTestCfg := &testplans.HwTestCfg{HwTest: []*testplans.HwTestCfg_HwTest{
+		{
+			Suite:       "HW bob",
+			SkylabBoard: "bob board",
+		},
+	}}
+	testReqs := &testplans.TargetTestRequirementsCfg{
+		PerTargetTestRequirements: []*testplans.PerTargetTestRequirements{
+			{TargetCriteria: &testplans.TargetCriteria{
+				TargetType: &testplans.TargetCriteria_BuildTarget{BuildTarget: "kevin"}},
+				HwTestCfg: kevinHWTestCfg},
+			{TargetCriteria: &testplans.TargetCriteria{
+				TargetType: &testplans.TargetCriteria_BuildTarget{BuildTarget: "bob"}},
+				HwTestCfg: bobHWTestCfg},
+		},
+	}
+	sourceTreeTestCfg := &testplans.SourceTreeTestCfg{
+		SourceTreeTestRestriction: []*testplans.SourceTreeTestRestriction{
+			{SourceTree: &testplans.SourceTree{Path: "no/hw/tests/here/some/file"},
+				TestRestriction: &testplans.TestRestriction{
+					OnlyTestBuildTargets: []*chromiumos.BuildTarget{
+						{Name: "kevin"}},
+				}}}}
+	bbBuilds := []*bbproto.Build{
+		makeBuildbucketBuild("kevin", bbproto.Status_SUCCESS, []*bbproto.GerritChange{
+			{Host: "test-review.googlesource.com", Change: 123, Patchset: 2},
+		}, true),
+		makeBuildbucketBuild("bob", bbproto.Status_SUCCESS, []*bbproto.GerritChange{
+			{Host: "test-review.googlesource.com", Change: 123, Patchset: 2},
+		}, true),
+	}
+	chRevData := git.GetChangeRevsForTest([]*git.ChangeRev{
+		{
+			ChangeRevKey: git.ChangeRevKey{
+				Host:      "test-review.googlesource.com",
+				ChangeNum: 123,
+				Revision:  2,
+			},
+			Project: "chromiumos/test/repo/name",
+			Files:   []string{"some/file"},
+		},
+	})
+	repoToSrcRoot := map[string]string{"chromiumos/test/repo/name": "no/hw/tests/here"}
+
+	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, chRevData, repoToSrcRoot)
+	if err != nil {
+		t.Error(err)
+	}
+
+	expectedTestPlan := &testplans.GenerateTestPlanResponse{
+		HwTestUnits: []*testplans.HwTestUnit{
+			{Common: &testplans.TestUnitCommon{
+				BuildPayload: &testplans.BuildPayload{
+					ArtifactsGsBucket: GS_BUCKET,
+					ArtifactsGsPath:   GS_PATH_PREFIX + "kevin",
+				},
+				BuildTarget: &chromiumos.BuildTarget{Name: "kevin"}},
+				HwTestCfg: kevinHWTestCfg},
+		},
+	}
+
+	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, cmpopts.EquateEmpty()); diff != "" {
+		t.Errorf("CreateCombinedTestPlan bad result (-want/+got)\n%s", diff)
+	}
+}
+
 func TestCreateCombinedTestPlan_inputMissingTargetType(t *testing.T) {
 	testReqs := &testplans.TargetTestRequirementsCfg{
 		PerTargetTestRequirements: []*testplans.PerTargetTestRequirements{

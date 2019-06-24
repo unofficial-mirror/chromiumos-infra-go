@@ -15,7 +15,6 @@ import (
 	"testplans/internal/git"
 )
 
-
 // BuildTarget is an OS build target, such as "kevin" or "eve".
 type BuildTarget string
 
@@ -52,8 +51,15 @@ func CreateTestPlan(
 		}
 	}
 
-	// BuildTargets for which HW or VM testing may be skipped, due to source tree configuration.
-	skippableTests, err := extractSkippableTests(sourceTreeCfg, filteredBbBuilds, changeRevs, repoToSrcRoot)
+	// Get the GerritChanges from any of the filtered builds, since the list
+	// should be the same for all of them.
+	changes := make([]*bbproto.GerritChange, 0)
+	if len(filteredBbBuilds) > 0 {
+		changes = append(changes, filteredBbBuilds[0].Input.GerritChanges...)
+	}
+
+	// For those changes, what pruning optimizations can be done?
+	pruneResult, err := extractPruneResult(sourceTreeCfg, changes, changeRevs, repoToSrcRoot)
 	if err != nil {
 		return testPlan, err
 	}
@@ -73,7 +79,7 @@ perTargetTestReq:
 		targetBuildResults = append(targetBuildResults, *tbr)
 	}
 
-	return createResponse(targetBuildResults, skippableTests)
+	return createResponse(targetBuildResults, pruneResult)
 }
 
 func isPointlessBuild(bb *bbproto.Build) bool {
@@ -125,7 +131,7 @@ func getBuildTarget(bb *bbproto.Build) string {
 // createResponse creates the final GenerateTestPlanResponse.
 func createResponse(
 	targetBuildResults []targetBuildResult,
-	skippableTests map[BuildTarget]map[testType]bool) (*testplans.GenerateTestPlanResponse, error) {
+	pruneResult *testPruneResult) (*testplans.GenerateTestPlanResponse, error) {
 
 	resp := &testplans.GenerateTestPlanResponse{}
 targetLoop:
@@ -164,8 +170,10 @@ targetLoop:
 				GceTestCfg: pttr.GceTestCfg})
 		}
 		if pttr.HwTestCfg != nil {
-			if skippableTests[tbr.buildTarget][hw] {
+			if pruneResult.disableHWTests {
 				log.Printf("No HW testing needed for %s", tbr.buildTarget)
+			} else if pruneResult.canSkipForOnlyTestRule(tbr.buildTarget) {
+				log.Printf("Using OnlyTest rule to skip HW testing for %s", tbr.buildTarget)
 			} else {
 				for _, hw := range pttr.HwTestCfg.HwTest {
 					hw.Common = withCritical(hw.Common, critical)
@@ -192,7 +200,7 @@ targetLoop:
 				TastVmTestCfg: pttr.TastVmTestCfg})
 		}
 		if pttr.VmTestCfg != nil {
-			if skippableTests[tbr.buildTarget][vm] {
+			if pruneResult.disableVMTests {
 				log.Printf("No VM testing needed for %s", tbr.buildTarget)
 			} else {
 				for _, vm := range pttr.VmTestCfg.VmTest {

@@ -8,11 +8,11 @@ import (
 	"errors"
 	"fmt"
 	"github.com/golang/protobuf/ptypes/wrappers"
+	"go.chromium.org/chromiumos/infra/go/internal/git"
 	"go.chromium.org/chromiumos/infra/proto/go/chromiumos"
 	"go.chromium.org/chromiumos/infra/proto/go/testplans"
 	bbproto "go.chromium.org/luci/buildbucket/proto"
 	"log"
-	"testplans/internal/git"
 )
 
 // BuildTarget is an OS build target, such as "kevin" or "eve".

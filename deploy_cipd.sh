@@ -7,7 +7,7 @@
 cd "$(dirname "$0")"
 
 # Wrap all testplan commands as cipd package.
-CMDPATH="./src/testplans/cmd"
+CMDPATH="./cmd"
 OUTPATH="$(pwd -P)/.out"
 
 if [ -e $OUTPATH ]; then

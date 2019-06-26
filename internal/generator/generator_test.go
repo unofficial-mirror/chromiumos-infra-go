@@ -8,11 +8,11 @@ import (
 	"github.com/golang/protobuf/ptypes/wrappers"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"go.chromium.org/chromiumos/infra/go/internal/git"
 	"go.chromium.org/chromiumos/infra/proto/go/chromiumos"
 	"go.chromium.org/chromiumos/infra/proto/go/testplans"
 	bbproto "go.chromium.org/luci/buildbucket/proto"
 	"testing"
-	"testplans/internal/git"
 )
 
 const (

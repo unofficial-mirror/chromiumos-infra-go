@@ -8,13 +8,13 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"go.chromium.org/chromiumos/infra/go/internal/shared"
 	"go.chromium.org/luci/common/api/gitiles"
 	"go.chromium.org/luci/common/errors"
 	"go.chromium.org/luci/common/logging"
 	gitilespb "go.chromium.org/luci/common/proto/gitiles"
 	"io"
 	"net/http"
-	"testplans/internal/shared"
 	"time"
 )
 

@@ -7,13 +7,13 @@ import (
 	"fmt"
 	"github.com/bmatcuk/doublestar"
 	"github.com/golang/protobuf/ptypes/wrappers"
+	"go.chromium.org/chromiumos/infra/go/internal/git"
 	chromite "go.chromium.org/chromiumos/infra/proto/go/chromite/api"
 	testplans_pb "go.chromium.org/chromiumos/infra/proto/go/testplans"
 	bbproto "go.chromium.org/luci/buildbucket/proto"
 	"log"
 	"sort"
 	"strings"
-	"testplans/internal/git"
 )
 
 const (

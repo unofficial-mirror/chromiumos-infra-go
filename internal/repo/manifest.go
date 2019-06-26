@@ -3,10 +3,10 @@ package repo
 import (
 	"context"
 	"encoding/xml"
+	"go.chromium.org/chromiumos/infra/go/internal/git"
 	"go.chromium.org/luci/common/errors"
 	"log"
 	"net/http"
-	"testplans/internal/git"
 )
 
 var (

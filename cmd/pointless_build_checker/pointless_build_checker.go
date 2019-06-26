@@ -11,6 +11,9 @@ import (
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/golang/protobuf/proto"
 	"github.com/maruel/subcommands"
+	"go.chromium.org/chromiumos/infra/go/internal/git"
+	"go.chromium.org/chromiumos/infra/go/internal/pointless"
+	"go.chromium.org/chromiumos/infra/go/internal/repo"
 	testplans_pb "go.chromium.org/chromiumos/infra/proto/go/testplans"
 	"go.chromium.org/luci/auth"
 	"go.chromium.org/luci/auth/client/authcli"
@@ -22,9 +25,6 @@ import (
 	"log"
 	"os"
 	"strings"
-	"testplans/internal/git"
-	"testplans/internal/pointless"
-	"testplans/internal/repo"
 )
 
 const (

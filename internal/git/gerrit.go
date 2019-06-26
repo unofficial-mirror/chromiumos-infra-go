@@ -6,10 +6,10 @@ package git
 import (
 	"context"
 	"fmt"
+	"go.chromium.org/chromiumos/infra/go/internal/shared"
 	"go.chromium.org/luci/common/api/gerrit"
 	gerritpb "go.chromium.org/luci/common/proto/gerrit"
 	"net/http"
-	"testplans/internal/shared"
 	"time"
 )
 

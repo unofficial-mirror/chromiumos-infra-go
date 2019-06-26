@@ -6,11 +6,11 @@ package generator
 
 import (
 	"fmt"
+	"go.chromium.org/chromiumos/infra/go/internal/git"
 	"go.chromium.org/chromiumos/infra/proto/go/testplans"
 	bbproto "go.chromium.org/luci/buildbucket/proto"
 	"log"
 	"strings"
-	"testplans/internal/git"
 )
 
 type testType int

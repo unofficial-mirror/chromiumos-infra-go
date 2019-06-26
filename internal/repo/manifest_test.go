@@ -4,10 +4,10 @@ import (
 	"context"
 	"encoding/base64"
 	"github.com/golang/mock/gomock"
+	"go.chromium.org/chromiumos/infra/go/internal/git"
 	gitilespb "go.chromium.org/luci/common/proto/gitiles"
 	"net/http"
 	"testing"
-	"testplans/internal/git"
 )
 
 func TestFetchFilesFromGitiles_success(t *testing.T) {

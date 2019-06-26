@@ -5,11 +5,11 @@ package pointless
 
 import (
 	"github.com/bmatcuk/doublestar"
+	"go.chromium.org/chromiumos/infra/go/internal/git"
 	chromite "go.chromium.org/chromiumos/infra/proto/go/chromite/api"
 	testplans_pb "go.chromium.org/chromiumos/infra/proto/go/testplans"
 	bbproto "go.chromium.org/luci/buildbucket/proto"
 	"testing"
-	"testplans/internal/git"
 )
 
 func makeBuildbucketBuild(changes []*bbproto.GerritChange) *bbproto.Build {

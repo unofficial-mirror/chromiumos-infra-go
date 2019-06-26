@@ -1,4 +1,4 @@
-module testplans
+module go.chromium.org/chromiumos/infra/go
 
 go 1.12
 

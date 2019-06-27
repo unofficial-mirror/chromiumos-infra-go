@@ -21,10 +21,12 @@ var cmdCreateBranch = &subcommands.Command{
 				"target or a device, depending on the nature of the branch. Used "+
 				"to generate the branch name. Cannot be used with --custom.")
 		// Which manifest should be branched?
-		c.Flags.StringVar(&c.version, "version", "",
-			"Manifest version to branch off, e.g. '10509.0.0'. You may not branch "+
-				"off of the same version twice unless you run "+
-				"with --force.")
+		// TODO(@jackneus): Implement version logic
+		//c.Flags.StringVar(&c.version, "version", "",
+		//	"Manifest version to branch off, e.g. '10509.0.0'. You may not branch "+
+		//		"off of the same version twice unless you run "+
+		//		"with --force.")
+		c.Flags.StringVar(&c.file, "file", "", "Path to manifest file to branch off.")
 		// What kind of branch is this?
 		// TODO(@jackneus): Figure out how to group these flags in the
 		// help dialog. Right now all flags are displayed in alphabetic
@@ -94,24 +96,40 @@ func (c *createBranchRun) getBranchType() (string, bool) {
 	return branch_type, true
 }
 
-func (c *createBranchRun) validate() (bool, string) {
-	if c.version == "" && c.file == "" {
-		return false, "Must set --version or --file."
+func (c *createBranchRun) validate(args []string) (bool, string) {
+	if c.file == "" {
+		return false, "Must set --file."
 	}
 	_, ok := c.getBranchType()
 	if !ok {
 		return false, "Must select exactly one branch type " +
 			"(--release, --factory, --firmware, --stabilize, --custom)."
 	}
+	if c.descriptor != "" && c.custom != "" {
+		return false, "--descriptor cannot be used with --custom."
+	}
+	if c.version != "" && c.version[len(c.version)-1] != '0' {
+		return false, "cannot branch version from nonzero patch number."
+	}
 	return true, ""
+}
+
+// Getters so that functions using the branchCommand interface
+// can access CommonFlags in the underlying struct.
+func (c *createBranchRun) getRoot() string {
+	return c.Root
+}
+
+func (c *createBranchRun) getManifestUrl() string {
+	return c.ManifestUrl
 }
 
 func (c *createBranchRun) Run(a subcommands.Application, args []string,
 	env subcommands.Env) int {
-	ok, err := c.validate()
-	if !ok {
-		fmt.Fprintf(a.GetErr(), "%s: %s\n", a.GetName(), err)
-		return 1
+	// Common setup (argument validation, repo init, etc.)
+	ret := Run(c, a, args, env)
+	if ret != 0 {
+		return ret
 	}
 
 	return 0

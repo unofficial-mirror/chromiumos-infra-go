@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"io/ioutil"
 	"log"
 	"os"
@@ -10,14 +11,7 @@ import (
 )
 
 var (
-	Context = context.Background()
-
-	push         bool
-	force        bool
-	root         string
-	repo_url     string
-	repo_branch  string
-	manifest_url string
+	Context      = context.Background()
 )
 
 var application = &subcommands.DefaultApplication{
@@ -37,7 +31,7 @@ type branchApplication struct {
 }
 
 func main() {
-	subcommands.KillStdLog()
+	flag.StringVar(&RepoToolPath, "repo_path", "repo", "Path of repo tool. Optional if repo is on your PATH.")
 	s := &branchApplication{application, log.New(ioutil.Discard, "", log.LstdFlags|log.Lmicroseconds)}
 	os.Exit(subcommands.Run(s, nil))
 }

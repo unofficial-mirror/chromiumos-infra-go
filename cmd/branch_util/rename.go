@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-
 	"github.com/maruel/subcommands"
 )
 
@@ -35,12 +33,21 @@ func (c *renameBranchRun) validate(args []string) (bool, string) {
 	return true, ""
 }
 
+// Getters so that functions using the branchCommand interface
+// can access CommonFlags in the underlying struct.
+func (c *renameBranchRun) getRoot() string {
+	return c.Root
+}
+
+func (c *renameBranchRun) getManifestUrl() string {
+	return c.ManifestUrl
+}
+
 func (c *renameBranchRun) Run(a subcommands.Application, args []string,
 	env subcommands.Env) int {
-	ok, err := c.validate(args)
-	if !ok {
-		fmt.Fprintf(a.GetErr(), "%s: %s\n", a.GetName(), err)
-		return 1
+	ret := Run(c, a, args, env)
+	if ret != 0 {
+		return ret
 	}
 
 	return 0

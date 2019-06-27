@@ -13,6 +13,6 @@ cd "$(dirname "$0")"
 test_dirs=$(find . -name '*_test.go' -exec dirname {} \; | sort | uniq)
 for d in $test_dirs; do
   echo "Testing ${d}"
-  go test $d/*
+  go test $d/*.go
 done
 

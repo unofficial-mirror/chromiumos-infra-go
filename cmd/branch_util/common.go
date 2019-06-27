@@ -1,8 +1,17 @@
 package main
 
 import (
+	"fmt"
+	"io/ioutil"
+
 	"github.com/maruel/subcommands"
 )
+
+type branchCommand interface {
+	validate([]string) (bool, string)
+	getRoot() string
+	getManifestUrl() string
+}
 
 // Common flags
 type CommonFlags struct {
@@ -12,6 +21,11 @@ type CommonFlags struct {
 	Root        string
 	ManifestUrl string
 }
+
+var (
+	RepoToolPath string
+	checkout     CrosCheckout
+)
 
 func (c *CommonFlags) Init() {
 	// Common flags
@@ -35,6 +49,26 @@ func (c *CommonFlags) Init() {
 			"for manifest-internal.")
 }
 
-func (c *CommonFlags) Parse() {
+func Run(c branchCommand, a subcommands.Application, args []string,
+	// Validate flags/arguments.
+	env subcommands.Env) int {
+	ok, errMsg := c.validate(args)
+	if !ok {
+		fmt.Fprintf(a.GetErr(), "%s: %s\n", a.GetName(), errMsg)
+		return 1
+	}
 
+	var err error
+	root := c.getRoot()
+	if root == "" {
+		root, err = ioutil.TempDir("", "cros-branch-")
+		// TODO(jackneus): Delete tmp dir at end.
+		if err != nil {
+			fmt.Fprintf(a.GetErr(), "Error. Tmp root could not be created: %s", err)
+			return 1
+		}
+	}
+	checkout.Initialize(root, c.getManifestUrl())
+
+	return 0
 }

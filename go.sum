@@ -130,6 +130,7 @@ go.chromium.org/chromiumos/infra/proto v0.0.0-20190521155230-020e6e4c3db7 h1:NfZ
 go.chromium.org/chromiumos/infra/proto v0.0.0-20190522220408-28d21b420351 h1:KNLtgp0J88Hncy7GXvYUec8VVarBWQmkiG1yVJqiMcc=
 go.chromium.org/chromiumos/infra/proto v0.0.0-20190523171533-39bf919eecb4 h1:MbjVVWG/KH+oEO3Vb1/ru10VbrnYHwbpyRNJsi1lFpo=
 go.chromium.org/chromiumos/infra/proto v0.0.0-20190620221159-9206f8f25ade h1:Ryr72FOi62Wa6HXtykgbNyp3yA+tXmRRSCSHOw4ALhY=
+go.chromium.org/chromiumos/infra/proto v0.0.0-20190628172914-1bda6bfdc865 h1:M8xCaP0eIMGoYla2dVvRr9ThNhLkDa9hTpBtPIpEtuM=
 go.chromium.org/chromiumos/infra/proto/go v0.0.0-20190506153826-232eeaaa29a9 h1:87ML72wybRl6dKe4qyvTH5Y6ihvrTxT13+xTsz7F6tE=
 go.chromium.org/chromiumos/infra/proto/go v0.0.0-20190506153826-232eeaaa29a9/go.mod h1:Y1AiM5bpNKKecKy3wgiBwF9q1PJ/f57z86DpkNrMehk=
 go.chromium.org/chromiumos/infra/proto/go v0.0.0-20190514195506-9aeeb525f8a2 h1:kAJWnYFu1Vvk3RdZLKz9rDDBsi4m8WPDXv7r9plSEaY=
@@ -152,6 +153,8 @@ go.chromium.org/chromiumos/infra/proto/go v0.0.0-20190523171533-39bf919eecb4 h1:
 go.chromium.org/chromiumos/infra/proto/go v0.0.0-20190523171533-39bf919eecb4/go.mod h1:Y1AiM5bpNKKecKy3wgiBwF9q1PJ/f57z86DpkNrMehk=
 go.chromium.org/chromiumos/infra/proto/go v0.0.0-20190620221159-9206f8f25ade h1:nEbrOlXy2f7gxNceKIdRj+epA1DsydTERwGiW5llzjM=
 go.chromium.org/chromiumos/infra/proto/go v0.0.0-20190620221159-9206f8f25ade/go.mod h1:Y1AiM5bpNKKecKy3wgiBwF9q1PJ/f57z86DpkNrMehk=
+go.chromium.org/chromiumos/infra/proto/go v0.0.0-20190628172914-1bda6bfdc865 h1:4aQ7gX2251gGr/IuOekXIc9XvWbhG5rvUdwhCYbLaKk=
+go.chromium.org/chromiumos/infra/proto/go v0.0.0-20190628172914-1bda6bfdc865/go.mod h1:Y1AiM5bpNKKecKy3wgiBwF9q1PJ/f57z86DpkNrMehk=
 go.chromium.org/luci v0.0.0-20190404171609-14fb4fbce8ea h1:qf3Ri7sv3yJPL4E0iq4hBYn3AFSf2dNNJpuZDBXAT2E=
 go.chromium.org/luci v0.0.0-20190404171609-14fb4fbce8ea/go.mod h1:MIQewVTLvOvc0UioV0JNqTNO/RspKFS0XEeoKrOxsdM=
 go.opencensus.io v0.18.0/go.mod h1:vKdFvxhtzZ9onBp9VKHK8z/sRpBMnKAsufL7wlDrCOA=

@@ -20,6 +20,15 @@ const (
 	GS_PATH_PREFIX = "gs/path/"
 )
 
+var (
+	simpleFilesByArtifactValue = _struct.Value{Kind: &_struct.Value_StructValue{StructValue: &_struct.Struct{
+		Fields: map[string]*_struct.Value{
+			"AUTOTEST_FILES": {Kind: &_struct.Value_ListValue{}},
+		},
+	}}}
+	simpleFilesByArtifact = _struct.Struct{Fields: simpleFilesByArtifactValue.GetStructValue().Fields}
+)
+
 func makeBuildbucketBuild(buildTarget string, status bbproto.Status, changes []*bbproto.GerritChange, critical bool) *bbproto.Build {
 	var criticalVal bbproto.Trinary
 	if critical {
@@ -43,13 +52,9 @@ func makeBuildbucketBuild(buildTarget string, status bbproto.Status, changes []*
 					"artifacts": {
 						Kind: &_struct.Value_StructValue{StructValue: &_struct.Struct{
 							Fields: map[string]*_struct.Value{
-								"gs_bucket": {Kind: &_struct.Value_StringValue{StringValue: GS_BUCKET}},
-								"gs_path":   {Kind: &_struct.Value_StringValue{StringValue: GS_PATH_PREFIX + buildTarget}},
-								"files_by_artifact": {Kind: &_struct.Value_StructValue{StructValue: &_struct.Struct{
-									Fields: map[string]*_struct.Value{
-										"AUTOTEST_FILES": {Kind: &_struct.Value_ListValue{}},
-									},
-								}}},
+								"gs_bucket":         {Kind: &_struct.Value_StringValue{StringValue: GS_BUCKET}},
+								"gs_path":           {Kind: &_struct.Value_StringValue{StringValue: GS_PATH_PREFIX + buildTarget}},
+								"files_by_artifact": &simpleFilesByArtifactValue,
 							},
 						}},
 					},
@@ -99,6 +104,7 @@ func TestCreateCombinedTestPlan_oneUnitSuccess(t *testing.T) {
 				BuildPayload: &testplans.BuildPayload{
 					ArtifactsGsBucket: GS_BUCKET,
 					ArtifactsGsPath:   GS_PATH_PREFIX + "kevin",
+					FilesByArtifact:   &simpleFilesByArtifact,
 				},
 				BuildTarget: &chromiumos.BuildTarget{Name: "kevin"}},
 				HwTestCfg: kevinHWTestCfg},
@@ -177,6 +183,7 @@ func TestCreateCombinedTestPlan_manyUnitSuccess(t *testing.T) {
 				BuildPayload: &testplans.BuildPayload{
 					ArtifactsGsBucket: GS_BUCKET,
 					ArtifactsGsPath:   GS_PATH_PREFIX + "reef",
+					FilesByArtifact:   &simpleFilesByArtifact,
 				},
 				BuildTarget: &chromiumos.BuildTarget{Name: "reef"}},
 				GceTestCfg: reefGceTestCfg},
@@ -186,6 +193,7 @@ func TestCreateCombinedTestPlan_manyUnitSuccess(t *testing.T) {
 				BuildPayload: &testplans.BuildPayload{
 					ArtifactsGsBucket: GS_BUCKET,
 					ArtifactsGsPath:   GS_PATH_PREFIX + "reef",
+					FilesByArtifact:   &simpleFilesByArtifact,
 				},
 				BuildTarget: &chromiumos.BuildTarget{Name: "reef"}},
 				MoblabVmTestCfg: reefMoblabVmTestCfg},
@@ -195,6 +203,7 @@ func TestCreateCombinedTestPlan_manyUnitSuccess(t *testing.T) {
 				BuildPayload: &testplans.BuildPayload{
 					ArtifactsGsBucket: GS_BUCKET,
 					ArtifactsGsPath:   GS_PATH_PREFIX + "kevin",
+					FilesByArtifact:   &simpleFilesByArtifact,
 				},
 				BuildTarget: &chromiumos.BuildTarget{Name: "kevin"}},
 				HwTestCfg: kevinHWTestCfg},
@@ -204,6 +213,7 @@ func TestCreateCombinedTestPlan_manyUnitSuccess(t *testing.T) {
 				BuildPayload: &testplans.BuildPayload{
 					ArtifactsGsBucket: GS_BUCKET,
 					ArtifactsGsPath:   GS_PATH_PREFIX + "kevin",
+					FilesByArtifact:   &simpleFilesByArtifact,
 				},
 				BuildTarget: &chromiumos.BuildTarget{Name: "kevin"}},
 				TastVmTestCfg: kevinTastVMTestCfg},
@@ -213,6 +223,7 @@ func TestCreateCombinedTestPlan_manyUnitSuccess(t *testing.T) {
 				BuildPayload: &testplans.BuildPayload{
 					ArtifactsGsBucket: GS_BUCKET,
 					ArtifactsGsPath:   GS_PATH_PREFIX + "kevin",
+					FilesByArtifact:   &simpleFilesByArtifact,
 				},
 				BuildTarget: &chromiumos.BuildTarget{Name: "kevin"}},
 				VmTestCfg: kevinVMTestCfg},
@@ -278,6 +289,7 @@ func TestCreateCombinedTestPlan_successDespiteOneFailedBuilder(t *testing.T) {
 				BuildPayload: &testplans.BuildPayload{
 					ArtifactsGsBucket: GS_BUCKET,
 					ArtifactsGsPath:   GS_PATH_PREFIX + "reef",
+					FilesByArtifact:   &simpleFilesByArtifact,
 				},
 				BuildTarget: &chromiumos.BuildTarget{Name: "reef"}},
 				GceTestCfg: reefGceTestCfg},
@@ -398,6 +410,7 @@ func TestCreateCombinedTestPlan_doesOnlyTest(t *testing.T) {
 				BuildPayload: &testplans.BuildPayload{
 					ArtifactsGsBucket: GS_BUCKET,
 					ArtifactsGsPath:   GS_PATH_PREFIX + "kevin",
+					FilesByArtifact:   &simpleFilesByArtifact,
 				},
 				BuildTarget: &chromiumos.BuildTarget{Name: "kevin"}},
 				HwTestCfg: kevinHWTestCfg},

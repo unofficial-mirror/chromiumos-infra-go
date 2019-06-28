@@ -148,9 +148,14 @@ targetLoop:
 		if !ok {
 			return nil, fmt.Errorf("found no artifacts.gs_path property for build_target %s", tbr.buildTarget)
 		}
+		filesByArtifact, ok := art.GetStructValue().Fields["files_by_artifact"]
+		if !ok {
+			return nil, fmt.Errorf("found no artifacts.files_by_artifact property for build_target %s", tbr.buildTarget)
+		}
 		bp := &testplans.BuildPayload{
 			ArtifactsGsBucket: gsBucket.GetStringValue(),
 			ArtifactsGsPath:   gsPath.GetStringValue(),
+			FilesByArtifact:   filesByArtifact.GetStructValue(),
 		}
 		pttr := tbr.perTargetTestReqs
 		bt := chromiumos.BuildTarget{Name: string(tbr.buildTarget)}

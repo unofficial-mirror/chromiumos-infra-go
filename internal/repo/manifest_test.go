@@ -3,9 +3,11 @@ package repo
 import (
 	"context"
 	"encoding/base64"
+	"fmt"
 	"github.com/golang/mock/gomock"
 	"go.chromium.org/chromiumos/infra/go/internal/gerrit"
 	gitilespb "go.chromium.org/luci/common/proto/gitiles"
+	"gotest.tools/assert"
 	"net/http"
 	"testing"
 )
@@ -45,4 +47,86 @@ func TestFetchFilesFromGitiles_success(t *testing.T) {
 	if m["chromiumos/platform/mosys"] != "src/platform/mosys" {
 		t.Errorf("expected to find a mapping for mosys repo. Got mappings: %v", m)
 	}
+}
+
+func ManifestEq(a, b *Manifest) bool {
+	if len(a.Projects) != len(b.Projects) {
+		return false;
+	}
+	for i, _ := range a.Projects {
+		if a.Projects[i] != b.Projects[i] {
+			return false;
+		}
+	}
+	if len(a.Includes) != len(b.Includes) {
+		return false;
+	}
+	for i, _ := range a.Includes {
+		if a.Includes[i] != b.Includes[i] {
+			return false;
+		}
+	}
+	return true;
+}
+
+func ManifestMapEq(expected, actual map[string]*Manifest) error {
+	for file, _ := range expected {
+		if _, ok := actual[file]; !ok {
+			return fmt.Errorf("missing manifest %s", file)
+		}
+		if !ManifestEq(expected[file], actual[file]) {
+			return fmt.Errorf("expected %v, found %v", expected[file], actual[file])
+		}
+	}	
+	return nil
+}
+
+func TestLoadManifestFromFile_success(t *testing.T) {
+	expected_results := make(map[string]*Manifest)
+	expected_results["test_data/foo.xml"] = &Manifest{
+		Projects: []Project{
+			Project{"baz/", "baz", "123"},
+		},
+		Includes: []Include{
+			Include{"bar.xml"},
+		},
+	}
+	expected_results["test_data/bar.xml"] = &Manifest{
+		Projects: []Project{
+			Project{"baz/", "baz", ""},
+		},
+	}
+
+	res, err := LoadManifestFromFile("test_data/foo.xml")
+	assert.NilError(t, err)
+	if err = ManifestMapEq(expected_results, res); err != nil {
+		t.Errorf(err.Error())
+	}
+}
+
+func TestLoadManifestFromFile_bad_include(t *testing.T) {
+	_, err := LoadManifestFromFile("test_data/bogus.xml")
+	assert.ErrorContains(t, err, "bad-include.xml")
+}
+
+func TestLoadManifestFromFile_bad_xml(t *testing.T) {
+	_, err := LoadManifestFromFile("test_data/invalid.xml")
+	assert.ErrorContains(t, err, "unmarshal")
+}
+
+func TestGetUniqueProject(t *testing.T) {
+	manifest := &Manifest {
+		Projects: []Project {
+			Project{"foo-a/", "foo", ""},
+			Project{"foo-b/", "foo", ""},
+			Project{"bar/", "bar", ""},
+		},
+	}
+
+	_, err := manifest.GetUniqueProject("foo")
+	assert.ErrorContains(t, err, "multiple projects")
+
+	project, err := manifest.GetUniqueProject("bar")
+	assert.NilError(t, err)
+	assert.Equal(t, project, manifest.Projects[2])
 }

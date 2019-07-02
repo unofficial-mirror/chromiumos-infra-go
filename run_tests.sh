@@ -11,12 +11,18 @@
 cd "$(dirname "$0")"
 
 echo "Running tests"
-go test ./...
+if ! go test ./...; then
+  exit 1
+fi
 
 echo "Checking that binaries compile"
-go build ./...
+if ! go build ./...; then
+  exit 1
+fi
 
 echo "Vetting the code"
-go vet ./...
+if ! go vet ./...; then
+  exit 1
+fi
 
 echo "Done"

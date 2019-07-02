@@ -59,3 +59,25 @@ func Initialize(root, manifestUrl, repoToolPath string) (Repository, error) {
 
 	return Repository{root}, nil
 }
+
+// Sync repo at root to manifest at manifestPath.
+func SyncToFile(root, manifestPath, repoToolPath string) error {
+	if FindRepoCheckoutRoot(root) == "" {
+		return fmt.Errorf("No repo initialized at %s.", root)
+	}
+	manifestPath = osutils.Abs(manifestPath)
+	if !osutils.PathExists(manifestPath) {
+		return fmt.Errorf("Manifest path %s does not exist.", manifestPath)
+	}
+
+	cmdArgs := []string{"sync", "--manifest-name", manifestPath}
+	ctx := context.Background()
+
+	var stdoutBuf, stderrBuf bytes.Buffer
+	if err := commandRunnerImpl.runCommand(ctx, &stdoutBuf, &stderrBuf, root, repoToolPath, cmdArgs...); err != nil {
+		log.Printf("Error from repo.\nstdout =\n%s\n\nstderr=\n%s", stdoutBuf.String(), stderrBuf.String())
+		return err
+	}
+
+	return nil
+}

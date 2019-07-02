@@ -132,5 +132,12 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 		return ret
 	}
 
+	// Sync repo to manifest at provided path.
+	err := checkout.SyncToManifest(c.file)
+	if err != nil {
+		fmt.Fprintf(a.GetErr(), "%s: %s\n", a.GetName(), err.Error())
+		return 1
+	}
+
 	return 0
 }

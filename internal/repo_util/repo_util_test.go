@@ -100,3 +100,48 @@ func TestInitialize_failure(t *testing.T) {
 	_, err = Initialize(tmpDir, manifestUrl, "repo")
 	assert.ErrorContains(t, err, "")
 }
+
+func TestSyncToFile_success(t *testing.T) {
+	tmpDir := "repotest_tmp_dir"
+	tmpDir, err := ioutil.TempDir("", tmpDir)
+	defer os.RemoveAll(tmpDir)
+	assert.NilError(t, err)
+
+	// Create .repo folder
+	assert.NilError(t, os.Mkdir(filepath.Join(tmpDir, ".repo"), 0775))
+	// Create manifest file
+	file, err := ioutil.TempFile(tmpDir, "foo*.xml")
+	assert.NilError(t, err)
+
+	manifestFile := file.Name()
+	commandRunnerImpl = fakeCommandRunner{
+		expectedCmd: []string{"repo", "sync", "--manifest-name", manifestFile},
+	}
+	err = SyncToFile(tmpDir, manifestFile, "repo")
+	assert.NilError(t, err)
+}
+
+func TestSyncToFile_manifest_missing(t *testing.T) {
+	tmpDir := "repotest_tmp_dir"
+	tmpDir, err := ioutil.TempDir("", tmpDir)
+	defer os.RemoveAll(tmpDir)
+	assert.NilError(t, err)
+
+	// Create .repo folder
+	assert.NilError(t, os.Mkdir(filepath.Join(tmpDir, ".repo"), 0775))
+
+	commandRunnerImpl = fakeCommandRunner{}
+	err = SyncToFile(tmpDir, "foo", "repo")
+	assert.ErrorContains(t, err, "exist")
+}
+
+func TestSyncToFile_repo_no_init(t *testing.T) {
+	tmpDir := "repotest_tmp_dir"
+	tmpDir, err := ioutil.TempDir("", tmpDir)
+	defer os.RemoveAll(tmpDir)
+	assert.NilError(t, err)
+
+	commandRunnerImpl = fakeCommandRunner{}
+	err = SyncToFile(tmpDir, "foo", "repo")
+	assert.ErrorContains(t, err, "init")
+}

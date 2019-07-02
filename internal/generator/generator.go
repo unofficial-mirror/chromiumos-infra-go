@@ -8,7 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/golang/protobuf/ptypes/wrappers"
-	"go.chromium.org/chromiumos/infra/go/internal/git"
+	"go.chromium.org/chromiumos/infra/go/internal/gerrit"
 	"go.chromium.org/chromiumos/infra/proto/go/chromiumos"
 	"go.chromium.org/chromiumos/infra/proto/go/testplans"
 	bbproto "go.chromium.org/luci/buildbucket/proto"
@@ -30,7 +30,7 @@ func CreateTestPlan(
 	targetTestReqs *testplans.TargetTestRequirementsCfg,
 	sourceTreeCfg *testplans.SourceTreeTestCfg,
 	unfilteredBbBuilds []*bbproto.Build,
-	changeRevs *git.ChangeRevData,
+	changeRevs *gerrit.ChangeRevData,
 	repoToSrcRoot map[string]string) (*testplans.GenerateTestPlanResponse, error) {
 	testPlan := &testplans.GenerateTestPlanResponse{}
 

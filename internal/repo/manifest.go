@@ -3,7 +3,7 @@ package repo
 import (
 	"context"
 	"encoding/xml"
-	"go.chromium.org/chromiumos/infra/go/internal/git"
+	"go.chromium.org/chromiumos/infra/go/internal/gerrit"
 	"go.chromium.org/luci/common/errors"
 	"log"
 	"net/http"
@@ -34,7 +34,7 @@ type Include struct {
 func fetchManifestRecursive(authedClient *http.Client, ctx context.Context, manifestCommit string, file string) (map[string]*Manifest, error) {
 	results := make(map[string]*Manifest)
 	log.Printf("Fetching manifest file %s at revision '%s'", file, manifestCommit)
-	files, err := git.FetchFilesFromGitiles(
+	files, err := gerrit.FetchFilesFromGitiles(
 		authedClient,
 		ctx,
 		"chrome-internal.googlesource.com",

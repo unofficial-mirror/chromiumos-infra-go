@@ -11,7 +11,7 @@ import (
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/golang/protobuf/proto"
 	"github.com/maruel/subcommands"
-	"go.chromium.org/chromiumos/infra/go/internal/git"
+	"go.chromium.org/chromiumos/infra/go/internal/gerrit"
 	"go.chromium.org/chromiumos/infra/go/internal/pointless"
 	"go.chromium.org/chromiumos/infra/go/internal/repo"
 	testplans_pb "go.chromium.org/chromiumos/infra/proto/go/testplans"
@@ -129,7 +129,7 @@ func (c *checkBuild) fetchConfigFromGitiles() (*testplans_pb.BuildIrrelevanceCfg
 	if err != nil {
 		return nil, err
 	}
-	m, err := git.FetchFilesFromGitiles(authedClient, ctx,
+	m, err := gerrit.FetchFilesFromGitiles(authedClient, ctx,
 		"chrome-internal.googlesource.com",
 		"chromeos/infra/config",
 		"master",
@@ -154,7 +154,7 @@ func readBuildbucketBuild(bbBuildBytes *testplans_pb.ProtoBytes) (*bbproto.Build
 	return bbBuild, nil
 }
 
-func (c *checkBuild) fetchGerritData(build *bbproto.Build) (*git.ChangeRevData, error) {
+func (c *checkBuild) fetchGerritData(build *bbproto.Build) (*gerrit.ChangeRevData, error) {
 	// Create an authenticated client for Gerrit RPCs, then fetch all required CL data from Gerrit.
 	ctx := context.Background()
 	authOpts, err := c.authFlags.Options()
@@ -165,11 +165,11 @@ func (c *checkBuild) fetchGerritData(build *bbproto.Build) (*git.ChangeRevData, 
 	if err != nil {
 		return nil, err
 	}
-	changeIds := make([]git.ChangeRevKey, 0)
+	changeIds := make([]gerrit.ChangeRevKey, 0)
 	for _, ch := range build.Input.GerritChanges {
-		changeIds = append(changeIds, git.ChangeRevKey{Host: ch.Host, ChangeNum: ch.Change, Revision: int32(ch.Patchset)})
+		changeIds = append(changeIds, gerrit.ChangeRevKey{Host: ch.Host, ChangeNum: ch.Change, Revision: int32(ch.Patchset)})
 	}
-	chRevData, err := git.GetChangeRevData(authedClient, ctx, changeIds)
+	chRevData, err := gerrit.GetChangeRevData(authedClient, ctx, changeIds)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fetch CL data from Gerrit. "+
 			"Note that a NotFound error may indicate authorization issues.\n%v", err)

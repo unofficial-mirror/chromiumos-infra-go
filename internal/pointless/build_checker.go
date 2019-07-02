@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"github.com/bmatcuk/doublestar"
 	"github.com/golang/protobuf/ptypes/wrappers"
-	"go.chromium.org/chromiumos/infra/go/internal/git"
+	"go.chromium.org/chromiumos/infra/go/internal/gerrit"
 	chromite "go.chromium.org/chromiumos/infra/proto/go/chromite/api"
 	testplans_pb "go.chromium.org/chromiumos/infra/proto/go/testplans"
 	bbproto "go.chromium.org/luci/buildbucket/proto"
@@ -28,7 +28,7 @@ const (
 // builder's Portage graph.
 func CheckBuilder(
 	build *bbproto.Build,
-	changeRevs *git.ChangeRevData,
+	changeRevs *gerrit.ChangeRevData,
 	depGraph *chromite.DepGraph,
 	repoToSrcRoot map[string]string,
 	cfg testplans_pb.BuildIrrelevanceCfg) (*testplans_pb.PointlessBuildCheckResponse, error) {
@@ -78,7 +78,7 @@ func CheckBuilder(
 }
 
 func extractAffectedFiles(build *bbproto.Build,
-	changeRevs *git.ChangeRevData, repoToSrcRoot map[string]string) ([]string, error) {
+	changeRevs *gerrit.ChangeRevData, repoToSrcRoot map[string]string) ([]string, error) {
 	allAffectedFiles := make([]string, 0)
 	for _, gc := range build.Input.GerritChanges {
 		rev, err := changeRevs.GetChangeRev(gc.Host, gc.Change, int32(gc.Patchset))

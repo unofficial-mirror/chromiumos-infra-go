@@ -6,7 +6,7 @@ package generator
 
 import (
 	"fmt"
-	"go.chromium.org/chromiumos/infra/go/internal/git"
+	"go.chromium.org/chromiumos/infra/go/internal/gerrit"
 	"go.chromium.org/chromiumos/infra/proto/go/testplans"
 	bbproto "go.chromium.org/luci/buildbucket/proto"
 	"log"
@@ -53,7 +53,7 @@ func (tpr testPruneResult) canSkipForOnlyTestRule(bt BuildTarget) bool {
 func extractPruneResult(
 	sourceTreeCfg *testplans.SourceTreeTestCfg,
 	changes []*bbproto.GerritChange,
-	changeRevs *git.ChangeRevData,
+	changeRevs *gerrit.ChangeRevData,
 	repoToSrcRoot map[string]string) (*testPruneResult, error) {
 
 	result := &testPruneResult{}
@@ -125,7 +125,7 @@ func extractPruneResult(
 // srcPaths extracts the source paths from each of the provided Gerrit changes.
 func srcPaths(
 	changes []*bbproto.GerritChange,
-	changeRevs *git.ChangeRevData,
+	changeRevs *gerrit.ChangeRevData,
 	repoToSrcRoot map[string]string) ([]string, error) {
 	srcPaths := make([]string, 0)
 	for _, commit := range changes {

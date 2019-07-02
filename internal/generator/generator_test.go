@@ -8,7 +8,7 @@ import (
 	"github.com/golang/protobuf/ptypes/wrappers"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"go.chromium.org/chromiumos/infra/go/internal/git"
+	"go.chromium.org/chromiumos/infra/go/internal/gerrit"
 	"go.chromium.org/chromiumos/infra/proto/go/chromiumos"
 	"go.chromium.org/chromiumos/infra/proto/go/testplans"
 	bbproto "go.chromium.org/luci/buildbucket/proto"
@@ -90,7 +90,7 @@ func TestCreateCombinedTestPlan_oneUnitSuccess(t *testing.T) {
 	bbBuilds := []*bbproto.Build{
 		makeBuildbucketBuild("kevin", bbproto.Status_SUCCESS, []*bbproto.GerritChange{}, true),
 	}
-	chRevData := git.GetChangeRevsForTest([]*git.ChangeRev{})
+	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{})
 	repoToSrcRoot := map[string]string{"chromiumos/repo/name": "src/to/file"}
 
 	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, chRevData, repoToSrcRoot)
@@ -159,9 +159,9 @@ func TestCreateCombinedTestPlan_manyUnitSuccess(t *testing.T) {
 			{Host: "test-review.googlesource.com", Change: 123, Patchset: 2},
 		}, true),
 	}
-	chRevData := git.GetChangeRevsForTest([]*git.ChangeRev{
+	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{
 		{
-			ChangeRevKey: git.ChangeRevKey{
+			ChangeRevKey: gerrit.ChangeRevKey{
 				Host:      "test-review.googlesource.com",
 				ChangeNum: 123,
 				Revision:  2,
@@ -265,9 +265,9 @@ func TestCreateCombinedTestPlan_successDespiteOneFailedBuilder(t *testing.T) {
 			{Host: "test-review.googlesource.com", Change: 123, Patchset: 2},
 		}, true),
 	}
-	chRevData := git.GetChangeRevsForTest([]*git.ChangeRev{
+	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{
 		{
-			ChangeRevKey: git.ChangeRevKey{
+			ChangeRevKey: gerrit.ChangeRevKey{
 				Host:      "test-review.googlesource.com",
 				ChangeNum: 123,
 				Revision:  2,
@@ -323,9 +323,9 @@ func TestCreateCombinedTestPlan_skipsUnnecessaryHardwareTest(t *testing.T) {
 			{Host: "test-review.googlesource.com", Change: 123, Patchset: 2},
 		}, true),
 	}
-	chRevData := git.GetChangeRevsForTest([]*git.ChangeRev{
+	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{
 		{
-			ChangeRevKey: git.ChangeRevKey{
+			ChangeRevKey: gerrit.ChangeRevKey{
 				Host:      "test-review.googlesource.com",
 				ChangeNum: 123,
 				Revision:  2,
@@ -386,9 +386,9 @@ func TestCreateCombinedTestPlan_doesOnlyTest(t *testing.T) {
 			{Host: "test-review.googlesource.com", Change: 123, Patchset: 2},
 		}, true),
 	}
-	chRevData := git.GetChangeRevsForTest([]*git.ChangeRev{
+	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{
 		{
-			ChangeRevKey: git.ChangeRevKey{
+			ChangeRevKey: gerrit.ChangeRevKey{
 				Host:      "test-review.googlesource.com",
 				ChangeNum: 123,
 				Revision:  2,
@@ -433,7 +433,7 @@ func TestCreateCombinedTestPlan_inputMissingTargetType(t *testing.T) {
 	}
 	sourceTreeTestCfg := &testplans.SourceTreeTestCfg{}
 	bbBuilds := []*bbproto.Build{}
-	if _, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, &git.ChangeRevData{}, map[string]string{}); err == nil {
+	if _, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, &gerrit.ChangeRevData{}, map[string]string{}); err == nil {
 		t.Errorf("Expected an error to be returned")
 	}
 }
@@ -461,9 +461,9 @@ func TestCreateCombinedTestPlan_skipsPointlessBuild(t *testing.T) {
 	}, true)
 	bbBuild.Output.Properties.Fields["pointless_build"] = &_struct.Value{Kind: &_struct.Value_BoolValue{BoolValue: true}}
 	bbBuilds := []*bbproto.Build{bbBuild}
-	chRevData := git.GetChangeRevsForTest([]*git.ChangeRev{
+	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{
 		{
-			ChangeRevKey: git.ChangeRevKey{
+			ChangeRevKey: gerrit.ChangeRevKey{
 				Host:      "test-review.googlesource.com",
 				ChangeNum: 123,
 				Revision:  2,
@@ -493,7 +493,7 @@ func TestCreateTestPlan_succeedsOnNoBuildTarget(t *testing.T) {
 		// build target is empty.
 		makeBuildbucketBuild("", bbproto.Status_FAILURE, []*bbproto.GerritChange{}, true),
 	}
-	chRevData := git.GetChangeRevsForTest([]*git.ChangeRev{})
+	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{})
 	repoToSrcRoot := map[string]string{}
 
 	_, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, chRevData, repoToSrcRoot)
@@ -524,9 +524,9 @@ func TestCreateCombinedTestPlan_skipsNonCritical(t *testing.T) {
 			{Host: "test-review.googlesource.com", Change: 123, Patchset: 2},
 		}, false),
 	}
-	chRevData := git.GetChangeRevsForTest([]*git.ChangeRev{
+	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{
 		{
-			ChangeRevKey: git.ChangeRevKey{
+			ChangeRevKey: gerrit.ChangeRevKey{
 				Host:      "test-review.googlesource.com",
 				ChangeNum: 123,
 				Revision:  2,
@@ -576,7 +576,7 @@ func TestCreateCombinedTestPlan_ignoresNonArtifactBuild(t *testing.T) {
 		build.GetOutput().GetProperties().GetFields()["artifacts"].GetStructValue().GetFields()["files_by_artifact"].GetStructValue().GetFields(),
 		"AUTOTEST_FILES")
 	bbBuilds := []*bbproto.Build{build}
-	chRevData := git.GetChangeRevsForTest([]*git.ChangeRev{})
+	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{})
 	repoToSrcRoot := map[string]string{"chromiumos/repo/name": "src/to/file"}
 
 	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, chRevData, repoToSrcRoot)

@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"github.com/golang/mock/gomock"
-	"go.chromium.org/chromiumos/infra/go/internal/git"
+	"go.chromium.org/chromiumos/infra/go/internal/gerrit"
 	gitilespb "go.chromium.org/luci/common/proto/gitiles"
 	"net/http"
 	"testing"
@@ -32,7 +32,7 @@ func TestFetchFilesFromGitiles_success(t *testing.T) {
 		},
 		nil,
 	)
-	git.MockGitiles = gitilesMock
+	gerrit.MockGitiles = gitilesMock
 
 	m, err := GetRepoToSourceRootFromManifests(http.DefaultClient, context.Background(), "master")
 	if err != nil {

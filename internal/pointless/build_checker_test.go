@@ -5,7 +5,7 @@ package pointless
 
 import (
 	"github.com/bmatcuk/doublestar"
-	"go.chromium.org/chromiumos/infra/go/internal/git"
+	"go.chromium.org/chromiumos/infra/go/internal/gerrit"
 	chromite "go.chromium.org/chromiumos/infra/proto/go/chromite/api"
 	testplans_pb "go.chromium.org/chromiumos/infra/proto/go/testplans"
 	bbproto "go.chromium.org/luci/buildbucket/proto"
@@ -28,9 +28,9 @@ func TestCheckBuilder_irrelevantToDepGraph(t *testing.T) {
 
 	build := makeBuildbucketBuild([]*bbproto.GerritChange{
 		{Host: "test-review.googlesource.com", Change: 123, Patchset: 2, Project: "chromiumos/public/example"}})
-	chRevData := git.GetChangeRevsForTest([]*git.ChangeRev{
+	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{
 		{
-			ChangeRevKey: git.ChangeRevKey{
+			ChangeRevKey: gerrit.ChangeRevKey{
 				Host:      "test-review.googlesource.com",
 				ChangeNum: 123,
 				Revision:  2,
@@ -68,9 +68,9 @@ func TestCheckBuilder_relevantToDepGraph(t *testing.T) {
 	build := makeBuildbucketBuild([]*bbproto.GerritChange{
 		{Host: "test-review.googlesource.com", Change: 123, Patchset: 2, Project: "chromiumos/public/example"},
 		{Host: "test-internal-review.googlesource.com", Change: 234, Patchset: 3, Project: "chromiumos/internal/example"}})
-	chRevData := git.GetChangeRevsForTest([]*git.ChangeRev{
+	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{
 		{
-			ChangeRevKey: git.ChangeRevKey{
+			ChangeRevKey: gerrit.ChangeRevKey{
 				Host:      "test-review.googlesource.com",
 				ChangeNum: 123,
 				Revision:  2,
@@ -79,7 +79,7 @@ func TestCheckBuilder_relevantToDepGraph(t *testing.T) {
 			Files:   []string{"a/b/c"},
 		},
 		{
-			ChangeRevKey: git.ChangeRevKey{
+			ChangeRevKey: gerrit.ChangeRevKey{
 				Host:      "test-internal-review.googlesource.com",
 				ChangeNum: 234,
 				Revision:  3,
@@ -114,9 +114,9 @@ func TestCheckBuilder_buildIrrelevantPaths(t *testing.T) {
 
 	build := makeBuildbucketBuild([]*bbproto.GerritChange{
 		{Host: "test-review.googlesource.com", Change: 123, Patchset: 2, Project: "chromiumos/public/example"}})
-	chRevData := git.GetChangeRevsForTest([]*git.ChangeRev{
+	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{
 		{
-			ChangeRevKey: git.ChangeRevKey{
+			ChangeRevKey: gerrit.ChangeRevKey{
 				Host:      "test-review.googlesource.com",
 				ChangeNum: 123,
 				Revision:  2,
@@ -156,7 +156,7 @@ func TestCheckBuilder_buildIrrelevantPaths(t *testing.T) {
 
 func TestCheckBuilder_noGerritChangesMeansNecessaryBuild(t *testing.T) {
 	build := makeBuildbucketBuild([]*bbproto.GerritChange{})
-	chRevData := git.GetChangeRevsForTest([]*git.ChangeRev{})
+	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{})
 	depGraph := &chromite.DepGraph{
 		PackageDeps: []*chromite.PackageDepInfo{
 			{DependencySourcePaths: []*chromite.SourcePath{
@@ -182,9 +182,9 @@ func TestCheckBuild_nilDepGraphSuccessWithNoFilter(t *testing.T) {
 
 	build := makeBuildbucketBuild([]*bbproto.GerritChange{
 		{Host: "test-review.googlesource.com", Change: 123, Patchset: 2, Project: "chromiumos/public/example"}})
-	chRevData := git.GetChangeRevsForTest([]*git.ChangeRev{
+	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{
 		{
-			ChangeRevKey: git.ChangeRevKey{
+			ChangeRevKey: gerrit.ChangeRevKey{
 				Host:      "test-review.googlesource.com",
 				ChangeNum: 123,
 				Revision:  2,

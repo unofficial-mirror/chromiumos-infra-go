@@ -36,7 +36,7 @@ func (c realCommandRunner) runCommand(ctx context.Context, stdoutBuf, stderrBuf 
 }
 
 type Repository struct {
-	root string
+	Root string
 }
 
 func FindRepoCheckoutRoot(root string) string {
@@ -62,10 +62,10 @@ func Initialize(root, manifestUrl, repoToolPath string) (Repository, error) {
 	return Repository{root}, nil
 }
 
-// Sync repo at root to manifest at manifestPath.
+// Sync repo at Root to manifest at manifestPath.
 func (r *Repository) SyncToFile(manifestPath, repoToolPath string) error {
-	if FindRepoCheckoutRoot(r.root) == "" {
-		return fmt.Errorf("No repo initialized at %s.", r.root)
+	if FindRepoCheckoutRoot(r.Root) == "" {
+		return fmt.Errorf("No repo initialized at %s.", r.Root)
 	}
 	manifestPath = osutils.Abs(manifestPath)
 	if !osutils.PathExists(manifestPath) {
@@ -76,7 +76,7 @@ func (r *Repository) SyncToFile(manifestPath, repoToolPath string) error {
 	ctx := context.Background()
 
 	var stdoutBuf, stderrBuf bytes.Buffer
-	if err := commandRunnerImpl.runCommand(ctx, &stdoutBuf, &stderrBuf, r.root, repoToolPath, cmdArgs...); err != nil {
+	if err := commandRunnerImpl.runCommand(ctx, &stdoutBuf, &stderrBuf, r.Root, repoToolPath, cmdArgs...); err != nil {
 		log.Printf("Error from repo.\nstdout =\n%s\n\nstderr=\n%s", stdoutBuf.String(), stderrBuf.String())
 		return err
 	}
@@ -84,17 +84,17 @@ func (r *Repository) SyncToFile(manifestPath, repoToolPath string) error {
 	return nil
 }
 
-// Manifest runs `repo manifest` in the repository root and returns the results
+// Manifest runs `repo manifest` in the repository Root and returns the results
 // as a repo.Manifest struct.
 func (r *Repository) Manifest(repoToolPath string) (repo.Manifest, error) {
 	// This implementation is a bit circuitous.
 	// Put simply, we want the results of `repo manifest` as a repo.Manifest struct.
 	// repo.LoadManifestFromFile already does a lot of the heavy lifting --
 	// it is able to follow and load a manifest's imports. However, it requires a
-	// file path as input, and `repo manifest` prints the root manifest's contents
+	// file path as input, and `repo manifest` prints the Root manifest's contents
 	// to stdout. As a workaround, I write these contents to a temp file that I then
 	// pass into repo.LoadManifestFromFile.
-	tmpFile, err := ioutil.TempFile(r.root, "manifest")
+	tmpFile, err := ioutil.TempFile(r.Root, "manifest")
 	if err != nil {
 		return repo.Manifest{}, fmt.Errorf("tmp file could not be created: %s", err.Error())
 	}
@@ -105,7 +105,7 @@ func (r *Repository) Manifest(repoToolPath string) (repo.Manifest, error) {
 	ctx := context.Background()
 
 	var stdoutBuf, stderrBuf bytes.Buffer
-	if err := commandRunnerImpl.runCommand(ctx, &stdoutBuf, &stderrBuf, r.root, repoToolPath, cmdArgs...); err != nil {
+	if err := commandRunnerImpl.runCommand(ctx, &stdoutBuf, &stderrBuf, r.Root, repoToolPath, cmdArgs...); err != nil {
 		log.Printf("Error from repo.\nstdout =\n%s\n\nstderr=\n%s", stdoutBuf.String(), stderrBuf.String())
 		return repo.Manifest{}, err
 	}

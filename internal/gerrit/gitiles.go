@@ -49,12 +49,14 @@ func FetchFilesFromGitiles(authedClient *http.Client, ctx context.Context, host,
 }
 
 func obtainGitilesBytes(ctx context.Context, gc gitilespb.GitilesClient, project string, ref string) ([]byte, error) {
-	ctx, _ = context.WithTimeout(ctx, 5*time.Minute)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	defer cancel()
 	ch := make(chan *gitilespb.ArchiveResponse, 1)
 	err := shared.DoWithRetry(ctx, shared.DefaultOpts, func() error {
 		// This sets the deadline for the individual API call, while the outer context sets
 		// an overall timeout for all attempts.
-		innerCtx, _ := context.WithTimeout(ctx, 30*time.Second)
+		innerCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		defer cancel()
 		req := &gitilespb.ArchiveRequest{
 			Project: project,
 			Ref:     ref,

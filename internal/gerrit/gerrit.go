@@ -47,12 +47,14 @@ func GetChangeRev(authedClient *http.Client, ctx context.Context, changeNum int6
 			return nil, err
 		}
 	}
-	ctx, _ = context.WithTimeout(ctx, 5*time.Minute)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	defer cancel()
 	ch := make(chan *gerritpb.ChangeInfo, 1)
 	err = shared.DoWithRetry(ctx, shared.DefaultOpts, func() error {
 		// This sets the deadline for the individual API call, while the outer context sets
 		// an overall timeout for all attempts.
-		innerCtx, _ := context.WithTimeout(ctx, 30*time.Second)
+		innerCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		defer cancel()
 		change, err := g.GetChange(innerCtx, &gerritpb.GetChangeRequest{
 			Number: changeNum,
 			Options: []gerritpb.QueryOption{

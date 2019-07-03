@@ -62,5 +62,4 @@ func FindInPathParents(
 		// Go up one directory.
 		currentPath += "/.."
 	}
-	return ""
 }

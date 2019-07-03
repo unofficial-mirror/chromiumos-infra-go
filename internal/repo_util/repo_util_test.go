@@ -75,7 +75,7 @@ func TestInitialize_success(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	assert.Equal(t, repo.root, tmpDir)
+	assert.Equal(t, repo.Root, tmpDir)
 }
 
 func TestInitialize_repoexists(t *testing.T) {
@@ -163,7 +163,7 @@ func TestManifest(t *testing.T) {
 			`  <project path="src/baz" name="baz"/>` +
 			`</manifest>`
 
-	// Set up temporary root
+	// Set up temporary Root
 	tmpDir, err := ioutil.TempDir("", "repotest_tmp_dir")
 	defer os.RemoveAll(tmpDir)
 	assert.NilError(t, err)

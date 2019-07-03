@@ -10,13 +10,13 @@
 # Move to this script's directory.
 cd "$(dirname "$0")"
 
-test_dirs=$(find . -name '*_test.go' -exec dirname {} \; | sort | uniq)
-for d in $test_dirs; do
-  echo "Testing ${d}"
-  go test $d
-done
+echo "Running tests"
+go test ./...
 
 echo "Checking that binaries compile"
 go build ./...
+
+echo "Vetting the code"
+go vet ./...
 
 echo "Done"

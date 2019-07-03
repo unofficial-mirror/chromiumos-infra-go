@@ -45,7 +45,7 @@ func (c *CrosCheckout) SyncToManifest(path string) error {
 		return fmt.Errorf("Checkout has not been initialized.")
 	}
 	log.Printf("Syncing checkout %s to manifest %s.", c.root, path)
-	repository := &repo_util.Repository{c.root}
+	repository := &repo_util.Repository{Root: c.root}
 	err := repository.SyncToFile(path, RepoToolPath)
 	return err
 }

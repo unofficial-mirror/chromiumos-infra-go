@@ -170,7 +170,7 @@ func (c *checkBuild) fetchGerritData(changes []*bbproto.GerritChange) (*igerrit.
 		return nil, err
 	}
 	changeIds := make([]igerrit.ChangeRevKey, 0)
-	for _, ch := range  changes {
+	for _, ch := range changes {
 		changeIds = append(changeIds, igerrit.ChangeRevKey{Host: ch.Host, ChangeNum: ch.Change, Revision: int32(ch.Patchset)})
 	}
 	chRevData, err := igerrit.GetChangeRevData(authedClient, ctx, changeIds)

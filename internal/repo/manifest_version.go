@@ -30,10 +30,10 @@ const (
 )
 
 var (
-	chromeBranchRegex *regexp.Regexp = regexp.MustCompile(fmt.Sprintf(keyValueRegex, "CHROME_BRANCH"))
-	chromeosBuildRegex *regexp.Regexp = regexp.MustCompile(fmt.Sprintf(keyValueRegex, "CHROMEOS_BUILD"))
+	chromeBranchRegex   *regexp.Regexp = regexp.MustCompile(fmt.Sprintf(keyValueRegex, "CHROME_BRANCH"))
+	chromeosBuildRegex  *regexp.Regexp = regexp.MustCompile(fmt.Sprintf(keyValueRegex, "CHROMEOS_BUILD"))
 	chromeosBranchRegex *regexp.Regexp = regexp.MustCompile(fmt.Sprintf(keyValueRegex, "CHROMEOS_BRANCH"))
-	chromeosPatchRegex *regexp.Regexp = regexp.MustCompile(fmt.Sprintf(keyValueRegex, "CHROMEOS_PATCH"))
+	chromeosPatchRegex  *regexp.Regexp = regexp.MustCompile(fmt.Sprintf(keyValueRegex, "CHROMEOS_PATCH"))
 )
 
 type VersionInfo struct {

@@ -21,32 +21,32 @@ var (
 type Manifest struct {
 	Includes []Include `xml:"include"`
 	Projects []Project `xml:"project"`
-	Remotes	 []Remote  `xml:"remote"`
+	Remotes  []Remote  `xml:"remote"`
 	Default  []Default `xml:"default"`
 }
 
 // Project is an element of a manifest containing a Gerrit project to source path definition.
 type Project struct {
-	Path 		 string `xml:"path,attr"`
-	Name 		 string `xml:"name,attr"`
+	Path     string `xml:"path,attr"`
+	Name     string `xml:"name,attr"`
 	Revision string `xml:"revision,attr"`
 }
 
 // Include is a manifest element that imports another manifest file.
 type Include struct {
-	Name 		 string `xml:"name,attr"`
+	Name string `xml:"name,attr"`
 }
 
 // Remote is a manifest element that lists a remote.
 type Remote struct {
-	Fetch 	 string `xml:"fetch,attr"`
-	Name  	 string `xml:"name,attr"`
+	Fetch    string `xml:"fetch,attr"`
+	Name     string `xml:"name,attr"`
 	Revision string `xml:"revision,attr"`
 }
 
 // Default is a manifest element that lists the default.
 type Default struct {
-	Remote 	 string `xml:"remote,attr"`
+	Remote   string `xml:"remote,attr"`
 	Revision string `xml:"revision,attr"`
 }
 

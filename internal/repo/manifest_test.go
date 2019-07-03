@@ -51,33 +51,33 @@ func TestFetchFilesFromGitiles_success(t *testing.T) {
 
 func ManifestEq(a, b *Manifest) bool {
 	if len(a.Projects) != len(b.Projects) {
-		return false;
+		return false
 	}
-	for i, _ := range a.Projects {
+	for i := range a.Projects {
 		if a.Projects[i] != b.Projects[i] {
-			return false;
+			return false
 		}
 	}
 	if len(a.Includes) != len(b.Includes) {
-		return false;
+		return false
 	}
-	for i, _ := range a.Includes {
+	for i := range a.Includes {
 		if a.Includes[i] != b.Includes[i] {
-			return false;
+			return false
 		}
 	}
-	return true;
+	return true
 }
 
 func ManifestMapEq(expected, actual map[string]*Manifest) error {
-	for file, _ := range expected {
+	for file := range expected {
 		if _, ok := actual[file]; !ok {
 			return fmt.Errorf("missing manifest %s", file)
 		}
 		if !ManifestEq(expected[file], actual[file]) {
 			return fmt.Errorf("expected %v, found %v", expected[file], actual[file])
 		}
-	}	
+	}
 	return nil
 }
 
@@ -85,15 +85,15 @@ func TestLoadManifestFromFile_success(t *testing.T) {
 	expected_results := make(map[string]*Manifest)
 	expected_results["test_data/foo.xml"] = &Manifest{
 		Projects: []Project{
-			Project{"baz/", "baz", "123"},
+			{"baz/", "baz", "123"},
 		},
 		Includes: []Include{
-			Include{"bar.xml"},
+			{"bar.xml"},
 		},
 	}
 	expected_results["test_data/bar.xml"] = &Manifest{
 		Projects: []Project{
-			Project{"baz/", "baz", ""},
+			{"baz/", "baz", ""},
 		},
 	}
 
@@ -115,11 +115,11 @@ func TestLoadManifestFromFile_bad_xml(t *testing.T) {
 }
 
 func TestGetUniqueProject(t *testing.T) {
-	manifest := &Manifest {
-		Projects: []Project {
-			Project{"foo-a/", "foo", ""},
-			Project{"foo-b/", "foo", ""},
-			Project{"bar/", "bar", ""},
+	manifest := &Manifest{
+		Projects: []Project{
+			{"foo-a/", "foo", ""},
+			{"foo-b/", "foo", ""},
+			{"bar/", "bar", ""},
 		},
 	}
 

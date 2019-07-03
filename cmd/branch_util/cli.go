@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	Context      = context.Background()
+	Context = context.Background()
 )
 
 var application = &subcommands.DefaultApplication{

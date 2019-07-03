@@ -20,7 +20,7 @@ import (
 // case if the commits in the CQ run don't affect any files that could possibly affect this
 // builder's Portage graph.
 func CheckBuilder(
-	changes	[]*bbproto.GerritChange,
+	changes []*bbproto.GerritChange,
 	changeRevs *gerrit.ChangeRevData,
 	depGraph *chromite.DepGraph,
 	repoToSrcRoot map[string]string,
@@ -32,7 +32,7 @@ func CheckBuilder(
 		return nil, fmt.Errorf("error in extractAffectedFiles: %+v", err)
 	}
 	if len(affectedFiles) == 0 {
-		log.Printf("No affected files, so this can't be a CQ run. "+
+		log.Printf("No affected files, so this can't be a CQ run. " +
 			"Aborting with BuildIsPointless := false")
 		return &testplans_pb.PointlessBuildCheckResponse{
 			BuildIsPointless: &wrappers.BoolValue{Value: false},
@@ -42,7 +42,7 @@ func CheckBuilder(
 	// Filter out files that are irrelevant to Portage because of the config.
 	affectedFiles = filterByBuildIrrelevantPaths(affectedFiles, cfg)
 	if len(affectedFiles) == 0 {
-		log.Printf("All files ruled out by build-irrelevant paths. This means that "+
+		log.Printf("All files ruled out by build-irrelevant paths. This means that " +
 			"none of the Gerrit changes in the build input could affect the outcome of the build")
 		return &testplans_pb.PointlessBuildCheckResponse{
 			BuildIsPointless:     &wrappers.BoolValue{Value: true},

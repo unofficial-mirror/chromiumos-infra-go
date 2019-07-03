@@ -1,3 +1,6 @@
+// Copyright 2019 The Chromium OS Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 package repo_util
 
 import (
@@ -11,6 +14,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"go.chromium.org/chromiumos/infra/go/internal/repo"
 )
 
 type fakeCommandRunner struct {
@@ -117,7 +122,8 @@ func TestSyncToFile_success(t *testing.T) {
 	commandRunnerImpl = fakeCommandRunner{
 		expectedCmd: []string{"repo", "sync", "--manifest-name", manifestFile},
 	}
-	err = SyncToFile(tmpDir, manifestFile, "repo")
+	testRepo := &Repository{tmpDir}
+	err = testRepo.SyncToFile(manifestFile, "repo")
 	assert.NilError(t, err)
 }
 
@@ -131,7 +137,8 @@ func TestSyncToFile_manifest_missing(t *testing.T) {
 	assert.NilError(t, os.Mkdir(filepath.Join(tmpDir, ".repo"), 0775))
 
 	commandRunnerImpl = fakeCommandRunner{}
-	err = SyncToFile(tmpDir, "foo", "repo")
+	testRepo := &Repository{tmpDir}
+	err = testRepo.SyncToFile("foo", "repo")
 	assert.ErrorContains(t, err, "exist")
 }
 
@@ -142,6 +149,39 @@ func TestSyncToFile_repo_no_init(t *testing.T) {
 	assert.NilError(t, err)
 
 	commandRunnerImpl = fakeCommandRunner{}
-	err = SyncToFile(tmpDir, "foo", "repo")
+	testRepo := &Repository{tmpDir}
+	err = testRepo.SyncToFile("foo", "repo")
 	assert.ErrorContains(t, err, "init")
+}
+
+func TestManifest(t *testing.T) {
+	manifestData :=
+		`<?xml version="1.0" encoding="UTF-8"?>` +
+			`<manifest>` +
+			`  <project path="src/foo" name="foo"/>` +
+			`  <project path="src/bar" name="bar"/>` +
+			`  <project path="src/baz" name="baz"/>` +
+			`</manifest>`
+
+	// Set up temporary root
+	tmpDir, err := ioutil.TempDir("", "repotest_tmp_dir")
+	defer os.RemoveAll(tmpDir)
+	assert.NilError(t, err)
+
+	testRepo := &Repository{tmpDir}
+	commandRunnerImpl = fakeCommandRunner{
+		expectedDir: tmpDir,
+		stdout:      manifestData,
+	}
+	expectedManifest := repo.Manifest{
+		Projects: []repo.Project{
+			repo.Project{Path: "src/foo", Name: "foo"},
+			repo.Project{Path: "src/bar", Name: "bar"},
+			repo.Project{Path: "src/baz", Name: "baz"},
+		},
+	}
+
+	manifest, err := testRepo.Manifest("repo")
+	assert.NilError(t, err)
+	assert.DeepEqual(t, manifest, expectedManifest)
 }

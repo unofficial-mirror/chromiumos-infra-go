@@ -1,3 +1,6 @@
+// Copyright 2019 The Chromium OS Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 package main
 
 import (
@@ -42,6 +45,7 @@ func (c *CrosCheckout) SyncToManifest(path string) error {
 		return fmt.Errorf("Checkout has not been initialized.")
 	}
 	log.Printf("Syncing checkout %s to manifest %s.", c.root, path)
-	err := repo_util.SyncToFile(c.root, path, RepoToolPath)
+	repository := &repo_util.Repository{c.root}
+	err := repository.SyncToFile(path, RepoToolPath)
 	return err
 }

@@ -1,3 +1,6 @@
+// Copyright 2019 The Chromium OS Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 package repo
 
 import (
@@ -13,6 +16,7 @@ import (
 type IncrType string
 
 const (
+	Unspecified  IncrType = ""
 	ChromeBranch IncrType = "chrome_branch"
 	Build        IncrType = "build"
 	Branch       IncrType = "branch"
@@ -80,7 +84,7 @@ func GetVersionInfoFromRepo(sourceRepo string, incrType IncrType) (VersionInfo, 
 			continue
 		}
 	}
-	if incrType == "" {
+	if incrType == Unspecified {
 		incrType = Build
 	}
 	v.incrType = incrType

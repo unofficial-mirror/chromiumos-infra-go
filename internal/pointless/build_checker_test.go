@@ -26,8 +26,8 @@ func makeBuildbucketBuild(changes []*bbproto.GerritChange) *bbproto.Build {
 func TestCheckBuilder_irrelevantToDepGraph(t *testing.T) {
 	// In this test, there's a CL that is fully irrelevant to the dep graph, so the build is pointless.
 
-	build := makeBuildbucketBuild([]*bbproto.GerritChange{
-		{Host: "test-review.googlesource.com", Change: 123, Patchset: 2, Project: "chromiumos/public/example"}})
+	changes := []*bbproto.GerritChange{
+		{Host: "test-review.googlesource.com", Change: 123, Patchset: 2, Project: "chromiumos/public/example"}}
 	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{
 		{
 			ChangeRevKey: gerrit.ChangeRevKey{
@@ -49,7 +49,7 @@ func TestCheckBuilder_irrelevantToDepGraph(t *testing.T) {
 	}
 	cfg := testplans_pb.BuildIrrelevanceCfg{}
 
-	res, err := CheckBuilder(build, chRevData, depGraph, repoToSrcRoot, cfg)
+	res, err := CheckBuilder(changes, chRevData, depGraph, repoToSrcRoot, cfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -65,9 +65,9 @@ func TestCheckBuilder_relevantToDepGraph(t *testing.T) {
 	// In this test, there are two CLs, with one of them being relevant to the Portage graph. The
 	// build thus is necessary.
 
-	build := makeBuildbucketBuild([]*bbproto.GerritChange{
+	changes := []*bbproto.GerritChange{
 		{Host: "test-review.googlesource.com", Change: 123, Patchset: 2, Project: "chromiumos/public/example"},
-		{Host: "test-internal-review.googlesource.com", Change: 234, Patchset: 3, Project: "chromiumos/internal/example"}})
+		{Host: "test-internal-review.googlesource.com", Change: 234, Patchset: 3, Project: "chromiumos/internal/example"}}
 	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{
 		{
 			ChangeRevKey: gerrit.ChangeRevKey{
@@ -99,7 +99,7 @@ func TestCheckBuilder_relevantToDepGraph(t *testing.T) {
 	}
 	cfg := testplans_pb.BuildIrrelevanceCfg{}
 
-	res, err := CheckBuilder(build, chRevData, depGraph, repoToSrcRoot, cfg)
+	res, err := CheckBuilder(changes, chRevData, depGraph, repoToSrcRoot, cfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -112,8 +112,8 @@ func TestCheckBuilder_buildIrrelevantPaths(t *testing.T) {
 	// In this test, the only files touched are those that are explicitly listed as being not relevant
 	// to Portage.
 
-	build := makeBuildbucketBuild([]*bbproto.GerritChange{
-		{Host: "test-review.googlesource.com", Change: 123, Patchset: 2, Project: "chromiumos/public/example"}})
+	changes := []*bbproto.GerritChange{
+		{Host: "test-review.googlesource.com", Change: 123, Patchset: 2, Project: "chromiumos/public/example"}}
 	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{
 		{
 			ChangeRevKey: gerrit.ChangeRevKey{
@@ -142,7 +142,7 @@ func TestCheckBuilder_buildIrrelevantPaths(t *testing.T) {
 		},
 	}
 
-	res, err := CheckBuilder(build, chRevData, depGraph, repoToSrcRoot, cfg)
+	res, err := CheckBuilder(changes, chRevData, depGraph, repoToSrcRoot, cfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -155,7 +155,7 @@ func TestCheckBuilder_buildIrrelevantPaths(t *testing.T) {
 }
 
 func TestCheckBuilder_noGerritChangesMeansNecessaryBuild(t *testing.T) {
-	build := makeBuildbucketBuild([]*bbproto.GerritChange{})
+	var changes []*bbproto.GerritChange
 	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{})
 	depGraph := &chromite.DepGraph{
 		PackageDeps: []*chromite.PackageDepInfo{
@@ -167,7 +167,7 @@ func TestCheckBuilder_noGerritChangesMeansNecessaryBuild(t *testing.T) {
 	}
 	cfg := testplans_pb.BuildIrrelevanceCfg{}
 
-	res, err := CheckBuilder(build, chRevData, depGraph, repoToSrcRoot, cfg)
+	res, err := CheckBuilder(changes, chRevData, depGraph, repoToSrcRoot, cfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -180,8 +180,8 @@ func TestCheckBuild_nilDepGraphSuccessWithNoFilter(t *testing.T) {
 	// In this test, no DepGraph is provided. We expect the checker to finish successfully, and to not
 	// filter out the files.
 
-	build := makeBuildbucketBuild([]*bbproto.GerritChange{
-		{Host: "test-review.googlesource.com", Change: 123, Patchset: 2, Project: "chromiumos/public/example"}})
+	changes := []*bbproto.GerritChange{
+		{Host: "test-review.googlesource.com", Change: 123, Patchset: 2, Project: "chromiumos/public/example"}}
 	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{
 		{
 			ChangeRevKey: gerrit.ChangeRevKey{
@@ -198,7 +198,7 @@ func TestCheckBuild_nilDepGraphSuccessWithNoFilter(t *testing.T) {
 	}
 	cfg := testplans_pb.BuildIrrelevanceCfg{}
 
-	res, err := CheckBuilder(build, chRevData, nil, repoToSrcRoot, cfg)
+	res, err := CheckBuilder(changes, chRevData, nil, repoToSrcRoot, cfg)
 	if err != nil {
 		t.Error(err)
 	}

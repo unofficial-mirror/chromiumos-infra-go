@@ -12,7 +12,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/maruel/subcommands"
 	"go.chromium.org/chromiumos/infra/go/internal/generator"
-	"go.chromium.org/chromiumos/infra/go/internal/gerrit"
+	igerrit "go.chromium.org/chromiumos/infra/go/internal/gerrit"
 	"go.chromium.org/chromiumos/infra/go/internal/repo"
 	"go.chromium.org/chromiumos/infra/proto/go/testplans"
 	"go.chromium.org/luci/auth"
@@ -127,7 +127,7 @@ func (c *getTestPlanRun) fetchConfigFromGitiles() (*testplans.SourceTreeTestCfg,
 	if err != nil {
 		return nil, nil, err
 	}
-	m, err := gerrit.FetchFilesFromGitiles(authedClient, ctx,
+	m, err := igerrit.FetchFilesFromGitiles(authedClient, ctx,
 		"chrome-internal.googlesource.com",
 		"chromeos/infra/config",
 		"master",
@@ -164,7 +164,7 @@ func readBuildbucketBuilds(bbBuildsBytes []*testplans.ProtoBytes) ([]*bbproto.Bu
 	return bbBuilds, nil
 }
 
-func (c *getTestPlanRun) fetchGerritData(bbBuilds []*bbproto.Build) (*gerrit.ChangeRevData, error) {
+func (c *getTestPlanRun) fetchGerritData(bbBuilds []*bbproto.Build) (*igerrit.ChangeRevData, error) {
 	// Create an authenticated client for Gerrit RPCs, then fetch all required CL data from Gerrit.
 	ctx := context.Background()
 	authOpts, err := c.authFlags.Options()
@@ -175,13 +175,13 @@ func (c *getTestPlanRun) fetchGerritData(bbBuilds []*bbproto.Build) (*gerrit.Cha
 	if err != nil {
 		return nil, err
 	}
-	changeIds := make([]gerrit.ChangeRevKey, 0)
+	changeIds := make([]igerrit.ChangeRevKey, 0)
 	for _, build := range bbBuilds {
 		for _, ch := range build.Input.GerritChanges {
-			changeIds = append(changeIds, gerrit.ChangeRevKey{Host: ch.Host, ChangeNum: ch.Change, Revision: int32(ch.Patchset)})
+			changeIds = append(changeIds, igerrit.ChangeRevKey{Host: ch.Host, ChangeNum: ch.Change, Revision: int32(ch.Patchset)})
 		}
 	}
-	chRevData, err := gerrit.GetChangeRevData(authedClient, ctx, changeIds)
+	chRevData, err := igerrit.GetChangeRevData(authedClient, ctx, changeIds)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fetch CL data from Gerrit. "+
 			"Note that a NotFound error may indicate authorization issues.\n%v", err)

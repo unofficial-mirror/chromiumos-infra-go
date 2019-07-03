@@ -16,31 +16,24 @@ import (
 	"strings"
 )
 
-const (
-	// The location of the repo checkout inside the chroot.
-	// This prefix needs to be trimmed from dependencySourcePaths at the moment, but that will become
-	// unnecessary once https://crbug.com/957090 is resolved.
-	depSourcePathPrefix = "/mnt/host/source/"
-)
-
 // CheckBuilder assesses whether a child builder is pointless for a given CQ run. This may be the
 // case if the commits in the CQ run don't affect any files that could possibly affect this
 // builder's Portage graph.
 func CheckBuilder(
-	build *bbproto.Build,
+	changes	[]*bbproto.GerritChange,
 	changeRevs *gerrit.ChangeRevData,
 	depGraph *chromite.DepGraph,
 	repoToSrcRoot map[string]string,
 	cfg testplans_pb.BuildIrrelevanceCfg) (*testplans_pb.PointlessBuildCheckResponse, error) {
 
 	// Get all of the files referenced by each GerritCommit in the Build.
-	affectedFiles, err := extractAffectedFiles(build, changeRevs, repoToSrcRoot)
+	affectedFiles, err := extractAffectedFiles(changes, changeRevs, repoToSrcRoot)
 	if err != nil {
 		return nil, fmt.Errorf("error in extractAffectedFiles: %+v", err)
 	}
 	if len(affectedFiles) == 0 {
-		log.Printf("Builder %s: No affected files, so this can't be a CQ run. "+
-			"Aborting with BuildIsPointless := false", getBuilderName(build))
+		log.Printf("No affected files, so this can't be a CQ run. "+
+			"Aborting with BuildIsPointless := false")
 		return &testplans_pb.PointlessBuildCheckResponse{
 			BuildIsPointless: &wrappers.BoolValue{Value: false},
 		}, nil
@@ -49,9 +42,8 @@ func CheckBuilder(
 	// Filter out files that are irrelevant to Portage because of the config.
 	affectedFiles = filterByBuildIrrelevantPaths(affectedFiles, cfg)
 	if len(affectedFiles) == 0 {
-		log.Printf("Builder %s: All files ruled out by build-irrelevant paths. This means that "+
-			"none of the Gerrit changes in the build input could affect the outcome of the build",
-			getBuilderName(build))
+		log.Printf("All files ruled out by build-irrelevant paths. This means that "+
+			"none of the Gerrit changes in the build input could affect the outcome of the build")
 		return &testplans_pb.PointlessBuildCheckResponse{
 			BuildIsPointless:     &wrappers.BoolValue{Value: true},
 			PointlessBuildReason: testplans_pb.PointlessBuildCheckResponse_IRRELEVANT_TO_KNOWN_NON_PORTAGE_DIRECTORIES,
@@ -63,24 +55,24 @@ func CheckBuilder(
 	// Filter out files that aren't in the Portage dep graph.
 	affectedFiles = filterByPortageDeps(affectedFiles, depGraph)
 	if len(affectedFiles) == 0 {
-		log.Printf("Builder %s: All files ruled out after checking dep graph", getBuilderName(build))
+		log.Printf("All files ruled out after checking dep graph")
 		return &testplans_pb.PointlessBuildCheckResponse{
 			BuildIsPointless:     &wrappers.BoolValue{Value: true},
 			PointlessBuildReason: testplans_pb.PointlessBuildCheckResponse_IRRELEVANT_TO_DEPS_GRAPH,
 		}, nil
 	}
 
-	log.Printf("Builder %s: This build is not pointless, due to files:\n%v",
-		getBuilderName(build), strings.Join(affectedFiles, "\n"))
+	log.Printf("This build is not pointless, due to files:\n%v",
+		strings.Join(affectedFiles, "\n"))
 	return &testplans_pb.PointlessBuildCheckResponse{
 		BuildIsPointless: &wrappers.BoolValue{Value: false},
 	}, nil
 }
 
-func extractAffectedFiles(build *bbproto.Build,
+func extractAffectedFiles(changes []*bbproto.GerritChange,
 	changeRevs *gerrit.ChangeRevData, repoToSrcRoot map[string]string) ([]string, error) {
 	allAffectedFiles := make([]string, 0)
-	for _, gc := range build.Input.GerritChanges {
+	for _, gc := range changes {
 		rev, err := changeRevs.GetChangeRev(gc.Host, gc.Change, int32(gc.Patchset))
 		if err != nil {
 			return nil, err
@@ -132,7 +124,7 @@ func filterByPortageDeps(files []string, depGraph *chromite.DepGraph) []string {
 	portageDeps := make([]string, 0)
 	for _, pd := range depGraph.PackageDeps {
 		for _, sp := range pd.DependencySourcePaths {
-			portageDeps = append(portageDeps, strings.TrimPrefix(sp.Path, depSourcePathPrefix))
+			portageDeps = append(portageDeps, sp.Path)
 		}
 	}
 	log.Printf("Found %d Portage deps to consider from the build graph:\n"+
@@ -158,8 +150,4 @@ affectedFile:
 		log.Printf("Ignoring file %s because no prefix of it is referenced in the dep graph", f)
 	}
 	return portageFilteredFiles
-}
-
-func getBuilderName(bb *bbproto.Build) string {
-	return bb.GetBuilder().GetBuilder()
 }

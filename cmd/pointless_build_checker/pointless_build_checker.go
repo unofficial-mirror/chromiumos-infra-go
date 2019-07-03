@@ -11,7 +11,7 @@ import (
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/golang/protobuf/proto"
 	"github.com/maruel/subcommands"
-	"go.chromium.org/chromiumos/infra/go/internal/gerrit"
+	igerrit "go.chromium.org/chromiumos/infra/go/internal/gerrit"
 	"go.chromium.org/chromiumos/infra/go/internal/pointless"
 	"go.chromium.org/chromiumos/infra/go/internal/repo"
 	testplans_pb "go.chromium.org/chromiumos/infra/proto/go/testplans"
@@ -68,13 +68,13 @@ func (c *checkBuild) Run(a subcommands.Application, args []string, env subcomman
 		return 2
 	}
 
-	build, err := readBuildbucketBuild(req.BuildbucketProto)
+	changes, err := readGerritChanges(req.GerritChanges)
 	if err != nil {
 		log.Print(err)
 		return 3
 	}
 
-	changeRevs, err := c.fetchGerritData(build)
+	changeRevs, err := c.fetchGerritData(changes)
 	if err != nil {
 		log.Print(err)
 		return 4
@@ -85,7 +85,7 @@ func (c *checkBuild) Run(a subcommands.Application, args []string, env subcomman
 		return 5
 	}
 
-	resp, err := pointless.CheckBuilder(build, changeRevs, req.DepGraph, *repoToSrcRoot, *cfg)
+	resp, err := pointless.CheckBuilder(changes, changeRevs, req.DepGraph, *repoToSrcRoot, *cfg)
 	if err != nil {
 		log.Printf("Error checking if build is pointless:\n%v", err)
 		return 6
@@ -129,7 +129,7 @@ func (c *checkBuild) fetchConfigFromGitiles() (*testplans_pb.BuildIrrelevanceCfg
 	if err != nil {
 		return nil, err
 	}
-	m, err := gerrit.FetchFilesFromGitiles(authedClient, ctx,
+	m, err := igerrit.FetchFilesFromGitiles(authedClient, ctx,
 		"chrome-internal.googlesource.com",
 		"chromeos/infra/config",
 		"master",
@@ -145,16 +145,20 @@ func (c *checkBuild) fetchConfigFromGitiles() (*testplans_pb.BuildIrrelevanceCfg
 	return buildIrrelevanceConfig, nil
 }
 
-func readBuildbucketBuild(bbBuildBytes *testplans_pb.ProtoBytes) (*bbproto.Build, error) {
-	bbBuild := &bbproto.Build{}
-	if err := proto.Unmarshal(bbBuildBytes.SerializedProto, bbBuild); err != nil {
-		return nil, fmt.Errorf("Couldn't decode %s as a Buildbucket Build\n%v", bbBuildBytes.String(), err)
+func readGerritChanges(changeBytes []*testplans_pb.ProtoBytes) ([]*bbproto.GerritChange, error) {
+	changes := make([]*bbproto.GerritChange, 0)
+	for i, c := range changeBytes {
+		gc := &bbproto.GerritChange{}
+		if err := proto.Unmarshal(c.SerializedProto, gc); err != nil {
+			return nil, fmt.Errorf("Couldn't decode %s as a GerritChange\n%v", c.String(), err)
+		}
+		log.Printf("Got GerritChange %d proto:\n%s", i, proto.MarshalTextString(gc))
+		changes = append(changes, gc)
 	}
-	log.Printf("Got buildbucket proto:\n%s", proto.MarshalTextString(bbBuild))
-	return bbBuild, nil
+	return changes, nil
 }
 
-func (c *checkBuild) fetchGerritData(build *bbproto.Build) (*gerrit.ChangeRevData, error) {
+func (c *checkBuild) fetchGerritData(changes []*bbproto.GerritChange) (*igerrit.ChangeRevData, error) {
 	// Create an authenticated client for Gerrit RPCs, then fetch all required CL data from Gerrit.
 	ctx := context.Background()
 	authOpts, err := c.authFlags.Options()
@@ -165,11 +169,11 @@ func (c *checkBuild) fetchGerritData(build *bbproto.Build) (*gerrit.ChangeRevDat
 	if err != nil {
 		return nil, err
 	}
-	changeIds := make([]gerrit.ChangeRevKey, 0)
-	for _, ch := range build.Input.GerritChanges {
-		changeIds = append(changeIds, gerrit.ChangeRevKey{Host: ch.Host, ChangeNum: ch.Change, Revision: int32(ch.Patchset)})
+	changeIds := make([]igerrit.ChangeRevKey, 0)
+	for _, ch := range  changes {
+		changeIds = append(changeIds, igerrit.ChangeRevKey{Host: ch.Host, ChangeNum: ch.Change, Revision: int32(ch.Patchset)})
 	}
-	chRevData, err := gerrit.GetChangeRevData(authedClient, ctx, changeIds)
+	chRevData, err := igerrit.GetChangeRevData(authedClient, ctx, changeIds)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fetch CL data from Gerrit. "+
 			"Note that a NotFound error may indicate authorization issues.\n%v", err)

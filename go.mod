@@ -5,7 +5,7 @@ go 1.12
 require (
 	cloud.google.com/go v0.37.2 // indirect
 	github.com/bmatcuk/doublestar v1.1.1
-	github.com/golang/mock v1.2.0
+	github.com/golang/mock v1.3.1
 	github.com/golang/protobuf v1.3.1
 	github.com/google/go-cmp v0.2.0
 	github.com/kr/pretty v0.1.0 // indirect

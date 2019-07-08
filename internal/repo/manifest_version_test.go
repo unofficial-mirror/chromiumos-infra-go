@@ -64,7 +64,6 @@ func TestIncrementVersion_Patch(t *testing.T) {
 }
 
 func TestVersionString(t *testing.T) {
-	versionFilePath = "chromeos_version.sh"
 	var v VersionInfo
 	v.BuildNumber = 123
 	v.BranchBuildNumber = 1
@@ -73,11 +72,18 @@ func TestVersionString(t *testing.T) {
 }
 
 func TestVersionComponents(t *testing.T) {
-	versionFilePath = "chromeos_version.sh"
 	var v VersionInfo
 	v.BuildNumber = 123
 	v.BranchBuildNumber = 1
 	v.PatchNumber = 0
 	components := []int{123, 1, 0}
 	assert.DeepEqual(t, v.VersionComponents(), components)
+}
+
+func TestStrippedVersionString(t *testing.T) {
+	var v VersionInfo
+	v.BuildNumber = 123
+	assert.Equal(t, v.StrippedVersionString(), "123")
+	v.BranchBuildNumber = 1
+	assert.Equal(t, v.StrippedVersionString(), "123.1")
 }

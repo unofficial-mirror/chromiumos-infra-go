@@ -6,7 +6,6 @@ package main
 import (
 	"fmt"
 	"regexp"
-	"strconv"
 	"strings"
 
 	"github.com/maruel/subcommands"
@@ -60,13 +59,6 @@ var cmdCreateBranch = &subcommands.Command{
 				"names to determine which versions have already been branched. "+
 				"Version validation is not possible when the naming convention "+
 				"is broken. Use this at your own risk.")
-		// Dev flags
-		c.Flags.BoolVar(&skipSync, "skip_sync",
-			false,
-			"Used for development purposes. Assumes that you have a properly synced "+
-				"repo at the specified root and does not call `repo sync`. Do not use this "+
-				"unless you know what you're doing! The tool will likely break if you misuse "+
-				"this flag.")
 		return c
 	},
 }
@@ -130,9 +122,6 @@ func (c *createBranchRun) validate(args []string) (bool, string) {
 	if c.version != "" && c.version[len(c.version)-1] != '0' {
 		return false, "cannot branch version from nonzero patch number."
 	}
-	if c.skipSync && c.Root == "" {
-		return false, "cannot use --skip_sync without --root."
-	}
 	return true, ""
 }
 
@@ -144,6 +133,33 @@ func (c *createBranchRun) getRoot() string {
 
 func (c *createBranchRun) getManifestUrl() string {
 	return c.ManifestUrl
+}
+
+// Determine the name for a branch.
+// By convention, standard branch names must end with the stripped version
+// string from which they were created, followed by '.B'.
+//
+// For example:
+//	- A branch created from 1.0.0 must end with -1.B
+//	- A branch created from 1.2.0 must end with -1.2.B
+//
+// Release branches have a slightly different naming scheme. They include
+//  the milestone from which they were created. Example: release-R12-1.2.B
+func (c *createBranchRun) newBranchName() string {
+	if c.custom != "" {
+		return c.custom
+	}
+	vinfo := checkout.ReadVersion()
+	branchType, _ := c.getBranchType()
+	branchNameParts := []string{branchType}
+	if branchType == "release" {
+		branchNameParts = append(branchNameParts, fmt.Sprintf("R%d", vinfo.ChromeBranch))
+	}
+	if c.descriptor != "" {
+		branchNameParts = append(branchNameParts, c.descriptor)
+	}
+	branchNameParts = append(branchNameParts, vinfo.StrippedVersionString()+".B")
+	return strings.Join(branchNameParts, "-")
 }
 
 func (c *createBranchRun) Run(a subcommands.Application, args []string,
@@ -173,21 +189,14 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 
 	// Check that we did not already branch from this version.
 	// manifest-internal serves as the sentinel project.
-	manifestInternal, err := checkout.Manifest.GetUniqueProject("chromeos/manifest-internal")
+	manifest := checkout.Manifest()
+	manifestInternal, err := manifest.GetUniqueProject("chromeos/manifest-internal")
 	if err != nil {
 		fmt.Fprintf(a.GetErr(),
 			errors.Annotate(err, "Could not get chromeos/manifest-internal project.").Err().Error())
 		return 1
 	}
-	var nonzeroVersionComponents []string
-	for _, component := range vinfo.VersionComponents() {
-		if component == 0 {
-			continue
-		}
-		nonzeroVersionComponents = append(nonzeroVersionComponents, strconv.Itoa(component))
-	}
-	majorVersion := strings.Join(nonzeroVersionComponents, `.`)
-	pattern := regexp.MustCompile(fmt.Sprintf(`.*-%s.B$`, majorVersion))
+	pattern := regexp.MustCompile(fmt.Sprintf(`.*-%s.B$`, vinfo.StrippedVersionString()))
 	branchExists, err := checkout.BranchExists(manifestInternal, pattern)
 	if err != nil {
 		fmt.Fprintf(a.GetErr(), err.Error())

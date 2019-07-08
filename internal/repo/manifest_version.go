@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
+	"strings"
 )
 
 type VersionComponent string
@@ -124,4 +125,19 @@ func (v *VersionInfo) VersionString() string {
 
 func (v *VersionInfo) VersionComponents() []int {
 	return []int{v.BuildNumber, v.BranchBuildNumber, v.PatchNumber}
+}
+
+// StrippedVersionString returns the stripped version string of the given
+// VersionInfo struct, i.e. the non-zero components of the version.
+// Example: 123.1.0 --> 123.1
+// Example: 123.0.0 --> 123
+func (v *VersionInfo) StrippedVersionString() string {
+	var nonzeroVersionComponents []string
+	for _, component := range v.VersionComponents() {
+		if component == 0 {
+			continue
+		}
+		nonzeroVersionComponents = append(nonzeroVersionComponents, strconv.Itoa(component))
+	}
+	return strings.Join(nonzeroVersionComponents, `.`)
 }

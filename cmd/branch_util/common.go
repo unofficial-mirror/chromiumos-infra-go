@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 
 	"github.com/maruel/subcommands"
+	checkoutp "go.chromium.org/chromiumos/infra/go/internal/checkout"
 	"go.chromium.org/luci/common/errors"
 )
 
@@ -28,7 +29,7 @@ type CommonFlags struct {
 
 var (
 	RepoToolPath string
-	checkout     CrosCheckout
+	checkout     checkoutp.Checkout
 )
 
 func (c *CommonFlags) Init() {
@@ -72,6 +73,7 @@ func Run(c branchCommand, a subcommands.Application, args []string,
 			return 1
 		}
 	}
+	checkout = &checkoutp.CrosCheckout{}
 	checkout.Initialize(root, c.getManifestUrl())
 
 	return 0

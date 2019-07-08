@@ -1,7 +1,7 @@
 // Copyright 2019 The Chromium OS Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-package main
+package checkout
 
 import (
 	"fmt"
@@ -15,10 +15,29 @@ import (
 	"go.chromium.org/chromiumos/infra/go/internal/repo_util"
 )
 
+// Used for development purposes. Assumes that there is a properly synced
+// repo at the specified root and does not call `repo sync`.
+const skipSync = false
+
+var (
+	RepoToolPath string = "repo"
+)
+
+type Checkout interface {
+	Initialize(root, manifestUrl string) error
+	Manifest() repo.Manifest
+	SetRepoToolPath(path string)
+	SyncToManifest(path string) error
+	ReadVersion() repo.VersionInfo
+	AbsolutePath(args ...string) string
+	AbsoluteProjectPath(project repo.Project, args ...string) string
+	BranchExists(project repo.Project, pattern *regexp.Regexp) (bool, error)
+}
+
 type CrosCheckout struct {
 	initialized bool
 	root        string
-	Manifest    repo.Manifest
+	manifest    repo.Manifest
 }
 
 func (c *CrosCheckout) Initialize(root, manifestUrl string) error {
@@ -45,6 +64,15 @@ func (c *CrosCheckout) Initialize(root, manifestUrl string) error {
 	return nil
 }
 
+func (c *CrosCheckout) Manifest() repo.Manifest {
+	return c.manifest
+}
+
+func (c *CrosCheckout) SetRepoToolPath(path string) {
+	RepoToolPath = path
+	return
+}
+
 func (c *CrosCheckout) SyncToManifest(path string) error {
 	if !c.initialized {
 		return fmt.Errorf("Checkout has not been initialized.")
@@ -57,7 +85,7 @@ func (c *CrosCheckout) SyncToManifest(path string) error {
 		}
 	}
 	var err error
-	c.Manifest, err = repository.Manifest(RepoToolPath)
+	c.manifest, err = repository.Manifest(RepoToolPath)
 	return err
 }
 

@@ -10,17 +10,15 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
-	"strings"
 )
 
-type IncrType string
+type VersionComponent string
 
 const (
-	Unspecified  IncrType = ""
-	ChromeBranch IncrType = "chrome_branch"
-	Build        IncrType = "build"
-	Branch       IncrType = "branch"
-	Patch        IncrType = "patch"
+	ChromeBranch VersionComponent = "CHROME_BRANCH"
+	Build        VersionComponent = "CHROMEOS_BUILD"
+	Branch       VersionComponent = "CHROMEOS_BRANCH"
+	Patch        VersionComponent = "CHROMEOS_PATCH"
 )
 
 // This is a var and not a const for testing purposes.
@@ -30,26 +28,25 @@ var (
 )
 
 const (
-	keyValueRegex string = `%s=(\d+)\s*$`
+	keyValueRegex string = `%s=(\d+)\b`
 )
 
-var (
-	chromeBranchRegex   *regexp.Regexp = regexp.MustCompile(fmt.Sprintf(keyValueRegex, "CHROME_BRANCH"))
-	chromeosBuildRegex  *regexp.Regexp = regexp.MustCompile(fmt.Sprintf(keyValueRegex, "CHROMEOS_BUILD"))
-	chromeosBranchRegex *regexp.Regexp = regexp.MustCompile(fmt.Sprintf(keyValueRegex, "CHROMEOS_BRANCH"))
-	chromeosPatchRegex  *regexp.Regexp = regexp.MustCompile(fmt.Sprintf(keyValueRegex, "CHROMEOS_PATCH"))
-)
-
-type VersionInfo struct {
-	BuildNumber       string
-	BranchBuildNumber string
-	PatchNumber       string
-	ChromeBranch      string
-	VersionFile       string
-	incrType          IncrType
+var chromeosVersionMapping = map[VersionComponent](*regexp.Regexp){
+	ChromeBranch: regexp.MustCompile(fmt.Sprintf(keyValueRegex, ChromeBranch)),
+	Build:        regexp.MustCompile(fmt.Sprintf(keyValueRegex, Build)),
+	Branch:       regexp.MustCompile(fmt.Sprintf(keyValueRegex, Branch)),
+	Patch:        regexp.MustCompile(fmt.Sprintf(keyValueRegex, Patch)),
 }
 
-func GetVersionInfoFromRepo(sourceRepo string, incrType IncrType) (VersionInfo, error) {
+type VersionInfo struct {
+	ChromeBranch      int
+	BuildNumber       int
+	BranchBuildNumber int
+	PatchNumber       int
+	VersionFile       string
+}
+
+func GetVersionInfoFromRepo(sourceRepo string) (VersionInfo, error) {
 	var v VersionInfo
 	v.VersionFile = filepath.Join(sourceRepo, versionFilePath)
 
@@ -58,36 +55,29 @@ func GetVersionInfoFromRepo(sourceRepo string, incrType IncrType) (VersionInfo, 
 		return VersionInfo{}, fmt.Errorf("could not read version file %s", v.VersionFile)
 	}
 
-	for _, line := range strings.Split(string(fileData), "\n") {
-		if strings.TrimSpace(line) == "" {
+	for field, pattern := range chromeosVersionMapping {
+		if match := findValue(pattern, string(fileData)); match != "" {
+			num, err := strconv.Atoi(match)
+			if err != nil {
+				log.Fatal(fmt.Sprintf("%s value %s could not be converted to integer.", field, match))
+			}
+			switch field {
+			case ChromeBranch:
+				v.ChromeBranch = num
+			case Build:
+				v.BuildNumber = num
+			case Branch:
+				v.BranchBuildNumber = num
+			case Patch:
+				v.PatchNumber = num
+			default:
+				// This should never happen.
+				log.Fatal("Invalid version component.")
+			}
 			continue
 		}
+	}
 
-		if match := findValue(chromeBranchRegex, line); match != "" {
-			v.ChromeBranch = match
-			log.Printf("Set the Chrome branch number to: %s", v.ChromeBranch)
-			continue
-		}
-		if match := findValue(chromeosBuildRegex, line); match != "" {
-			v.BuildNumber = match
-			log.Printf("Set the Chrome branch number to: %s", v.BuildNumber)
-			continue
-		}
-		if match := findValue(chromeosBranchRegex, line); match != "" {
-			v.BranchBuildNumber = match
-			log.Printf("Set the Chrome branch number to: %s", v.BranchBuildNumber)
-			continue
-		}
-		if match := findValue(chromeosPatchRegex, line); match != "" {
-			v.PatchNumber = match
-			log.Printf("Set the Chrome branch number to: %s", v.PatchNumber)
-			continue
-		}
-	}
-	if incrType == Unspecified {
-		incrType = Build
-	}
-	v.incrType = incrType
 	return v, nil
 }
 
@@ -100,21 +90,21 @@ func findValue(re *regexp.Regexp, line string) string {
 	return string(match[1])
 }
 
-func (v *VersionInfo) IncrementVersion() string {
-	if v.incrType == ChromeBranch {
-		v.ChromeBranch = incrString(v.ChromeBranch)
+func (v *VersionInfo) IncrementVersion(incrType VersionComponent) string {
+	if incrType == ChromeBranch {
+		v.ChromeBranch += 1
 	}
 
 	// Increment build_number for ChromeBranch incrType to avoid
 	// crbug.com/213075.
-	if v.incrType == ChromeBranch || v.incrType == Build {
-		v.BuildNumber = incrString(v.BuildNumber)
-		v.BranchBuildNumber = "0"
-		v.PatchNumber = "0"
-	} else if v.incrType == Branch && v.PatchNumber == "0" {
-		v.BranchBuildNumber = incrString(v.BranchBuildNumber)
+	if incrType == ChromeBranch || incrType == Build {
+		v.BuildNumber += 1
+		v.BranchBuildNumber = 0
+		v.PatchNumber = 0
+	} else if incrType == Branch && v.PatchNumber == 0 {
+		v.BranchBuildNumber += 1
 	} else {
-		v.PatchNumber = incrString(v.PatchNumber)
+		v.PatchNumber += 1
 	}
 
 	return v.VersionString()
@@ -129,5 +119,9 @@ func incrString(str string) string {
 }
 
 func (v *VersionInfo) VersionString() string {
-	return fmt.Sprintf("%s.%s.%s", v.BuildNumber, v.BranchBuildNumber, v.PatchNumber)
+	return fmt.Sprintf("%d.%d.%d", v.BuildNumber, v.BranchBuildNumber, v.PatchNumber)
+}
+
+func (v *VersionInfo) VersionComponents() []int {
+	return []int{v.BuildNumber, v.BranchBuildNumber, v.PatchNumber}
 }

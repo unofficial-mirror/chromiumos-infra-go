@@ -7,13 +7,18 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
+	"regexp"
 
+	"go.chromium.org/chromiumos/infra/go/internal/git"
+	"go.chromium.org/chromiumos/infra/go/internal/repo"
 	"go.chromium.org/chromiumos/infra/go/internal/repo_util"
 )
 
 type CrosCheckout struct {
 	initialized bool
 	root        string
+	Manifest    repo.Manifest
 }
 
 func (c *CrosCheckout) Initialize(root, manifestUrl string) error {
@@ -46,6 +51,39 @@ func (c *CrosCheckout) SyncToManifest(path string) error {
 	}
 	log.Printf("Syncing checkout %s to manifest %s.", c.root, path)
 	repository := &repo_util.Repository{Root: c.root}
-	err := repository.SyncToFile(path, RepoToolPath)
+	if !skipSync {
+		if err := repository.SyncToFile(path, RepoToolPath); err != nil {
+			return err
+		}
+	}
+	var err error
+	c.Manifest, err = repository.Manifest(RepoToolPath)
 	return err
+}
+
+func (c *CrosCheckout) ReadVersion() repo.VersionInfo {
+	vinfo, err := repo.GetVersionInfoFromRepo(c.root)
+	if err != nil {
+		return repo.VersionInfo{}
+	}
+	return vinfo
+}
+
+// AbsolutePath joins the path components with the repo root.
+func (c *CrosCheckout) AbsolutePath(args ...string) string {
+	args = append([]string{c.root}, args...)
+	return filepath.Join(args...)
+}
+
+// AbsoluteProjectPath joins the path components with the project's root.
+func (c *CrosCheckout) AbsoluteProjectPath(project repo.Project, args ...string) string {
+	args = append([]string{project.Path}, args...)
+	return c.AbsolutePath(args...)
+}
+
+// BranchExists determines if any branch exists in the specified project
+// that matches the specified pattern.
+func (c *CrosCheckout) BranchExists(project repo.Project, pattern *regexp.Regexp) (bool, error) {
+	matches, err := git.MatchBranchName(c.AbsoluteProjectPath(project), pattern)
+	return len(matches) != 0, err
 }

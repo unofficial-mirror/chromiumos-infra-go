@@ -1,3 +1,6 @@
+// Copyright 2019 The Chromium OS Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 package main
 
 import (
@@ -5,6 +8,7 @@ import (
 	"io/ioutil"
 
 	"github.com/maruel/subcommands"
+	"go.chromium.org/luci/common/errors"
 )
 
 type branchCommand interface {
@@ -54,7 +58,7 @@ func Run(c branchCommand, a subcommands.Application, args []string,
 	env subcommands.Env) int {
 	ok, errMsg := c.validate(args)
 	if !ok {
-		fmt.Fprintf(a.GetErr(), "%s: %s\n", a.GetName(), errMsg)
+		fmt.Fprintf(a.GetErr(), errMsg+"\n")
 		return 1
 	}
 
@@ -64,7 +68,7 @@ func Run(c branchCommand, a subcommands.Application, args []string,
 		root, err = ioutil.TempDir("", "cros-branch-")
 		// TODO(jackneus): Delete tmp dir at end.
 		if err != nil {
-			fmt.Fprintf(a.GetErr(), "Error. Tmp root could not be created: %s", err)
+			fmt.Fprintf(a.GetErr(), errors.Annotate(err, "tmp root could not be created").Err().Error()+"\n")
 			return 1
 		}
 	}

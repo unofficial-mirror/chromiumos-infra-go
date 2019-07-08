@@ -1,9 +1,20 @@
+// Copyright 2019 The Chromium OS Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 package main
 
 import (
 	"fmt"
+	"regexp"
+	"strconv"
+	"strings"
 
 	"github.com/maruel/subcommands"
+	"go.chromium.org/luci/common/errors"
+)
+
+var (
+	skipSync bool
 )
 
 var cmdCreateBranch = &subcommands.Command{
@@ -49,6 +60,13 @@ var cmdCreateBranch = &subcommands.Command{
 				"names to determine which versions have already been branched. "+
 				"Version validation is not possible when the naming convention "+
 				"is broken. Use this at your own risk.")
+		// Dev flags
+		c.Flags.BoolVar(&skipSync, "skip_sync",
+			false,
+			"Used for development purposes. Assumes that you have a properly synced "+
+				"repo at the specified root and does not call `repo sync`. Do not use this "+
+				"unless you know what you're doing! The tool will likely break if you misuse "+
+				"this flag.")
 		return c
 	},
 }
@@ -64,6 +82,7 @@ type createBranchRun struct {
 	firmware   bool
 	stabilize  bool
 	custom     string
+	skipSync   bool
 }
 
 func (c *createBranchRun) getBranchType() (string, bool) {
@@ -98,11 +117,11 @@ func (c *createBranchRun) getBranchType() (string, bool) {
 
 func (c *createBranchRun) validate(args []string) (bool, string) {
 	if c.file == "" {
-		return false, "Must set --file."
+		return false, "must set --file."
 	}
 	_, ok := c.getBranchType()
 	if !ok {
-		return false, "Must select exactly one branch type " +
+		return false, "must select exactly one branch type " +
 			"(--release, --factory, --firmware, --stabilize, --custom)."
 	}
 	if c.descriptor != "" && c.custom != "" {
@@ -110,6 +129,9 @@ func (c *createBranchRun) validate(args []string) (bool, string) {
 	}
 	if c.version != "" && c.version[len(c.version)-1] != '0' {
 		return false, "cannot branch version from nonzero patch number."
+	}
+	if c.skipSync && c.Root == "" {
+		return false, "cannot use --skip_sync without --root."
 	}
 	return true, ""
 }
@@ -137,6 +159,43 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 	if err != nil {
 		fmt.Fprintf(a.GetErr(), "%s: %s\n", a.GetName(), err.Error())
 		return 1
+	}
+
+	// Validate the version.
+	// Double check that the checkout has a zero patch number. Otherwise,
+	// we cannot branch from it.
+	vinfo := checkout.ReadVersion()
+	if vinfo.PatchNumber != 0 {
+		fmt.Fprintf(a.GetErr(), "Cannot branch version with nonzero patch number (version %s).",
+			vinfo.VersionString())
+		return 1
+	}
+
+	// Check that we did not already branch from this version.
+	// manifest-internal serves as the sentinel project.
+	manifestInternal, err := checkout.Manifest.GetUniqueProject("chromeos/manifest-internal")
+	if err != nil {
+		fmt.Fprintf(a.GetErr(),
+			errors.Annotate(err, "Could not get chromeos/manifest-internal project.").Err().Error())
+		return 1
+	}
+	var nonzeroVersionComponents []string
+	for _, component := range vinfo.VersionComponents() {
+		if component == 0 {
+			continue
+		}
+		nonzeroVersionComponents = append(nonzeroVersionComponents, strconv.Itoa(component))
+	}
+	majorVersion := strings.Join(nonzeroVersionComponents, `.`)
+	pattern := regexp.MustCompile(fmt.Sprintf(`.*-%s.B$`, majorVersion))
+	branchExists, err := checkout.BranchExists(manifestInternal, pattern)
+	if err != nil {
+		fmt.Fprintf(a.GetErr(), err.Error())
+		return 1
+	}
+	if branchExists && !c.Force {
+		fmt.Fprintf(a.GetErr(), "Already branched %s. Please rerun with --force if you "+
+			"would like to proceed.", vinfo.VersionString())
 	}
 
 	return 0

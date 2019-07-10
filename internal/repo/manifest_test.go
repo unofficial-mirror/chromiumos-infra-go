@@ -12,6 +12,7 @@ import (
 	gitilespb "go.chromium.org/luci/common/proto/gitiles"
 	"gotest.tools/assert"
 	"net/http"
+	"reflect"
 	"testing"
 )
 
@@ -57,7 +58,7 @@ func ManifestEq(a, b *Manifest) bool {
 		return false
 	}
 	for i := range a.Projects {
-		if a.Projects[i] != b.Projects[i] {
+		if !reflect.DeepEqual(&a.Projects[i], &b.Projects[i]) {
 			return false
 		}
 	}
@@ -90,7 +91,11 @@ func TestLoadManifestFromFile_success(t *testing.T) {
 		Projects: []Project{
 			{Path: "baz/", Name: "baz", Revision: "123", RemoteName: "chromium"},
 			{Path: "fiz/", Name: "fiz", Revision: "124", RemoteName: "chromeos"},
-			{Path: "buz/", Name: "buz", Revision: "125", RemoteName: "google"},
+			{Path: "buz/", Name: "buz", Revision: "125", RemoteName: "google",
+				Annotations: []Annotation{
+					{Name: "branch-mode", Value: "pin"},
+				},
+			},
 		},
 		Includes: []Include{
 			{"bar.xml"},
@@ -133,5 +138,5 @@ func TestGetUniqueProject(t *testing.T) {
 
 	project, err := manifest.GetUniqueProject("bar")
 	assert.NilError(t, err)
-	assert.Equal(t, project, manifest.Projects[2])
+	assert.Assert(t, reflect.DeepEqual(&project, &manifest.Projects[2]))
 }

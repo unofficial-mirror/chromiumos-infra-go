@@ -30,11 +30,18 @@ type Manifest struct {
 
 // Project is an element of a manifest containing a Gerrit project to source path definition.
 type Project struct {
-	Path       string `xml:"path,attr"`
-	Name       string `xml:"name,attr"`
-	Revision   string `xml:"revision,attr"`
-	Upstream   string `xml:"upstream,attr"`
-	RemoteName string `xml:"remote,attr"`
+	Path        string       `xml:"path,attr"`
+	Name        string       `xml:"name,attr"`
+	Revision    string       `xml:"revision,attr"`
+	Upstream    string       `xml:"upstream,attr"`
+	RemoteName  string       `xml:"remote,attr"`
+	Annotations []Annotation `xml:"annotation"`
+}
+
+// Annotation is an element of a manifest annotating the parent element.
+type Annotation struct {
+	Name  string `xml:"name,attr"`
+	Value string `xml:"value,attr"`
 }
 
 // Include is a manifest element that imports another manifest file.
@@ -47,6 +54,7 @@ type Remote struct {
 	Fetch    string `xml:"fetch,attr"`
 	Name     string `xml:"name,attr"`
 	Revision string `xml:"revision,attr"`
+	Alias    string `xml:"alias,attr"`
 }
 
 // Default is a manifest element that lists the default.
@@ -55,13 +63,27 @@ type Default struct {
 	Revision   string `xml:"revision,attr"`
 }
 
-func (m *Manifest) getRemoteByName(name string) *Remote {
+// GetRemoteByName returns a pointer to the remote with
+// the given name/alias in the given manifest.
+func (m *Manifest) GetRemoteByName(name string) *Remote {
 	for _, remote := range m.Remotes {
 		if remote.Name == name {
 			return &remote
 		}
 	}
 	return &Remote{}
+}
+
+// GetAnnotation returns the value of the annotation with the
+// given name, if it exists. It also returns a bool indicating
+// whether or not the annotation exists.
+func (p *Project) GetAnnotation(name string) (string, bool) {
+	for _, annotation := range p.Annotations {
+		if annotation.Name == name {
+			return annotation.Value, true
+		}
+	}
+	return "", false
 }
 
 // LoadManifestFromFile loads the manifest at the given file path into
@@ -85,7 +107,7 @@ func LoadManifestFromFile(file string) (map[string]*Manifest, error) {
 		}
 		// Set default revision on projects without an explicit revision
 		if project.Revision == "" {
-			remote := manifest.getRemoteByName(project.RemoteName)
+			remote := manifest.GetRemoteByName(project.RemoteName)
 			if remote.Revision == "" {
 				project.Revision = manifest.Default.Revision
 			} else {

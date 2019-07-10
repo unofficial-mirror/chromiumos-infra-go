@@ -175,9 +175,9 @@ func TestManifest(t *testing.T) {
 	}
 	expectedManifest := repo.Manifest{
 		Projects: []repo.Project{
-			repo.Project{Path: "src/foo", Name: "foo"},
-			repo.Project{Path: "src/bar", Name: "bar"},
-			repo.Project{Path: "src/baz", Name: "baz"},
+			{Path: "src/foo", Name: "foo"},
+			{Path: "src/bar", Name: "bar"},
+			{Path: "src/baz", Name: "baz"},
 		},
 	}
 

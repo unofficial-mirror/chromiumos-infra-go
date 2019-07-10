@@ -1,3 +1,6 @@
+// Copyright 2019 The Chromium OS Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 package repo
 
 import (
@@ -22,14 +25,16 @@ type Manifest struct {
 	Includes []Include `xml:"include"`
 	Projects []Project `xml:"project"`
 	Remotes  []Remote  `xml:"remote"`
-	Default  []Default `xml:"default"`
+	Default  Default   `xml:"default"`
 }
 
 // Project is an element of a manifest containing a Gerrit project to source path definition.
 type Project struct {
-	Path     string `xml:"path,attr"`
-	Name     string `xml:"name,attr"`
-	Revision string `xml:"revision,attr"`
+	Path       string `xml:"path,attr"`
+	Name       string `xml:"name,attr"`
+	Revision   string `xml:"revision,attr"`
+	Upstream   string `xml:"upstream,attr"`
+	RemoteName string `xml:"remote,attr"`
 }
 
 // Include is a manifest element that imports another manifest file.
@@ -46,8 +51,17 @@ type Remote struct {
 
 // Default is a manifest element that lists the default.
 type Default struct {
-	Remote   string `xml:"remote,attr"`
-	Revision string `xml:"revision,attr"`
+	RemoteName string `xml:"remote,attr"`
+	Revision   string `xml:"revision,attr"`
+}
+
+func (m *Manifest) getRemoteByName(name string) *Remote {
+	for _, remote := range m.Remotes {
+		if remote.Name == name {
+			return &remote
+		}
+	}
+	return &Remote{}
 }
 
 // LoadManifestFromFile loads the manifest at the given file path into
@@ -63,6 +77,22 @@ func LoadManifestFromFile(file string) (map[string]*Manifest, error) {
 	manifest := &Manifest{}
 	if err = xml.Unmarshal(data, manifest); err != nil {
 		return nil, errors.Annotate(err, "failed to unmarshal %s", file).Err()
+	}
+	for i, project := range manifest.Projects {
+		// Set default remote on projects without an explicit remote
+		if project.RemoteName == "" {
+			project.RemoteName = manifest.Default.RemoteName
+		}
+		// Set default revision on projects without an explicit revision
+		if project.Revision == "" {
+			remote := manifest.getRemoteByName(project.RemoteName)
+			if remote.Revision == "" {
+				project.Revision = manifest.Default.Revision
+			} else {
+				project.Revision = remote.Revision
+			}
+		}
+		manifest.Projects[i] = project
 	}
 	results[file] = manifest
 

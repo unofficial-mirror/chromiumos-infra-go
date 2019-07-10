@@ -207,5 +207,7 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 			"would like to proceed.", vinfo.VersionString())
 	}
 
+	// TODO(@jackneus): double check name with user via boolean CLI prompt
+
 	return 0
 }

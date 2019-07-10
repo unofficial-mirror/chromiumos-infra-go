@@ -1,3 +1,6 @@
+// Copyright 2019 The Chromium OS Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 package repo
 
 import (
@@ -85,7 +88,9 @@ func TestLoadManifestFromFile_success(t *testing.T) {
 	expected_results := make(map[string]*Manifest)
 	expected_results["test_data/foo.xml"] = &Manifest{
 		Projects: []Project{
-			{"baz/", "baz", "123"},
+			{Path: "baz/", Name: "baz", Revision: "123", RemoteName: "chromium"},
+			{Path: "fiz/", Name: "fiz", Revision: "124", RemoteName: "chromeos"},
+			{Path: "buz/", Name: "buz", Revision: "125", RemoteName: "google"},
 		},
 		Includes: []Include{
 			{"bar.xml"},
@@ -93,7 +98,7 @@ func TestLoadManifestFromFile_success(t *testing.T) {
 	}
 	expected_results["test_data/bar.xml"] = &Manifest{
 		Projects: []Project{
-			{"baz/", "baz", ""},
+			{Path: "baz/", Name: "baz"},
 		},
 	}
 
@@ -117,9 +122,9 @@ func TestLoadManifestFromFile_bad_xml(t *testing.T) {
 func TestGetUniqueProject(t *testing.T) {
 	manifest := &Manifest{
 		Projects: []Project{
-			{"foo-a/", "foo", ""},
-			{"foo-b/", "foo", ""},
-			{"bar/", "bar", ""},
+			{Path: "foo-a/", Name: "foo"},
+			{Path: "foo-b/", Name: "foo"},
+			{Path: "bar/", Name: "bar"},
 		},
 	}
 

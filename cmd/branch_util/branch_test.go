@@ -4,11 +4,13 @@
 package main
 
 import (
+	"reflect"
+	"testing"
+
 	"github.com/golang/mock/gomock"
 	mock_checkout "go.chromium.org/chromiumos/infra/go/internal/checkout/mock"
 	"go.chromium.org/chromiumos/infra/go/internal/repo"
 	"gotest.tools/assert"
-	"testing"
 )
 
 var branchNameTestManifest = repo.Manifest{
@@ -64,15 +66,14 @@ func TestProjectBranchName(t *testing.T) {
 
 	m := mock_checkout.NewMockCheckout(ctl)
 	checkout = m
-	c := &createBranchRun{}
 	manifest := branchNameTestManifest
 	m.EXPECT().
 		Manifest().
 		Return(manifest).
 		AnyTimes()
-	assert.Equal(t, c.projectBranchName("mybranch", manifest.Projects[0], ""), "mybranch")
-	assert.Equal(t, c.projectBranchName("mybranch", manifest.Projects[1], ""), "mybranch-factory-100")
-	assert.Equal(t, c.projectBranchName("mybranch", manifest.Projects[2], ""), "mybranch-101")
+	assert.Equal(t, projectBranchName("mybranch", manifest.Projects[0], ""), "mybranch")
+	assert.Equal(t, projectBranchName("mybranch", manifest.Projects[1], ""), "mybranch-factory-100")
+	assert.Equal(t, projectBranchName("mybranch", manifest.Projects[2], ""), "mybranch-101")
 }
 
 func TestProjectBranchName_withOriginal(t *testing.T) {
@@ -81,14 +82,13 @@ func TestProjectBranchName_withOriginal(t *testing.T) {
 
 	m := mock_checkout.NewMockCheckout(ctl)
 	checkout = m
-	c := &createBranchRun{}
 	manifest := branchNameTestManifest
 	m.EXPECT().
 		Manifest().
 		Return(manifest).
 		AnyTimes()
-	assert.Equal(t, c.projectBranchName("mybranch", manifest.Projects[3], "oldbranch"), "mybranch-factory-100")
-	assert.Equal(t, c.projectBranchName("mybranch", manifest.Projects[4], "oldbranch"), "mybranch-factory-101")
+	assert.Equal(t, projectBranchName("mybranch", manifest.Projects[3], "oldbranch"), "mybranch-factory-100")
+	assert.Equal(t, projectBranchName("mybranch", manifest.Projects[4], "oldbranch"), "mybranch-factory-101")
 }
 
 func TestCanBranchProject_annotation(t *testing.T) {
@@ -110,4 +110,46 @@ func TestCanBranchProject_remote(t *testing.T) {
 	// Remote has name but no alias. Remote is a branchable remote, but specific
 	// project is not branchable.
 	assert.Assert(t, !canBranchProject(manifest, manifest.Projects[5]))
+}
+
+var branchesTestManifest = repo.Manifest{
+	Projects: []repo.Project{
+		// Basic project. Only one checkout, so we can just use the branch name.
+		{Path: "bar/", Name: "chromiumos/bar", Revision: "100", RemoteName: "cros"},
+		// Project with multiple checkouts. Upstream/revision will be used as a suffix.
+		{Path: "foo1/", Name: "foo", Upstream: "refs/heads/factory-100",
+			Annotations: []repo.Annotation{
+				{Name: "branch-mode", Value: "create"},
+			},
+		},
+		{Path: "foo2/", Name: "foo",
+			Annotations: []repo.Annotation{
+				{Name: "branch-mode", Value: "pin"},
+			},
+		},
+	},
+	Remotes: []repo.Remote{
+		{Name: "cros"},
+	},
+}
+
+func TestProjectBranches(t *testing.T) {
+	ctl := gomock.NewController(t)
+	defer ctl.Finish()
+
+	m := mock_checkout.NewMockCheckout(ctl)
+	checkout = m
+	manifest := branchesTestManifest
+	m.EXPECT().
+		Manifest().
+		Return(manifest).
+		AnyTimes()
+
+	expected := []ProjectBranch{
+		{project: manifest.Projects[0], branchName: "mybranch"},
+		{project: manifest.Projects[1], branchName: "mybranch-factory-100"},
+	}
+
+	branchNames := projectBranches("mybranch", "oldbranch")
+	assert.Assert(t, reflect.DeepEqual(expected, branchNames))
 }

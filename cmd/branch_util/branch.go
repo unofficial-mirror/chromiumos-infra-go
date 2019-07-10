@@ -86,7 +86,7 @@ func canBranchProject(manifest repo.Manifest, project repo.Project) bool {
 }
 
 // projectBranchName determines the git branch name for the project.
-func (c *createBranchRun) projectBranchName(branch string, project repo.Project, original string) string {
+func projectBranchName(branch string, project repo.Project, original string) string {
 	// If the project has only one checkout, then the base branch name is fine.
 	var checkouts []string
 	manifest := checkout.Manifest()
@@ -117,4 +117,21 @@ func (c *createBranchRun) projectBranchName(branch string, project repo.Project,
 		}
 	}
 	return branch + suffix
+}
+
+// projectBranches returns a list of ProjectBranch structs:
+// one for each branchable project.
+func projectBranches(branch, original string) []ProjectBranch {
+	var projectBranches []ProjectBranch
+	manifest := checkout.Manifest()
+	for _, project := range manifest.Projects {
+		if canBranchProject(manifest, project) {
+			projectBranches = append(projectBranches,
+				ProjectBranch{
+					project:    project,
+					branchName: projectBranchName(branch, project, original),
+				})
+		}
+	}
+	return projectBranches
 }

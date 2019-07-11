@@ -74,7 +74,6 @@ type createBranchRun struct {
 	firmware   bool
 	stabilize  bool
 	custom     string
-	skipSync   bool
 }
 
 func (c *createBranchRun) getBranchType() (string, bool) {
@@ -207,7 +206,28 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 			"would like to proceed.", vinfo.VersionString())
 	}
 
+	// Generate branch name.
+	branchName := c.newBranchName()
+
 	// TODO(@jackneus): double check name with user via boolean CLI prompt
+
+	// Create branch.
+
+	// Generate git branch names.
+	branches := projectBranches(branchName, "")
+	// If not --force, validate branch names to ensure that they do not already exist.
+	if !c.Force {
+		err = assertBranchesDoNotExist(branches)
+		if err != nil {
+			fmt.Fprintf(a.GetErr(), err.Error())
+			return 1
+		}
+	}
+
+	if err = repairManifestRepositories(branches, !c.Push, c.Force); err != nil {
+		fmt.Fprintf(a.GetErr(), err.Error())
+		return 1
+	}
 
 	return 0
 }

@@ -11,8 +11,8 @@ import (
 )
 
 type ManifestRepo struct {
-	checkout checkoutp.Checkout
-	project  repo.Project
+	Checkout checkoutp.Checkout
+	Project  repo.Project
 }
 
 const (
@@ -45,7 +45,7 @@ func (m *ManifestRepo) RepairManifest(path string, branchesByPath map[string]str
 
 	// Update all project revisions.
 	for i, project := range manifest.Projects {
-		err = m.checkout.EnsureProject(project)
+		err = m.Checkout.EnsureProject(project)
 		if err != nil {
 			return repo.Manifest{}, errors.Annotate(err, "missing project while repairing manifest").Err()
 		}
@@ -61,7 +61,7 @@ func (m *ManifestRepo) RepairManifest(path string, branchesByPath map[string]str
 			manifest.Projects[i].Revision = git.NormalizeRef("master")
 		} else {
 			// If not, it's pinned.
-			revision, err := m.checkout.GitRevision(project)
+			revision, err := m.Checkout.GitRevision(project)
 			if err != nil {
 				return repo.Manifest{}, errors.Annotate(err, "error repairing manifest").Err()
 			}
@@ -79,7 +79,7 @@ func (m *ManifestRepo) listManifests(rootPaths []string) ([]string, error) {
 	manifestPaths := make(map[string]bool)
 
 	for _, path := range rootPaths {
-		path = m.checkout.AbsoluteProjectPath(m.project, path)
+		path = m.Checkout.AbsoluteProjectPath(m.Project, path)
 		manifestMap, err := loadManifestTree(path)
 		if err != nil {
 			return []string{}, err

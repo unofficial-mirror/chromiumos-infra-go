@@ -22,8 +22,8 @@ func TestRepairManifest(t *testing.T) {
 
 	m := mock_checkout.NewMockCheckout(ctl)
 	manifestRepo := ManifestRepo{
-		checkout: m,
-		project: repo.Project{
+		Checkout: m,
+		Project: repo.Project{
 			Name: "chromiumos/manifest",
 		},
 	}
@@ -130,8 +130,8 @@ func TestListManifests(t *testing.T) {
 	defer ctl.Finish()
 	m := mock_checkout.NewMockCheckout(ctl)
 	manifestRepo := ManifestRepo{
-		checkout: m,
-		project: repo.Project{
+		Checkout: m,
+		Project: repo.Project{
 			Name: tmpDir,
 		},
 	}
@@ -144,7 +144,7 @@ func TestListManifests(t *testing.T) {
 		assert.NilError(t, manifest.Write(path))
 		// Mock expectations.
 		m.EXPECT().
-			AbsoluteProjectPath(manifestRepo.project, manifestName).
+			AbsoluteProjectPath(manifestRepo.Project, manifestName).
 			Return(path).
 			AnyTimes()
 	}

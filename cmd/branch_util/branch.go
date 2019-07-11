@@ -9,7 +9,9 @@ import (
 	"strings"
 
 	"go.chromium.org/chromiumos/infra/go/internal/git"
+	"go.chromium.org/chromiumos/infra/go/internal/manifest_repo"
 	"go.chromium.org/chromiumos/infra/go/internal/repo"
+	"go.chromium.org/luci/common/errors"
 )
 
 var (
@@ -53,6 +55,8 @@ var (
 	}
 
 	MANIFEST_ATTR_BRANCHING_CREATE = "create"
+
+	MANIFEST_PROJECTS = []string{"chromiumos/manifest", "chromiumos/manifest-internal"}
 )
 
 type ProjectBranch struct {
@@ -76,10 +80,7 @@ func canBranchProject(manifest repo.Manifest, project repo.Project) bool {
 
 	// Peek at remote.
 	remote := manifest.GetRemoteByName(project.RemoteName)
-	remoteName := remote.Name
-	if remote.Alias != "" {
-		remoteName = remote.Alias
-	}
+	remoteName := remote.GitName()
 	_, inCrosRemote := CROS_REMOTES[remoteName]
 	projectRegexp, inBranchableProjects := BRANCHABLE_PROJECTS[remoteName]
 	return inCrosRemote && inBranchableProjects && projectRegexp.MatchString(project.Name)
@@ -134,4 +135,74 @@ func projectBranches(branch, original string) []ProjectBranch {
 		}
 	}
 	return projectBranches
+}
+
+// assertBranchesDoNotExist checks that branches do not already exist.
+func assertBranchesDoNotExist(branches []ProjectBranch) error {
+	for _, projectBranch := range branches {
+		pattern := regexp.MustCompile(projectBranch.branchName)
+		exists, err := checkout.BranchExists(projectBranch.project, pattern)
+		if err != nil {
+			return errors.Annotate(err, "Error checking existence of branch %s in %s.",
+				projectBranch.branchName, projectBranch.project.Name).Err()
+		}
+		if exists {
+			return fmt.Errorf("Branch %s exists for %s. Please rerun with --force to proceed.",
+				projectBranch.branchName, projectBranch.project.Name)
+		}
+	}
+	return nil
+}
+
+// getBranchesByPath returns a map mapping project paths to git branch names.
+func getBranchesByPath(branches []ProjectBranch) map[string]string {
+	branchesByPath := make(map[string]string)
+	for _, branch := range branches {
+		branchesByPath[branch.project.Path] = branch.branchName
+	}
+	return branchesByPath
+}
+
+// repairManifestRepositories repairs all manifests in all manifest repositories
+// on the current branch and commits the changes. It then pushes the state of
+// the local git branches to remote.
+func repairManifestRepositories(branches []ProjectBranch, dryRun, force bool) error {
+	manifest := checkout.Manifest()
+	for _, projectName := range MANIFEST_PROJECTS {
+		manifestProject, err := manifest.GetUniqueProject(projectName)
+		if err != nil {
+			return err
+		}
+		manifestRepo := manifest_repo.ManifestRepo{
+			Checkout: checkout,
+			Project:  manifestProject,
+		}
+		manifestRepo.RepairManifestsOnDisk(getBranchesByPath(branches))
+		if _, err := git.RunGit(checkout.AbsoluteProjectPath(manifestProject),
+			[]string{"commit", "-a", "-m"}); err != nil {
+			return errors.Annotate(err, "error committing repaired manifests").Err()
+		}
+	}
+	// Push the local git branches to remote.
+	for _, projectBranch := range branches {
+		branchName := git.NormalizeRef(projectBranch.branchName)
+
+		// The refspec should look like 'HEAD:refs/heads/branchName'.
+		refspec := fmt.Sprintf("HEAD:%s", branchName)
+		remote := manifest.GetRemoteByName(projectBranch.project.RemoteName).GitName()
+
+		cmd := []string{"push", remote, refspec}
+		if dryRun {
+			cmd = append(cmd, "--dry-run")
+		}
+		if force {
+			cmd = append(cmd, "--force")
+		}
+
+		if _, err := checkout.RunGit(projectBranch.project, cmd); err != nil {
+			return errors.Annotate(err, "could not push branches to remote").Err()
+		}
+	}
+
+	return nil
 }

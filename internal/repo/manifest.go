@@ -64,6 +64,15 @@ type Default struct {
 	Revision   string `xml:"revision,attr"`
 }
 
+// GitName returns the git name of the remote, which
+// is Alias if it is set, and Name otherwise.
+func (r *Remote) GitName() string {
+	if r.Alias != "" {
+		return r.Alias
+	}
+	return r.Name
+}
+
 // GetRemoteByName returns a pointer to the remote with
 // the given name/alias in the given manifest.
 func (m *Manifest) GetRemoteByName(name string) *Remote {

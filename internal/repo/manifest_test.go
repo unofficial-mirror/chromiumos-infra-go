@@ -167,3 +167,15 @@ func TestWrite(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Assert(t, reflect.DeepEqual(manifest, manifestMap[tmpPath]))
 }
+
+func TestGitName(t *testing.T) {
+	remote := Remote{
+		Alias: "batman",
+		Name:  "bruce wayne",
+	}
+	assert.Equal(t, remote.GitName(), "batman")
+	remote = Remote{
+		Name: "robin",
+	}
+	assert.Equal(t, remote.GitName(), "robin")
+}

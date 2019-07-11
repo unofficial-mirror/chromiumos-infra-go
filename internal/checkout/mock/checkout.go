@@ -156,3 +156,32 @@ func (mr *MockCheckoutMockRecorder) BranchExists(project, pattern interface{}) *
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BranchExists", reflect.TypeOf((*MockCheckout)(nil).BranchExists), project, pattern)
 }
+
+// EnsureProject mocks base method
+func (m *MockCheckout) EnsureProject(project repo.Project) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "EnsureProject", project)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// EnsureProject indicates an expected call of EnsureProject
+func (mr *MockCheckoutMockRecorder) EnsureProject(project interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EnsureProject", reflect.TypeOf((*MockCheckout)(nil).EnsureProject), project)
+}
+
+// GitRevision mocks base method
+func (m *MockCheckout) GitRevision(project repo.Project) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GitRevision", project)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GitRevision indicates an expected call of GitRevision
+func (mr *MockCheckoutMockRecorder) GitRevision(project interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GitRevision", reflect.TypeOf((*MockCheckout)(nil).GitRevision), project)
+}

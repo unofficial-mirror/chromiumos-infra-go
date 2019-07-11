@@ -15,6 +15,7 @@ import (
 
 	"go.chromium.org/chromiumos/infra/go/internal/osutils"
 	"go.chromium.org/chromiumos/infra/go/internal/repo"
+	"go.chromium.org/luci/common/errors"
 )
 
 var (
@@ -118,7 +119,7 @@ func (r *Repository) Manifest(repoToolPath string) (repo.Manifest, error) {
 	// Load manifest and imports into repo.Manifest structs.
 	manifestMap, err := repo.LoadManifestFromFile(tmpFile.Name())
 	if err != nil {
-		return repo.Manifest{}, nil
+		return repo.Manifest{}, errors.Annotate(err, "could not load manifest from tmp file.").Err()
 	}
 	return *manifestMap[tmpFile.Name()], err
 }

@@ -32,6 +32,8 @@ type Checkout interface {
 	AbsolutePath(args ...string) string
 	AbsoluteProjectPath(project repo.Project, args ...string) string
 	BranchExists(project repo.Project, pattern *regexp.Regexp) (bool, error)
+	EnsureProject(project repo.Project) error
+	GitRevision(project repo.Project) (string, error)
 }
 
 type CrosCheckout struct {
@@ -114,4 +116,21 @@ func (c *CrosCheckout) AbsoluteProjectPath(project repo.Project, args ...string)
 func (c *CrosCheckout) BranchExists(project repo.Project, pattern *regexp.Regexp) (bool, error) {
 	matches, err := git.MatchBranchName(c.AbsoluteProjectPath(project), pattern)
 	return len(matches) != 0, err
+}
+
+// EnsureProject checks that the project exists in the checkout.
+func (c *CrosCheckout) EnsureProject(project repo.Project) error {
+	path := c.AbsoluteProjectPath(project)
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return fmt.Errorf("Project %s does not exist at path %s in checkout. "+
+			"This likely means that the manifest-internal is out of sync with "+
+			"manifest, and that the manifest file you are branching from is "+
+			"corrupted.", project.Name, path)
+	}
+	return nil
+}
+
+// GitRevision returns the project's current git revision on disk.
+func (c *CrosCheckout) GitRevision(project repo.Project) (string, error) {
+	return git.GetGitRepoRevision(c.AbsoluteProjectPath(project))
 }

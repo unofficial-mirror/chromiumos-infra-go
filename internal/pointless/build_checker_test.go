@@ -35,6 +35,7 @@ func TestCheckBuilder_irrelevantToDepGraph(t *testing.T) {
 				ChangeNum: 123,
 				Revision:  2,
 			},
+			Branch:  "refs/heads/master",
 			Project: "chromiumos/public/example",
 			Files:   []string{"relevantfile", "irrelevantdir2"},
 		},
@@ -44,12 +45,12 @@ func TestCheckBuilder_irrelevantToDepGraph(t *testing.T) {
 			{DependencySourcePaths: []*chromite.SourcePath{
 				{Path: "src/dep/graph/path"},
 			}}}}
-	repoToSrcRoot := map[string]string{
-		"chromiumos/public/example": "src/pub/ex",
+	repoToBranchToSrcRoot := map[string]map[string]string{
+		"chromiumos/public/example": {"refs/heads/master": "src/pub/ex"},
 	}
 	cfg := testplans_pb.BuildIrrelevanceCfg{}
 
-	res, err := CheckBuilder(changes, chRevData, depGraph, repoToSrcRoot, cfg)
+	res, err := CheckBuilder(changes, chRevData, depGraph, repoToBranchToSrcRoot, cfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -75,6 +76,7 @@ func TestCheckBuilder_relevantToDepGraph(t *testing.T) {
 				ChangeNum: 123,
 				Revision:  2,
 			},
+			Branch:  "refs/heads/master",
 			Project: "chromiumos/public/example",
 			Files:   []string{"a/b/c"},
 		},
@@ -84,6 +86,7 @@ func TestCheckBuilder_relevantToDepGraph(t *testing.T) {
 				ChangeNum: 234,
 				Revision:  3,
 			},
+			Branch:  "refs/heads/master",
 			Project: "chromiumos/internal/example",
 			Files:   []string{"important_stuff/important_file"},
 		},
@@ -93,13 +96,13 @@ func TestCheckBuilder_relevantToDepGraph(t *testing.T) {
 			{DependencySourcePaths: []*chromite.SourcePath{
 				{Path: "src/internal/ex/important_stuff"},
 			}}}}
-	repoToSrcRoot := map[string]string{
-		"chromiumos/public/example":   "src/pub/ex",
-		"chromiumos/internal/example": "src/internal/ex",
+	repoToBranchToSrcRoot := map[string]map[string]string{
+		"chromiumos/public/example":   {"refs/heads/master": "src/pub/ex"},
+		"chromiumos/internal/example": {"refs/heads/master": "src/internal/ex"},
 	}
 	cfg := testplans_pb.BuildIrrelevanceCfg{}
 
-	res, err := CheckBuilder(changes, chRevData, depGraph, repoToSrcRoot, cfg)
+	res, err := CheckBuilder(changes, chRevData, depGraph, repoToBranchToSrcRoot, cfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -121,6 +124,7 @@ func TestCheckBuilder_buildIrrelevantPaths(t *testing.T) {
 				ChangeNum: 123,
 				Revision:  2,
 			},
+			Branch:  "refs/heads/master",
 			Project: "chromiumos/public/example",
 			Files: []string{
 				"chromite-maybe/someotherdir/ignore_me.txt",
@@ -132,8 +136,8 @@ func TestCheckBuilder_buildIrrelevantPaths(t *testing.T) {
 			{DependencySourcePaths: []*chromite.SourcePath{
 				{Path: "src/pub/ex/chromite-maybe"},
 			}}}}
-	repoToSrcRoot := map[string]string{
-		"chromiumos/public/example": "src/pub/ex",
+	repoToBranchToSrcRoot := map[string]map[string]string{
+		"chromiumos/public/example": {"refs/heads/master": "src/pub/ex"},
 	}
 
 	cfg := testplans_pb.BuildIrrelevanceCfg{
@@ -142,7 +146,7 @@ func TestCheckBuilder_buildIrrelevantPaths(t *testing.T) {
 		},
 	}
 
-	res, err := CheckBuilder(changes, chRevData, depGraph, repoToSrcRoot, cfg)
+	res, err := CheckBuilder(changes, chRevData, depGraph, repoToBranchToSrcRoot, cfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -162,12 +166,12 @@ func TestCheckBuilder_noGerritChangesMeansNecessaryBuild(t *testing.T) {
 			{DependencySourcePaths: []*chromite.SourcePath{
 				{Path: "src/pub/ex/chromite-maybe"},
 			}}}}
-	repoToSrcRoot := map[string]string{
-		"chromiumos/public/example": "src/pub/ex",
+	repoToBranchToSrcRoot := map[string]map[string]string{
+		"chromiumos/public/example": {"refs/heads/master": "src/pub/ex"},
 	}
 	cfg := testplans_pb.BuildIrrelevanceCfg{}
 
-	res, err := CheckBuilder(changes, chRevData, depGraph, repoToSrcRoot, cfg)
+	res, err := CheckBuilder(changes, chRevData, depGraph, repoToBranchToSrcRoot, cfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -189,16 +193,17 @@ func TestCheckBuild_nilDepGraphSuccessWithNoFilter(t *testing.T) {
 				ChangeNum: 123,
 				Revision:  2,
 			},
+			Branch:  "refs/heads/master",
 			Project: "chromiumos/public/example",
 			Files:   []string{"a/b/c"},
 		},
 	})
-	repoToSrcRoot := map[string]string{
-		"chromiumos/public/example": "src/pub/ex",
+	repoToBranchToSrcRoot := map[string]map[string]string{
+		"chromiumos/public/example": {"refs/heads/master": "src/pub/ex"},
 	}
 	cfg := testplans_pb.BuildIrrelevanceCfg{}
 
-	res, err := CheckBuilder(changes, chRevData, nil, repoToSrcRoot, cfg)
+	res, err := CheckBuilder(changes, chRevData, nil, repoToBranchToSrcRoot, cfg)
 	if err != nil {
 		t.Error(err)
 	}

@@ -23,11 +23,11 @@ func CheckBuilder(
 	changes []*bbproto.GerritChange,
 	changeRevs *gerrit.ChangeRevData,
 	depGraph *chromite.DepGraph,
-	repoToSrcRoot map[string]string,
+	repoToBranchToSrcRoot map[string]map[string]string,
 	cfg testplans_pb.BuildIrrelevanceCfg) (*testplans_pb.PointlessBuildCheckResponse, error) {
 
 	// Get all of the files referenced by each GerritCommit in the Build.
-	affectedFiles, err := extractAffectedFiles(changes, changeRevs, repoToSrcRoot)
+	affectedFiles, err := extractAffectedFiles(changes, changeRevs, repoToBranchToSrcRoot)
 	if err != nil {
 		return nil, fmt.Errorf("error in extractAffectedFiles: %+v", err)
 	}
@@ -70,16 +70,20 @@ func CheckBuilder(
 }
 
 func extractAffectedFiles(changes []*bbproto.GerritChange,
-	changeRevs *gerrit.ChangeRevData, repoToSrcRoot map[string]string) ([]string, error) {
+	changeRevs *gerrit.ChangeRevData, repoToSrcRoot map[string]map[string]string) ([]string, error) {
 	allAffectedFiles := make([]string, 0)
 	for _, gc := range changes {
 		rev, err := changeRevs.GetChangeRev(gc.Host, gc.Change, int32(gc.Patchset))
 		if err != nil {
 			return nil, err
 		}
-		srcRootMapping, found := repoToSrcRoot[rev.Project]
+		branchMapping, found := repoToSrcRoot[rev.Project]
 		if !found {
-			return nil, fmt.Errorf("Found no source mapping for project %s", rev.Project)
+			return nil, fmt.Errorf("Found no branch mapping for project %s", rev.Project)
+		}
+		srcRootMapping, found := branchMapping[rev.Branch]
+		if !found {
+			return nil, fmt.Errorf("Found no source mapping for project %s and branch %s", rev.Project, rev.Branch)
 		}
 		affectedFiles := make([]string, 0, len(rev.Files))
 		for _, file := range rev.Files {

@@ -40,7 +40,7 @@ func TestFetchFilesFromGitiles_success(t *testing.T) {
 	)
 	gerrit.MockGitiles = gitilesMock
 
-	m, err := GetRepoToSourceRootFromManifests(http.DefaultClient, context.Background(), "master")
+	m, err := GetRepoToRemoteBranchToSourceRootFromManifests(http.DefaultClient, context.Background(), "master")
 	if err != nil {
 		t.Error(err)
 	}
@@ -48,7 +48,7 @@ func TestFetchFilesFromGitiles_success(t *testing.T) {
 		t.Errorf("expected %d project mappings, found %d", 176, len(m))
 	}
 	// Make sure that a sample project is present.
-	if m["chromiumos/platform/mosys"] != "src/platform/mosys" {
+	if m["chromiumos/platform/mosys"]["refs/heads/master"] != "src/platform/mosys" {
 		t.Errorf("expected to find a mapping for mosys repo. Got mappings: %v", m)
 	}
 }

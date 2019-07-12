@@ -189,7 +189,7 @@ func (c *getTestPlanRun) fetchGerritData(bbBuilds []*bbproto.Build) (*igerrit.Ch
 	return chRevData, nil
 }
 
-func (c *getTestPlanRun) getRepoToSourceRoot(manifestCommit string) (*map[string]string, error) {
+func (c *getTestPlanRun) getRepoToSourceRoot(manifestCommit string) (*map[string]map[string]string, error) {
 	ctx := context.Background()
 	authOpts, err := c.authFlags.Options()
 	if err != nil {
@@ -203,7 +203,7 @@ func (c *getTestPlanRun) getRepoToSourceRoot(manifestCommit string) (*map[string
 		log.Print("No manifestCommit provided. Using 'snapshot' instead.")
 		manifestCommit = "snapshot"
 	}
-	repoToSrcRoot, err := repo.GetRepoToSourceRootFromManifests(authedClient, ctx, manifestCommit)
+	repoToSrcRoot, err := repo.GetRepoToRemoteBranchToSourceRootFromManifests(authedClient, ctx, manifestCommit)
 	if err != nil {
 		return nil, fmt.Errorf("Error with repo tool call\n%v", err)
 	}

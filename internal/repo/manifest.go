@@ -13,6 +13,7 @@ import (
 	"log"
 	"net/http"
 	"path/filepath"
+	"strings"
 )
 
 var (
@@ -166,15 +167,25 @@ func fetchManifestRecursive(authedClient *http.Client, ctx context.Context, mani
 
 // GetRepoToSourceRootFromManifests constructs a Gerrit project to path mapping by fetching manifest
 // XML files from Gitiles.
-func GetRepoToSourceRootFromManifests(authedClient *http.Client, ctx context.Context, manifestCommit string) (map[string]string, error) {
+func GetRepoToRemoteBranchToSourceRootFromManifests(authedClient *http.Client, ctx context.Context, manifestCommit string) (map[string]map[string]string, error) {
 	manifests, err := fetchManifestRecursive(authedClient, ctx, manifestCommit, rootXml)
 	if err != nil {
 		return nil, err
 	}
-	repoToSourceRoot := make(map[string]string)
+	repoToSourceRoot := make(map[string]map[string]string)
 	for _, m := range manifests {
 		for _, p := range m.Projects {
-			repoToSourceRoot[p.Name] = p.Path
+			if _, found := repoToSourceRoot[p.Name]; !found {
+				repoToSourceRoot[p.Name] = make(map[string]string)
+			}
+			branch := p.Upstream
+			if branch == "" {
+				branch = "refs/heads/master"
+			}
+			if !strings.HasPrefix(branch, "refs/heads/") {
+				branch = "refs/heads/" + branch
+			}
+			repoToSourceRoot[p.Name][branch] = p.Path
 		}
 	}
 	log.Printf("Found %d repo to source root mappings from manifest files", len(repoToSourceRoot))

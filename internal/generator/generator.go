@@ -31,7 +31,7 @@ func CreateTestPlan(
 	sourceTreeCfg *testplans.SourceTreeTestCfg,
 	unfilteredBbBuilds []*bbproto.Build,
 	changeRevs *gerrit.ChangeRevData,
-	repoToSrcRoot map[string]string) (*testplans.GenerateTestPlanResponse, error) {
+	repoToBranchToSrcRoot map[string]map[string]string) (*testplans.GenerateTestPlanResponse, error) {
 	testPlan := &testplans.GenerateTestPlanResponse{}
 
 	btBuildReports := make(map[BuildTarget]bbproto.Build)
@@ -59,7 +59,7 @@ func CreateTestPlan(
 	}
 
 	// For those changes, what pruning optimizations can be done?
-	pruneResult, err := extractPruneResult(sourceTreeCfg, changes, changeRevs, repoToSrcRoot)
+	pruneResult, err := extractPruneResult(sourceTreeCfg, changes, changeRevs, repoToBranchToSrcRoot)
 	if err != nil {
 		return testPlan, err
 	}

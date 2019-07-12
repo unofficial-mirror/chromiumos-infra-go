@@ -91,9 +91,9 @@ func TestCreateCombinedTestPlan_oneUnitSuccess(t *testing.T) {
 		makeBuildbucketBuild("kevin", bbproto.Status_SUCCESS, []*bbproto.GerritChange{}, true),
 	}
 	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{})
-	repoToSrcRoot := map[string]string{"chromiumos/repo/name": "src/to/file"}
+	repoToBranchToSrcRoot := map[string]map[string]string{"chromiumos/repo/name": {"refs/heads/master": "src/to/file"}}
 
-	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, chRevData, repoToSrcRoot)
+	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, chRevData, repoToBranchToSrcRoot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -166,13 +166,14 @@ func TestCreateCombinedTestPlan_manyUnitSuccess(t *testing.T) {
 				ChangeNum: 123,
 				Revision:  2,
 			},
+			Branch:  "refs/heads/master",
 			Project: "chromiumos/repo/name",
 			Files:   []string{"a/b/c"},
 		},
 	})
-	repoToSrcRoot := map[string]string{"chromiumos/repo/name": "src/to/file"}
+	repoToBranchToSrcRoot := map[string]map[string]string{"chromiumos/repo/name": {"refs/heads/master": "src/to/file"}}
 
-	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, chRevData, repoToSrcRoot)
+	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, chRevData, repoToBranchToSrcRoot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -272,13 +273,14 @@ func TestCreateCombinedTestPlan_successDespiteOneFailedBuilder(t *testing.T) {
 				ChangeNum: 123,
 				Revision:  2,
 			},
+			Branch:  "refs/heads/master",
 			Project: "chromiumos/repo/name",
 			Files:   []string{"a/b/c"},
 		},
 	})
-	repoToSrcRoot := map[string]string{"chromiumos/repo/name": "src/to/file"}
+	repoToBranchToSrcRoot := map[string]map[string]string{"chromiumos/repo/name": {"refs/heads/master": "src/to/file"}}
 
-	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, chRevData, repoToSrcRoot)
+	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, chRevData, repoToBranchToSrcRoot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -330,13 +332,14 @@ func TestCreateCombinedTestPlan_skipsUnnecessaryHardwareTest(t *testing.T) {
 				ChangeNum: 123,
 				Revision:  2,
 			},
+			Branch:  "refs/heads/master",
 			Project: "chromiumos/test/repo/name",
 			Files:   []string{"some/file"},
 		},
 	})
-	repoToSrcRoot := map[string]string{"chromiumos/test/repo/name": "no/hw/tests/here"}
+	repoToBranchToSrcRoot := map[string]map[string]string{"chromiumos/test/repo/name": {"refs/heads/master": "no/hw/tests/here"}}
 
-	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, chRevData, repoToSrcRoot)
+	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, chRevData, repoToBranchToSrcRoot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -393,13 +396,14 @@ func TestCreateCombinedTestPlan_doesOnlyTest(t *testing.T) {
 				ChangeNum: 123,
 				Revision:  2,
 			},
+			Branch:  "refs/heads/master",
 			Project: "chromiumos/test/repo/name",
 			Files:   []string{"some/file"},
 		},
 	})
-	repoToSrcRoot := map[string]string{"chromiumos/test/repo/name": "no/hw/tests/here"}
+	repoToBranchToSrcRoot := map[string]map[string]string{"chromiumos/test/repo/name": {"refs/heads/master": "no/hw/tests/here"}}
 
-	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, chRevData, repoToSrcRoot)
+	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, chRevData, repoToBranchToSrcRoot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -433,7 +437,7 @@ func TestCreateCombinedTestPlan_inputMissingTargetType(t *testing.T) {
 	}
 	sourceTreeTestCfg := &testplans.SourceTreeTestCfg{}
 	bbBuilds := []*bbproto.Build{}
-	if _, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, &gerrit.ChangeRevData{}, map[string]string{}); err == nil {
+	if _, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, &gerrit.ChangeRevData{}, map[string]map[string]string{}); err == nil {
 		t.Errorf("Expected an error to be returned")
 	}
 }
@@ -468,13 +472,14 @@ func TestCreateCombinedTestPlan_skipsPointlessBuild(t *testing.T) {
 				ChangeNum: 123,
 				Revision:  2,
 			},
+			Branch:  "refs/heads/master",
 			Project: "chromiumos/repo/name",
 			Files:   []string{"a/b/c"},
 		},
 	})
-	repoToSrcRoot := map[string]string{"chromiumos/repo/name": "src/to/file"}
+	repoToBranchToSrcRoot := map[string]map[string]string{"chromiumos/repo/name": {"refs/heads/master": "src/to/file"}}
 
-	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, chRevData, repoToSrcRoot)
+	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, chRevData, repoToBranchToSrcRoot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -494,9 +499,9 @@ func TestCreateTestPlan_succeedsOnNoBuildTarget(t *testing.T) {
 		makeBuildbucketBuild("", bbproto.Status_FAILURE, []*bbproto.GerritChange{}, true),
 	}
 	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{})
-	repoToSrcRoot := map[string]string{}
+	repoToBranchToSrcRoot := map[string]map[string]string{}
 
-	_, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, chRevData, repoToSrcRoot)
+	_, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, chRevData, repoToBranchToSrcRoot)
 	if err != nil {
 		t.Errorf("expected no error, but got %v", err)
 	}
@@ -531,13 +536,14 @@ func TestCreateCombinedTestPlan_skipsNonCritical(t *testing.T) {
 				ChangeNum: 123,
 				Revision:  2,
 			},
+			Branch:  "refs/heads/master",
 			Project: "chromiumos/repo/name",
 			Files:   []string{"a/b/c"},
 		},
 	})
-	repoToSrcRoot := map[string]string{"chromiumos/repo/name": "src/to/file"}
+	repoToBranchToSrcRoot := map[string]map[string]string{"chromiumos/repo/name": {"refs/heads/master": "src/to/file"}}
 
-	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, chRevData, repoToSrcRoot)
+	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, chRevData, repoToBranchToSrcRoot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -577,9 +583,9 @@ func TestCreateCombinedTestPlan_ignoresNonArtifactBuild(t *testing.T) {
 		"AUTOTEST_FILES")
 	bbBuilds := []*bbproto.Build{build}
 	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{})
-	repoToSrcRoot := map[string]string{"chromiumos/repo/name": "src/to/file"}
+	repoToBranchToSrcRoot := map[string]map[string]string{"chromiumos/repo/name": {"refs/heads/master": "src/to/file"}}
 
-	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, chRevData, repoToSrcRoot)
+	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, chRevData, repoToBranchToSrcRoot)
 	if err != nil {
 		t.Error(err)
 	}

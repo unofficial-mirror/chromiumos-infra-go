@@ -28,6 +28,7 @@ func (cik ChangeRevKey) String() string {
 type ChangeRev struct {
 	ChangeRevKey
 	Project string
+	Branch  string
 	Files   []string
 }
 
@@ -79,6 +80,7 @@ func GetChangeRev(authedClient *http.Client, ctx context.Context, changeNum int6
 					ChangeNum: change.Number,
 					Revision:  v.Number,
 				},
+				Branch:  change.Ref,
 				Project: change.Project,
 				Files:   getKeys(v.Files),
 			}, nil

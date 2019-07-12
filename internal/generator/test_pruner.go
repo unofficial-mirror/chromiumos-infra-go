@@ -54,7 +54,7 @@ func extractPruneResult(
 	sourceTreeCfg *testplans.SourceTreeTestCfg,
 	changes []*bbproto.GerritChange,
 	changeRevs *gerrit.ChangeRevData,
-	repoToSrcRoot map[string]string) (*testPruneResult, error) {
+	repoToBranchToSrcRoot map[string]map[string]string) (*testPruneResult, error) {
 
 	result := &testPruneResult{}
 
@@ -65,7 +65,7 @@ func extractPruneResult(
 	}
 
 	// All the files in the GerritChanges, in source tree form.
-	srcPaths, err := srcPaths(changes, changeRevs, repoToSrcRoot)
+	srcPaths, err := srcPaths(changes, changeRevs, repoToBranchToSrcRoot)
 	if err != nil {
 		return result, err
 	}
@@ -126,7 +126,7 @@ func extractPruneResult(
 func srcPaths(
 	changes []*bbproto.GerritChange,
 	changeRevs *gerrit.ChangeRevData,
-	repoToSrcRoot map[string]string) ([]string, error) {
+	repoToBranchToSrcRoot map[string]map[string]string) ([]string, error) {
 	srcPaths := make([]string, 0)
 	for _, commit := range changes {
 		chRev, err := changeRevs.GetChangeRev(commit.Host, commit.Change, int32(commit.Patchset))
@@ -134,9 +134,13 @@ func srcPaths(
 			return srcPaths, err
 		}
 		for _, file := range chRev.Files {
-			srcRootMapping, found := repoToSrcRoot[chRev.Project]
+			branchMapping, found := repoToBranchToSrcRoot[chRev.Project]
 			if !found {
-				return srcPaths, fmt.Errorf("Found no source mapping for project %s", chRev.Project)
+				return srcPaths, fmt.Errorf("Found no branch mapping for project %s", chRev.Project)
+			}
+			srcRootMapping, found := branchMapping[chRev.Branch]
+			if !found {
+				return srcPaths, fmt.Errorf("Found no source mapping for project %s and branch %s", chRev.Project, chRev.Branch)
 			}
 			srcPaths = append(srcPaths, fmt.Sprintf("%s/%s", srcRootMapping, file))
 		}

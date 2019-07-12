@@ -90,9 +90,8 @@ func (r *Repository) SyncToFile(manifestPath, repoToolPath string) error {
 func (r *Repository) Manifest(repoToolPath string) (repo.Manifest, error) {
 	// This implementation is a bit circuitous.
 	// Put simply, we want the results of `repo manifest` as a repo.Manifest struct.
-	// repo.LoadManifestFromFile already does a lot of the heavy lifting --
-	// it is able to follow and load a manifest's imports. However, it requires a
-	// file path as input, and `repo manifest` prints the Root manifest's contents
+	// repo.LoadManifestFromFile already does a lot of the heavy lifting. However, it
+	// requires a file path as input, and `repo manifest` prints the Root manifest's contents
 	// to stdout. As a workaround, I write these contents to a temp file that I then
 	// pass into repo.LoadManifestFromFile.
 	tmpFile, err := ioutil.TempFile(r.Root, "manifest")
@@ -117,9 +116,9 @@ func (r *Repository) Manifest(repoToolPath string) (repo.Manifest, error) {
 		return repo.Manifest{}, fmt.Errorf("could not write manifest to tmp file %s: %s.", tmpFile.Name(), err.Error())
 	}
 	// Load manifest and imports into repo.Manifest structs.
-	manifestMap, err := repo.LoadManifestFromFile(tmpFile.Name())
+	manifest, err := repo.LoadManifestFromFile(tmpFile.Name())
 	if err != nil {
 		return repo.Manifest{}, errors.Annotate(err, "could not load manifest from tmp file.").Err()
 	}
-	return *manifestMap[tmpFile.Name()], err
+	return manifest, err
 }

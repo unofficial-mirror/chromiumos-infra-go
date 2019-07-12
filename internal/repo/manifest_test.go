@@ -11,7 +11,10 @@ import (
 	"go.chromium.org/chromiumos/infra/go/internal/gerrit"
 	gitilespb "go.chromium.org/luci/common/proto/gitiles"
 	"gotest.tools/assert"
+	"io/ioutil"
 	"net/http"
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 )
@@ -85,7 +88,7 @@ func ManifestMapEq(expected, actual map[string]*Manifest) error {
 	return nil
 }
 
-func TestLoadManifestFromFile_success(t *testing.T) {
+func TestLoadManifestTree_success(t *testing.T) {
 	expected_results := make(map[string]*Manifest)
 	expected_results["test_data/foo.xml"] = &Manifest{
 		Projects: []Project{
@@ -107,20 +110,20 @@ func TestLoadManifestFromFile_success(t *testing.T) {
 		},
 	}
 
-	res, err := LoadManifestFromFile("test_data/foo.xml")
+	res, err := LoadManifestTree("test_data/foo.xml")
 	assert.NilError(t, err)
 	if err = ManifestMapEq(expected_results, res); err != nil {
 		t.Errorf(err.Error())
 	}
 }
 
-func TestLoadManifestFromFile_bad_include(t *testing.T) {
-	_, err := LoadManifestFromFile("test_data/bogus.xml")
+func TestLoadManifestTree_bad_include(t *testing.T) {
+	_, err := LoadManifestTree("test_data/bogus.xml")
 	assert.ErrorContains(t, err, "bad-include.xml")
 }
 
-func TestLoadManifestFromFile_bad_xml(t *testing.T) {
-	_, err := LoadManifestFromFile("test_data/invalid.xml")
+func TestLoadManifestTree_bad_xml(t *testing.T) {
+	_, err := LoadManifestTree("test_data/invalid.xml")
 	assert.ErrorContains(t, err, "unmarshal")
 }
 
@@ -139,4 +142,28 @@ func TestGetUniqueProject(t *testing.T) {
 	project, err := manifest.GetUniqueProject("bar")
 	assert.NilError(t, err)
 	assert.Assert(t, reflect.DeepEqual(&project, &manifest.Projects[2]))
+}
+
+func TestWrite(t *testing.T) {
+	tmpDir := "repotest_tmp_dir"
+	tmpDir, err := ioutil.TempDir("", tmpDir)
+	defer os.RemoveAll(tmpDir)
+	assert.NilError(t, err)
+	tmpPath := filepath.Join(tmpDir, "foo.xml")
+
+	manifest := &Manifest{
+		Projects: []Project{
+			{Path: "foo-a/", Name: "foo"},
+			{Path: "foo-b/", Name: "foo"},
+			{Path: "bar/", Name: "bar"},
+		},
+	}
+	manifest.Write(tmpPath)
+	// Make sure file was written successfully.
+	_, err = os.Stat(tmpPath)
+	assert.NilError(t, err)
+	// Make sure manifest was marshalled and written correctly.
+	manifestMap, err := LoadManifestTree(tmpPath)
+	assert.NilError(t, err)
+	assert.Assert(t, reflect.DeepEqual(manifest, manifestMap[tmpPath]))
 }

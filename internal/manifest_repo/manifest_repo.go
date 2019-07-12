@@ -15,11 +15,14 @@ type ManifestRepo struct {
 	project  repo.Project
 }
 
-var (
-	MANIFEST_ATTR_BRANCHING_TOT = "tot"
+const (
+	manifestAttrBranchingTot = "tot"
+	defaultManifest          = "default.xml"
+	officialManifest         = "official.xml"
 )
 
 var loadManifestFromFile = repo.LoadManifestFromFile
+var loadManifestTree = repo.LoadManifestTree
 
 // RepairManifest reads the manifest at the given path and repairs it in memory.
 // Because humans rarely read branched manifests, this function optimizes for
@@ -27,18 +30,16 @@ var loadManifestFromFile = repo.LoadManifestFromFile
 // deleting any defaults.
 // branchesByPath maps project paths to branch names.
 func (m *ManifestRepo) RepairManifest(path string, branchesByPath map[string]string) (repo.Manifest, error) {
-
-	manifestMap, err := loadManifestFromFile(path)
+	manifest, err := loadManifestFromFile(path)
 	if err != nil {
 		return repo.Manifest{}, errors.Annotate(err, "error repairing manifest").Err()
 	}
-	manifest := *manifestMap[path]
 
 	// Delete the default revision.
 	manifest.Default.Revision = ""
 
 	// Delete remote revisions.
-	for i, _ := range manifest.Remotes {
+	for i := range manifest.Remotes {
 		manifest.Remotes[i].Revision = ""
 	}
 
@@ -55,7 +56,7 @@ func (m *ManifestRepo) RepairManifest(path string, branchesByPath map[string]str
 
 		if inDict {
 			manifest.Projects[i].Revision = git.NormalizeRef(branchName)
-		} else if explicitMode == MANIFEST_ATTR_BRANCHING_TOT {
+		} else if explicitMode == manifestAttrBranchingTot {
 			// Otherwise, check if project is explicitly TOT.
 			manifest.Projects[i].Revision = git.NormalizeRef("master")
 		} else {
@@ -70,4 +71,46 @@ func (m *ManifestRepo) RepairManifest(path string, branchesByPath map[string]str
 		manifest.Projects[i].Upstream = ""
 	}
 	return manifest, nil
+}
+
+// listManifests finds all manifests included directly or indirectly by root
+// manifests.
+func (m *ManifestRepo) listManifests(rootPaths []string) ([]string, error) {
+	manifestPaths := make(map[string]bool)
+
+	for _, path := range rootPaths {
+		path = m.checkout.AbsoluteProjectPath(m.project, path)
+		manifestMap, err := loadManifestTree(path)
+		if err != nil {
+			return []string{}, err
+		}
+		for k := range manifestMap {
+			manifestPaths[k] = true
+		}
+	}
+	manifests := []string{}
+	for k := range manifestPaths {
+		manifests = append(manifests, k)
+	}
+	return manifests, nil
+}
+
+// RepairManifestsOnDisk repairs the revision and upstream attributes of
+// manifest elements on disk for the given projects.
+func (m *ManifestRepo) RepairManifestsOnDisk(branchesByPath map[string]string) error {
+	manifestPaths, err := m.listManifests([]string{defaultManifest, officialManifest})
+	if err != nil {
+		return errors.Annotate(err, "failed to listManifests").Err()
+	}
+	for _, manifestPath := range manifestPaths {
+		manifest, err := m.RepairManifest(manifestPath, branchesByPath)
+		if err != nil {
+			return errors.Annotate(err, "failed to repair manifest %s", manifestPath).Err()
+		}
+		err = manifest.Write(manifestPath)
+		if err != nil {
+			return errors.Annotate(err, "failed to write repaired manifest to %s", manifestPath).Err()
+		}
+	}
+	return nil
 }

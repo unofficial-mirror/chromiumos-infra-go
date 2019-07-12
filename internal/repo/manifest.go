@@ -87,10 +87,24 @@ func (p *Project) GetAnnotation(name string) (string, bool) {
 	return "", false
 }
 
-// LoadManifestFromFile loads the manifest at the given file path into
+// LoadManifestFromFile ile loads the manifest at the given file into a
+// Manfiest struct.
+func LoadManifestFromFile(file string) (Manifest, error) {
+	manifestMap, err := LoadManifestTree(file)
+	if err != nil {
+		return Manifest{}, err
+	}
+	manifest, exists := manifestMap[file]
+	if !exists {
+		return Manifest{}, fmt.Errorf("failed to read %s", file)
+	}
+	return *manifest, nil
+}
+
+// LoadManifestTree loads the manifest at the given file path into
 // a Manifest struct. It also loads all included manifests.
 // Returns a map mapping manifest filenames to file contents.
-func LoadManifestFromFile(file string) (map[string]*Manifest, error) {
+func LoadManifestTree(file string) (map[string]*Manifest, error) {
 	results := make(map[string]*Manifest)
 
 	data, err := ioutil.ReadFile(file)
@@ -123,7 +137,7 @@ func LoadManifestFromFile(file string) (map[string]*Manifest, error) {
 	for _, incl := range manifest.Includes {
 		// Include paths are relative to the manifest location.
 		inclPath := filepath.Join(filepath.Dir(file), incl.Name)
-		subResults, err := LoadManifestFromFile(inclPath)
+		subResults, err := LoadManifestTree(inclPath)
 		if err != nil {
 			return nil, err
 		}
@@ -192,8 +206,9 @@ func GetRepoToRemoteBranchToSourceRootFromManifests(authedClient *http.Client, c
 	return repoToSourceRoot, nil
 }
 
-// Return the unique project with the given name (nil if the project DNE).
-// Return an error if multiple projects with the given name exist.
+// GetUnique Project returns the unique project with the given name
+// (nil if the project DNE). It returns an error if multiple projects with the
+// given name exist.
 func (m *Manifest) GetUniqueProject(name string) (Project, error) {
 	var project Project
 	matchingProjects := 0
@@ -207,4 +222,17 @@ func (m *Manifest) GetUniqueProject(name string) (Project, error) {
 		}
 	}
 	return project, nil
+}
+
+// Write writes the manifest to the given path.
+func (m *Manifest) Write(path string) error {
+	data, err := xml.Marshal(m)
+	if err != nil {
+		return errors.Annotate(err, "failed to write manifest").Err()
+	}
+	err = ioutil.WriteFile(path, data, 0644)
+	if err != nil {
+		return errors.Annotate(err, "failed to write manifest").Err()
+	}
+	return nil
 }

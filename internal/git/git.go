@@ -7,28 +7,15 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"os/exec"
 	"regexp"
 	"strings"
+
+	"go.chromium.org/chromiumos/infra/go/internal/cmd"
 )
 
 var (
-	commandRunnerImpl commandRunner = realCommandRunner{}
+	CommandRunnerImpl cmd.CommandRunner = cmd.RealCommandRunner{}
 )
-
-type commandRunner interface {
-	runCommand(ctx context.Context, stdoutBuf, stderrBuf *bytes.Buffer, dir, name string, args ...string) error
-}
-
-type realCommandRunner struct{}
-
-func (c realCommandRunner) runCommand(ctx context.Context, stdoutBuf, stderrBuf *bytes.Buffer, dir, name string, args ...string) error {
-	cmd := exec.CommandContext(ctx, name, args...)
-	cmd.Stdout = stdoutBuf
-	cmd.Stderr = stderrBuf
-	cmd.Dir = dir
-	return cmd.Run()
-}
 
 type CommandOutput struct {
 	Stdout string
@@ -46,7 +33,7 @@ type RemoteRef struct {
 func RunGit(gitRepo string, cmd []string) (CommandOutput, error) {
 	ctx := context.Background()
 	var stdoutBuf, stderrBuf bytes.Buffer
-	err := commandRunnerImpl.runCommand(ctx, &stdoutBuf, &stderrBuf, gitRepo, "git", cmd...)
+	err := CommandRunnerImpl.RunCommand(ctx, &stdoutBuf, &stderrBuf, gitRepo, "git", cmd...)
 	cmdOutput := CommandOutput{stdoutBuf.String(), stderrBuf.String()}
 	return cmdOutput, err
 }

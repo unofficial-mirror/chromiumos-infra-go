@@ -9,6 +9,7 @@ package mock_checkout
 
 import (
 	gomock "github.com/golang/mock/gomock"
+	git "go.chromium.org/chromiumos/infra/go/internal/git"
 	repo "go.chromium.org/chromiumos/infra/go/internal/repo"
 	reflect "reflect"
 	regexp "regexp"
@@ -184,4 +185,19 @@ func (m *MockCheckout) GitRevision(project repo.Project) (string, error) {
 func (mr *MockCheckoutMockRecorder) GitRevision(project interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GitRevision", reflect.TypeOf((*MockCheckout)(nil).GitRevision), project)
+}
+
+// RunGit mocks base method
+func (m *MockCheckout) RunGit(project repo.Project, cmd []string) (git.CommandOutput, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RunGit", project, cmd)
+	ret0, _ := ret[0].(git.CommandOutput)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RunGit indicates an expected call of RunGit
+func (mr *MockCheckoutMockRecorder) RunGit(project, cmd interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RunGit", reflect.TypeOf((*MockCheckout)(nil).RunGit), project, cmd)
 }

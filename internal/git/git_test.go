@@ -4,56 +4,36 @@
 package git
 
 import (
-	"bytes"
-	"context"
-	"fmt"
+	"go.chromium.org/chromiumos/infra/go/internal/cmd"
 	"gotest.tools/assert"
-	"os/exec"
 	"regexp"
-	"strings"
 	"testing"
 )
 
-type fakeCommandRunner struct {
-	stdout      string
-	stderr      string
-	expectedCmd []string
-	expectedDir string
-	failCommand bool
+func TestRunGit_success(t *testing.T) {
+	CommandRunnerImpl = cmd.FakeCommandRunner{
+		ExpectedDir: "myrepo",
+		ExpectedCmd: []string{"git", "log"},
+		Stdout:      "success",
+	}
+
+	output, err := RunGit("myrepo", []string{"log"})
+	assert.NilError(t, err)
+	assert.Equal(t, output.Stdout, "success")
 }
 
-func equal(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
+func TestRunGit_error(t *testing.T) {
+	CommandRunnerImpl = cmd.FakeCommandRunner{
+		ExpectedDir: "myrepo",
+		ExpectedCmd: []string{"git", "log"},
+		Stdout:      "I don't feel so go--",
+		Stderr:      "sudden death",
+		FailCommand: true,
 	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
-}
 
-func (c fakeCommandRunner) runCommand(ctx context.Context, stdoutBuf, stderrBuf *bytes.Buffer, dir, name string, args ...string) error {
-	stdoutBuf.WriteString(c.stdout)
-	stderrBuf.WriteString(c.stderr)
-	cmd := append([]string{name}, args...)
-	if len(c.expectedCmd) > 0 {
-		if !equal(cmd, c.expectedCmd) {
-			expectedCmd := strings.Join(c.expectedCmd, " ")
-			actualCmd := strings.Join(cmd, " ")
-			return fmt.Errorf("wrong cmd; expected %s got %s", expectedCmd, actualCmd)
-		}
-	}
-	if c.expectedDir != "" {
-		if dir != c.expectedDir {
-			return fmt.Errorf("wrong cmd dir; expected %s got %s", c.expectedDir, dir)
-		}
-	}
-	if c.failCommand {
-		return &exec.ExitError{}
-	}
-	return nil
+	output, err := RunGit("myrepo", []string{"log"})
+	assert.Assert(t, err != nil)
+	assert.Equal(t, output.Stderr, "sudden death")
 }
 
 func TestStripRefsHead(t *testing.T) {
@@ -76,16 +56,16 @@ func TestGetCurrentBranch_success(t *testing.T) {
 	fakeGitRepo := "top-secret-project"
 	fakeGitData := "refs/heads/current-branch"
 
-	commandRunnerImpl = fakeCommandRunner{
-		expectedDir: fakeGitRepo,
-		stdout:      fakeGitData,
+	CommandRunnerImpl = cmd.FakeCommandRunner{
+		ExpectedDir: fakeGitRepo,
+		Stdout:      fakeGitData,
 	}
 	assert.Equal(t, GetCurrentBranch(fakeGitRepo), "current-branch")
 }
 
 func TestGetCurrentBranch_failure(t *testing.T) {
-	commandRunnerImpl = fakeCommandRunner{
-		failCommand: true,
+	CommandRunnerImpl = cmd.FakeCommandRunner{
+		FailCommand: true,
 	}
 	assert.Equal(t, GetCurrentBranch("project"), "")
 }
@@ -97,10 +77,10 @@ func TestMatchBranchName_success(t *testing.T) {
 		"2102915989de21d9251c11f0a7b5307e175e7677  refs/heads/foobar\n" +
 		"04975f9439ff75502b33d9491155692736e05b07  refs/heads/baz\n"
 
-	commandRunnerImpl = fakeCommandRunner{
-		expectedCmd: []string{"git", "ls-remote", fakeGitRepo},
-		expectedDir: fakeGitRepo,
-		stdout:      fakeGitData,
+	CommandRunnerImpl = cmd.FakeCommandRunner{
+		ExpectedCmd: []string{"git", "ls-remote", fakeGitRepo},
+		ExpectedDir: fakeGitRepo,
+		Stdout:      fakeGitData,
 	}
 
 	expectedMatches := []string{"refs/heads/foo", "refs/heads/foobar"}
@@ -116,10 +96,10 @@ func TestMatchBranchName_success(t *testing.T) {
 
 func TestGetRepoRevision(t *testing.T) {
 	sha := "6446dfef4b55689046395c2db7ba7c35377927fe"
-	commandRunnerImpl = fakeCommandRunner{
-		expectedCmd: []string{"git", "rev-parse", "HEAD"},
-		expectedDir: "project",
-		stdout:      sha,
+	CommandRunnerImpl = cmd.FakeCommandRunner{
+		ExpectedCmd: []string{"git", "rev-parse", "HEAD"},
+		ExpectedDir: "project",
+		Stdout:      sha,
 	}
 	res, err := GetGitRepoRevision("project")
 	assert.NilError(t, err)

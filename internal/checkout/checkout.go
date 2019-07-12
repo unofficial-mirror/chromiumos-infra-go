@@ -4,6 +4,7 @@
 package checkout
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -13,6 +14,7 @@ import (
 	"go.chromium.org/chromiumos/infra/go/internal/git"
 	"go.chromium.org/chromiumos/infra/go/internal/repo"
 	"go.chromium.org/chromiumos/infra/go/internal/repo_util"
+	"go.chromium.org/chromiumos/infra/go/internal/shared"
 )
 
 // Used for development purposes. Assumes that there is a properly synced
@@ -34,6 +36,7 @@ type Checkout interface {
 	BranchExists(project repo.Project, pattern *regexp.Regexp) (bool, error)
 	EnsureProject(project repo.Project) error
 	GitRevision(project repo.Project) (string, error)
+	RunGit(project repo.Project, cmd []string) (git.CommandOutput, error)
 }
 
 type CrosCheckout struct {
@@ -133,4 +136,26 @@ func (c *CrosCheckout) EnsureProject(project repo.Project) error {
 // GitRevision returns the project's current git revision on disk.
 func (c *CrosCheckout) GitRevision(project repo.Project) (string, error) {
 	return git.GetGitRepoRevision(c.AbsoluteProjectPath(project))
+}
+
+// RunGit runs the specified git command in the project dir.
+func (c *CrosCheckout) RunGit(project repo.Project, cmd []string) (git.CommandOutput, error) {
+	ch := make(chan *git.CommandOutput, 1)
+
+	ctx := context.Background()
+	opts := shared.DefaultOpts
+	opts.Retries = 3
+	err := shared.DoWithRetry(ctx, opts, func() error {
+		output, err := git.RunGit(c.AbsoluteProjectPath(project), cmd)
+		if err != nil {
+			return err
+		}
+		ch <- &output
+		return nil
+	})
+	if err != nil {
+		return git.CommandOutput{}, err
+	}
+	output := <-ch
+	return *output, err
 }

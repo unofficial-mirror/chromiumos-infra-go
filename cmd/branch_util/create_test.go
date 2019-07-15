@@ -36,7 +36,7 @@ func TestNewBranchName_Release(t *testing.T) {
 	}
 	m.EXPECT().
 		ReadVersion().
-		Return(vinfo)
+		Return(vinfo, nil)
 	assert.Equal(t, c.newBranchName(), "release-R77-123.1.B")
 }
 
@@ -52,7 +52,7 @@ func TestNewBranchName_Factory(t *testing.T) {
 	}
 	m.EXPECT().
 		ReadVersion().
-		Return(vinfo)
+		Return(vinfo, nil)
 	assert.Equal(t, c.newBranchName(), "factory-foo-123.1.B")
 }
 
@@ -67,7 +67,7 @@ func TestNewBranchName_Firmware(t *testing.T) {
 	}
 	m.EXPECT().
 		ReadVersion().
-		Return(vinfo)
+		Return(vinfo, nil)
 	assert.Equal(t, c.newBranchName(), "firmware-123.1.B")
 }
 
@@ -83,6 +83,6 @@ func TestNewBranchName_Stabilize(t *testing.T) {
 	}
 	m.EXPECT().
 		ReadVersion().
-		Return(vinfo)
+		Return(vinfo, nil)
 	assert.Equal(t, c.newBranchName(), "stabilize-123.1.B")
 }

@@ -19,6 +19,7 @@ import (
 type VersionComponent string
 
 const (
+	Unspecified  VersionComponent = "UNSPECIFIED"
 	ChromeBranch VersionComponent = "CHROME_BRANCH"
 	Build        VersionComponent = "CHROMEOS_BUILD"
 	Branch       VersionComponent = "CHROMEOS_BRANCH"
@@ -27,7 +28,7 @@ const (
 
 // This is a var and not a const for testing purposes.
 var (
-	versionFilePath string = "src/third_party/chromiumos-overlay/" +
+	VersionFilePath string = "src/third_party/chromiumos-overlay/" +
 		"chromeos/config/chromeos_version.sh"
 )
 
@@ -53,7 +54,7 @@ type VersionInfo struct {
 
 func GetVersionInfoFromRepo(sourceRepo string) (VersionInfo, error) {
 	var v VersionInfo
-	v.VersionFile = filepath.Join(sourceRepo, versionFilePath)
+	v.VersionFile = filepath.Join(sourceRepo, VersionFilePath)
 
 	fileData, err := ioutil.ReadFile(v.VersionFile)
 	if err != nil {

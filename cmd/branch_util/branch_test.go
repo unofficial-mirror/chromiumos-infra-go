@@ -212,3 +212,80 @@ func TestGetBranchesByPath(t *testing.T) {
 	}
 	assert.Assert(t, reflect.DeepEqual(getBranchesByPath(branches), branchMap))
 }
+
+func TestWhichVersionShouldBump_successPatch(t *testing.T) {
+	ctl := gomock.NewController(t)
+	defer ctl.Finish()
+
+	m := mock_checkout.NewMockCheckout(ctl)
+	checkout = m
+
+	vinfo := repo.VersionInfo{
+		ChromeBranch:      0xfa,
+		BuildNumber:       0xca,
+		BranchBuildNumber: 0xde,
+		PatchNumber:       0x00,
+	}
+
+	m.EXPECT().
+		ReadVersion().
+		Return(vinfo, nil)
+
+	component, err := whichVersionShouldBump()
+	assert.NilError(t, err)
+	assert.Equal(t, component, repo.Patch)
+}
+
+func TestWhichVersionShouldBump_successBranch(t *testing.T) {
+	ctl := gomock.NewController(t)
+	defer ctl.Finish()
+
+	m := mock_checkout.NewMockCheckout(ctl)
+	checkout = m
+
+	vinfo := repo.VersionInfo{
+		ChromeBranch:      0xfe,
+		BuildNumber:       0xed,
+		BranchBuildNumber: 0x00,
+		PatchNumber:       0x00,
+	}
+
+	m.EXPECT().
+		ReadVersion().
+		Return(vinfo, nil)
+
+	component, err := whichVersionShouldBump()
+	assert.NilError(t, err)
+	assert.Equal(t, component, repo.Branch)
+}
+
+func TestWhichVersionShouldBump_failure(t *testing.T) {
+	ctl := gomock.NewController(t)
+	defer ctl.Finish()
+
+	m := mock_checkout.NewMockCheckout(ctl)
+	checkout = m
+
+	m.EXPECT().
+		ReadVersion().
+		Return(repo.VersionInfo{}, fmt.Errorf("ruh roh"))
+	component, err := whichVersionShouldBump()
+	assert.ErrorContains(t, err, "ruh roh")
+	assert.Equal(t, component, repo.Unspecified)
+
+	// Test bad version.
+	vinfo := repo.VersionInfo{
+		ChromeBranch:      0xde,
+		BuildNumber:       0xad,
+		BranchBuildNumber: 0xbe,
+		PatchNumber:       0xef,
+	}
+
+	m.EXPECT().
+		ReadVersion().
+		Return(vinfo, nil)
+
+	component, err = whichVersionShouldBump()
+	assert.ErrorContains(t, err, "nonzero")
+	assert.Equal(t, component, repo.Unspecified)
+}

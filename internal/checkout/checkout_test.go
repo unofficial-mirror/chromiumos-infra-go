@@ -83,4 +83,8 @@ func TestRunGit_error(t *testing.T) {
 	assert.ErrorContains(t, err, "failed after 3")
 }
 
+func TestBumpVersion(t *testing.T) {
+	// TODO(@jackneus): Is testing this worth the pain?
+}
+
 // TODO(@jackneus): Finish

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/maruel/subcommands"
+	"go.chromium.org/chromiumos/infra/go/internal/repo"
 	"go.chromium.org/luci/common/errors"
 )
 
@@ -148,7 +149,7 @@ func (c *createBranchRun) newBranchName() string {
 	if c.custom != "" {
 		return c.custom
 	}
-	vinfo := checkout.ReadVersion()
+	vinfo, _ := checkout.ReadVersion()
 	branchType, _ := c.getBranchType()
 	branchNameParts := []string{branchType}
 	if branchType == "release" {
@@ -179,7 +180,11 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 	// Validate the version.
 	// Double check that the checkout has a zero patch number. Otherwise,
 	// we cannot branch from it.
-	vinfo := checkout.ReadVersion()
+	vinfo, err := checkout.ReadVersion()
+	if err != nil {
+		fmt.Fprintf(a.GetErr(), errors.Annotate(err, "error reading version").Err().Error())
+		return 1
+	}
 	if vinfo.PatchNumber != 0 {
 		fmt.Fprintf(a.GetErr(), "Cannot branch version with nonzero patch number (version %s).",
 			vinfo.VersionString())
@@ -213,6 +218,12 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 
 	// Create branch.
 
+	componentToBump, err := whichVersionShouldBump()
+	if err != nil {
+		fmt.Fprintf(a.GetErr(), err.Error())
+		return 1
+	}
+
 	// Generate git branch names.
 	branches := projectBranches(branchName, "")
 	// If not --force, validate branch names to ensure that they do not already exist.
@@ -224,9 +235,24 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 		}
 	}
 
+	// Repair manifest repositories.
 	if err = repairManifestRepositories(branches, !c.Push, c.Force); err != nil {
 		fmt.Fprintf(a.GetErr(), err.Error())
 		return 1
+	}
+
+	// Bump version.
+	commitMsg := fmt.Sprintf("Bump %s number after creating branch %s.", componentToBump, branchName)
+	if err = checkout.BumpVersion(componentToBump, branchName, commitMsg, !c.Push, false); err != nil {
+		fmt.Fprintf(a.GetErr(), err.Error())
+		return 1
+	}
+	if c.release {
+		commitMsg = fmt.Sprintf("Bump milestone after creating release branch %s.", branchName)
+		if err = checkout.BumpVersion(repo.ChromeBranch, "master", commitMsg, !c.Push, true); err != nil {
+			fmt.Fprintf(a.GetErr(), err.Error())
+			return 1
+		}
 	}
 
 	return 0

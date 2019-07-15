@@ -23,14 +23,14 @@ func assertVersionEqual(t *testing.T, v VersionInfo, expected []int) {
 }
 
 func TestGetVersionInfoFromRepo_success(t *testing.T) {
-	versionFilePath = "chromeos_version.sh"
+	VersionFilePath = "chromeos_version.sh"
 	versionInfo, err := GetVersionInfoFromRepo("test_data")
 	assert.NilError(t, err)
 	assertVersionEqual(t, versionInfo, []int{77, 12302, 1, 0})
 }
 
 func TestIncrementVersion_ChromeBranch(t *testing.T) {
-	versionFilePath = "chromeos_version.sh"
+	VersionFilePath = "chromeos_version.sh"
 	versionInfo, err := GetVersionInfoFromRepo("test_data")
 	versionInfo.IncrementVersion(ChromeBranch)
 	assert.NilError(t, err)
@@ -38,7 +38,7 @@ func TestIncrementVersion_ChromeBranch(t *testing.T) {
 }
 
 func TestIncrementVersion_Build(t *testing.T) {
-	versionFilePath = "chromeos_version.sh"
+	VersionFilePath = "chromeos_version.sh"
 	versionInfo, err := GetVersionInfoFromRepo("test_data")
 	versionInfo.IncrementVersion(Build)
 	assert.NilError(t, err)
@@ -46,7 +46,7 @@ func TestIncrementVersion_Build(t *testing.T) {
 }
 
 func TestIncrementVersion_Branch(t *testing.T) {
-	versionFilePath = "chromeos_version.sh"
+	VersionFilePath = "chromeos_version.sh"
 	versionInfo, err := GetVersionInfoFromRepo("test_data")
 	versionInfo.IncrementVersion(Branch)
 	assert.NilError(t, err)
@@ -54,7 +54,7 @@ func TestIncrementVersion_Branch(t *testing.T) {
 }
 
 func TestIncrementVersion_Branch_nonzero(t *testing.T) {
-	versionFilePath = "chromeos_version.sh"
+	VersionFilePath = "chromeos_version.sh"
 	versionInfo, err := GetVersionInfoFromRepo("test_data")
 	versionInfo.PatchNumber = 1
 	versionInfo.IncrementVersion(Branch)
@@ -63,7 +63,7 @@ func TestIncrementVersion_Branch_nonzero(t *testing.T) {
 }
 
 func TestIncrementVersion_Patch(t *testing.T) {
-	versionFilePath = "chromeos_version.sh"
+	VersionFilePath = "chromeos_version.sh"
 	versionInfo, err := GetVersionInfoFromRepo("test_data")
 	versionInfo.IncrementVersion(Patch)
 	assert.NilError(t, err)

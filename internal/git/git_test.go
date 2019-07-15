@@ -4,6 +4,7 @@
 package git
 
 import (
+	"fmt"
 	"go.chromium.org/chromiumos/infra/go/internal/cmd"
 	"gotest.tools/assert"
 	"regexp"
@@ -104,4 +105,68 @@ func TestGetRepoRevision(t *testing.T) {
 	res, err := GetGitRepoRevision("project")
 	assert.NilError(t, err)
 	assert.Equal(t, res, sha)
+}
+
+func TestCreateBranch(t *testing.T) {
+	fakeGitRepo := "top-secret-project"
+	branchName := "project z"
+
+	CommandRunnerImpl = cmd.FakeCommandRunner{
+		ExpectedDir: fakeGitRepo,
+		ExpectedCmd: []string{"git", "checkout", "-B", branchName, "HEAD"},
+	}
+	assert.NilError(t, CreateBranch(fakeGitRepo, branchName))
+}
+
+func TestCommitAll(t *testing.T) {
+	fakeGitRepo := "repo"
+	commitMsg := "commit"
+
+	CommandRunnerImpl = &cmd.FakeCommandRunnerMulti{
+		CommandRunners: []cmd.FakeCommandRunner{
+			{
+				ExpectedDir: fakeGitRepo,
+				ExpectedCmd: []string{"git", "add", "-A"},
+			},
+			{
+				ExpectedDir: fakeGitRepo,
+				ExpectedCmd: []string{"git", "commit", "-m", commitMsg},
+			},
+		},
+	}
+
+	err := CommitAll(fakeGitRepo, commitMsg)
+	assert.NilError(t, err)
+}
+
+func TestPushChanges(t *testing.T) {
+	fakeGitRepo := "da-bank"
+	commitMsg := "da-money"
+	localRef := "da-vault"
+
+	remoteRef := RemoteRef{
+		Remote: "da-family",
+		Ref:    "da-van",
+	}
+
+	pushStr := fmt.Sprintf("%s:%s", localRef, remoteRef.Ref)
+	CommandRunnerImpl = &cmd.FakeCommandRunnerMulti{
+		CommandRunners: []cmd.FakeCommandRunner{
+			{
+				ExpectedDir: fakeGitRepo,
+				ExpectedCmd: []string{"git", "add", "-A"},
+			},
+			{
+				ExpectedDir: fakeGitRepo,
+				ExpectedCmd: []string{"git", "commit", "-m", commitMsg},
+			},
+			{
+				ExpectedDir: fakeGitRepo,
+				ExpectedCmd: []string{"git", "push", remoteRef.Remote, pushStr, "--dry-run"},
+			},
+		},
+	}
+
+	err := PushChanges(fakeGitRepo, localRef, commitMsg, true, remoteRef)
+	assert.NilError(t, err)
 }

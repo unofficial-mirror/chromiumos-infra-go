@@ -109,3 +109,35 @@ func StripRefs(ref string) string {
 	}
 	return ref
 }
+
+// CreateBranch creates a branch.
+func CreateBranch(gitRepo, branch string) error {
+	_, err := RunGit(gitRepo, []string{"checkout", "-B", branch, "HEAD"})
+	return err
+}
+
+// CommitAll adds all local changes and commits them.
+func CommitAll(gitRepo, commitMsg string) error {
+	if _, err := RunGit(gitRepo, []string{"add", "-A"}); err != nil {
+		return err
+	}
+	if _, err := RunGit(gitRepo, []string{"commit", "-m", commitMsg}); err != nil {
+		return err
+	}
+	return nil
+}
+
+// PushGitChanges stages and commits any local changes before pushing the commit
+// to the specified remote ref.
+func PushChanges(gitRepo, localRef, commitMsg string, dryRun bool, pushTo RemoteRef) error {
+	if err := CommitAll(gitRepo, commitMsg); err != nil {
+		return err
+	}
+	ref := fmt.Sprintf("%s:%s", localRef, pushTo.Ref)
+	cmd := []string{"push", pushTo.Remote, ref}
+	if dryRun {
+		cmd = append(cmd, "--dry-run")
+	}
+	_, err := RunGit(gitRepo, cmd)
+	return err
+}

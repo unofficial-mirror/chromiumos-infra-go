@@ -4,8 +4,15 @@
 package repo
 
 import (
-	"gotest.tools/assert"
+	"fmt"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"testing"
+
+	"go.chromium.org/chromiumos/infra/go/internal/cmd"
+	"go.chromium.org/chromiumos/infra/go/internal/git"
+	"gotest.tools/assert"
 )
 
 func assertVersionEqual(t *testing.T, v VersionInfo, expected []int) {
@@ -86,4 +93,68 @@ func TestStrippedVersionString(t *testing.T) {
 	assert.Equal(t, v.StrippedVersionString(), "123")
 	v.BranchBuildNumber = 1
 	assert.Equal(t, v.StrippedVersionString(), "123.1")
+}
+
+func TestUpdateVersionFile_noVersionFile(t *testing.T) {
+	var v VersionInfo
+	err := v.UpdateVersionFile("", false, git.RemoteRef{})
+	assert.ErrorContains(t, err, "associated version file")
+}
+
+func TestUpdateVersionFile_success(t *testing.T) {
+	tmpDir := "repotest_tmp_dir"
+	tmpDir, err := ioutil.TempDir("", tmpDir)
+	defer os.RemoveAll(tmpDir)
+	assert.NilError(t, err)
+	tmpPath := filepath.Join(tmpDir, "chromeos_version.sh")
+
+	// We're modifying chromeos_version.sh, so need to copy it to  a tmp file.
+	fileContents, err := ioutil.ReadFile("test_data/chromeos_version.sh")
+	assert.NilError(t, err)
+	err = ioutil.WriteFile(tmpPath, fileContents, 0644)
+	assert.NilError(t, err)
+
+	commitMsg := "commit"
+	remoteRef := git.RemoteRef{
+		Remote: "remote",
+		Ref:    "ref",
+	}
+
+	// Set git mock expectations.
+	pushRefs := fmt.Sprintf("%s:%s", pushBranch, remoteRef.Ref)
+	git.CommandRunnerImpl = &cmd.FakeCommandRunnerMulti{
+		CommandRunners: []cmd.FakeCommandRunner{
+			{
+				ExpectedDir: tmpDir,
+				ExpectedCmd: []string{"git", "checkout", "-B", pushBranch, "HEAD"},
+			},
+			{
+				ExpectedDir: tmpDir,
+				ExpectedCmd: []string{"git", "add", "-A"},
+			},
+			{
+				ExpectedDir: tmpDir,
+				ExpectedCmd: []string{"git", "commit", "-m", commitMsg},
+			},
+			{
+				ExpectedDir: tmpDir,
+				ExpectedCmd: []string{"git", "push", remoteRef.Remote, pushRefs, "--dry-run"},
+			},
+		},
+	}
+
+	// Call UpdateVersionFile.
+	var v VersionInfo
+	v.ChromeBranch = 1337
+	v.BuildNumber = 0xdead
+	v.BranchBuildNumber = 0xbeef
+	v.PatchNumber = 0
+	v.VersionFile = tmpPath
+	err = v.UpdateVersionFile(commitMsg, true, remoteRef)
+	assert.NilError(t, err)
+
+	// Read version info back in from file, make sure it's correct.
+	versionInfo, err := GetVersionInfoFromRepo(tmpDir)
+	assert.NilError(t, err)
+	assert.Equal(t, versionInfo, v)
 }

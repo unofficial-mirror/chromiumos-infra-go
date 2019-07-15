@@ -11,6 +11,9 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"go.chromium.org/chromiumos/infra/go/internal/git"
+	"go.chromium.org/luci/common/errors"
 )
 
 type VersionComponent string
@@ -29,7 +32,8 @@ var (
 )
 
 const (
-	keyValueRegex string = `%s=(\d+)\b`
+	keyValueRegex string = `(?P<prefix>%s=)(\d+)(?P<suffix>\b)`
+	pushBranch    string = "tmp_checkin_branch"
 )
 
 var chromeosVersionMapping = map[VersionComponent](*regexp.Regexp){
@@ -87,8 +91,8 @@ func findValue(re *regexp.Regexp, line string) string {
 	if len(match) == 0 {
 		return ""
 	}
-	// Return first submatch (the value).
-	return string(match[1])
+	// Return second submatch (the value).
+	return string(match[2])
 }
 
 func (v *VersionInfo) IncrementVersion(incrType VersionComponent) string {
@@ -140,4 +144,55 @@ func (v *VersionInfo) StrippedVersionString() string {
 		nonzeroVersionComponents = append(nonzeroVersionComponents, strconv.Itoa(component))
 	}
 	return strings.Join(nonzeroVersionComponents, `.`)
+}
+
+// UpdateVersionFile updates the version file with our current version.
+func (v *VersionInfo) UpdateVersionFile(commitMsg string, dryRun bool, pushTo git.RemoteRef) error {
+	if v.VersionFile == "" {
+		return fmt.Errorf("cannot call UpdateVersionFile without an associated version file (field VersionFile)")
+	}
+
+	data, err := ioutil.ReadFile(v.VersionFile)
+	if err != nil {
+		return fmt.Errorf("could not read version file %s", v.VersionFile)
+	}
+
+	fileData := string(data)
+	for field, pattern := range chromeosVersionMapping {
+		var fieldVal int
+		switch field {
+		case ChromeBranch:
+			fieldVal = v.ChromeBranch
+		case Build:
+			fieldVal = v.BuildNumber
+		case Branch:
+			fieldVal = v.BranchBuildNumber
+		case Patch:
+			fieldVal = v.PatchNumber
+		default:
+			// This should never happen.
+			log.Fatal("Invalid version component.")
+		}
+
+		// Update version component value in file contents.
+		newVersionTemplate := fmt.Sprintf("${prefix}%d${suffix}", fieldVal)
+		fileData = pattern.ReplaceAllString(fileData, newVersionTemplate)
+	}
+
+	repoDir := filepath.Dir(v.VersionFile)
+	// Create new branch.
+	if err = git.CreateBranch(repoDir, pushBranch); err != nil {
+		return err
+	}
+	// Update version file.
+	if err = ioutil.WriteFile(v.VersionFile, []byte(fileData), 0644); err != nil {
+		return errors.Annotate(err, "could not write version file %s", v.VersionFile).Err()
+	}
+	// Push changes to remote.
+	if err = git.PushChanges(repoDir, pushBranch, commitMsg, dryRun, pushTo); err != nil {
+		return errors.Annotate(err, "failed to push version file changes to remote %s:%s",
+			pushTo.Remote, pushTo.Ref).Err()
+	}
+
+	return nil
 }

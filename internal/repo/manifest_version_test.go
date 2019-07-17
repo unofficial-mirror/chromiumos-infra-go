@@ -126,7 +126,7 @@ func TestUpdateVersionFile_success(t *testing.T) {
 		CommandRunners: []cmd.FakeCommandRunner{
 			{
 				ExpectedDir: tmpDir,
-				ExpectedCmd: []string{"git", "checkout", "-B", pushBranch, "HEAD"},
+				ExpectedCmd: []string{"git", "checkout", "-B", pushBranch},
 			},
 			{
 				ExpectedDir: tmpDir,

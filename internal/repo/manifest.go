@@ -23,6 +23,7 @@ var (
 
 // Manifest is a top-level Repo definition file.
 type Manifest struct {
+	XMLName  xml.Name  `xml:"manifest"`
 	Includes []Include `xml:"include"`
 	Projects []Project `xml:"project"`
 	Remotes  []Remote  `xml:"remote"`
@@ -84,6 +85,17 @@ func (m *Manifest) GetRemoteByName(name string) *Remote {
 	return &Remote{}
 }
 
+// GetProjectByPath returns a pointer to the remote with
+// the given path in the given manifest.
+func (m *Manifest) GetProjectByPath(name string) (*Project, error) {
+	for _, project := range m.Projects {
+		if project.Path == name {
+			return &project, nil
+		}
+	}
+	return &Project{}, fmt.Errorf("project %s does not exist in manifest", name)
+}
+
 // GetAnnotation returns the value of the annotation with the
 // given name, if it exists. It also returns a bool indicating
 // whether or not the annotation exists.
@@ -110,6 +122,29 @@ func LoadManifestFromFile(file string) (Manifest, error) {
 	return *manifest, nil
 }
 
+// ResolveImplicitLinks explicitly sets remote/revision information
+// for each project in the manifest.
+func (m *Manifest) ResolveImplicitLinks() *Manifest {
+	newManifest := *m
+	for i, project := range m.Projects {
+		// Set default remote on projects without an explicit remote
+		if project.RemoteName == "" {
+			project.RemoteName = m.Default.RemoteName
+		}
+		// Set default revision on projects without an explicit revision
+		if project.Revision == "" {
+			remote := m.GetRemoteByName(project.RemoteName)
+			if remote.Revision == "" {
+				project.Revision = m.Default.Revision
+			} else {
+				project.Revision = remote.Revision
+			}
+		}
+		newManifest.Projects[i] = project
+	}
+	return &newManifest
+}
+
 // LoadManifestTree loads the manifest at the given file path into
 // a Manifest struct. It also loads all included manifests.
 // Returns a map mapping manifest filenames to file contents.
@@ -124,22 +159,8 @@ func LoadManifestTree(file string) (map[string]*Manifest, error) {
 	if err = xml.Unmarshal(data, manifest); err != nil {
 		return nil, errors.Annotate(err, "failed to unmarshal %s", file).Err()
 	}
-	for i, project := range manifest.Projects {
-		// Set default remote on projects without an explicit remote
-		if project.RemoteName == "" {
-			project.RemoteName = manifest.Default.RemoteName
-		}
-		// Set default revision on projects without an explicit revision
-		if project.Revision == "" {
-			remote := manifest.GetRemoteByName(project.RemoteName)
-			if remote.Revision == "" {
-				project.Revision = manifest.Default.Revision
-			} else {
-				project.Revision = remote.Revision
-			}
-		}
-		manifest.Projects[i] = project
-	}
+	manifest.XMLName = xml.Name{}
+	manifest = manifest.ResolveImplicitLinks()
 	results[file] = manifest
 
 	// Recursively fetch manifests listed in "include" elements.
@@ -174,6 +195,7 @@ func fetchManifestRecursive(authedClient *http.Client, ctx context.Context, mani
 	if err = xml.Unmarshal([]byte((*files)[file]), manifest); err != nil {
 		return nil, errors.Annotate(err, "failed to unmarshal %s", file).Err()
 	}
+	manifest.XMLName = xml.Name{}
 	results[file] = manifest
 	// Recursively fetch manifests listed in "include" elements.
 	for _, incl := range manifest.Includes {

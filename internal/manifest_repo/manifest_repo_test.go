@@ -83,7 +83,7 @@ func TestRepairManifest(t *testing.T) {
 	assert.Equal(t, manifest.Projects[2].Revision, "refs/heads/master")
 }
 
-func TestListManifests(t *testing.T) {
+func TestRepairManifestsOnDisk(t *testing.T) {
 	// Use actual repo implementations
 	loadManifestFromFile = repo.LoadManifestFromFile
 	loadManifestTree = repo.LoadManifestTree

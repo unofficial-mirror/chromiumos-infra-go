@@ -179,3 +179,19 @@ func TestGitName(t *testing.T) {
 	}
 	assert.Equal(t, remote.GitName(), "robin")
 }
+
+func TestGetProjectByPath(t *testing.T) {
+	m := Manifest{
+		Projects: []Project{
+			{Path: "a/", Name: "a"},
+			{Path: "b/", Name: "b"},
+			{Path: "c/", Name: "c"},
+		},
+	}
+
+	project, err := m.GetProjectByPath("b/")
+	assert.NilError(t, err)
+	assert.Assert(t, reflect.DeepEqual(*project, m.Projects[1]))
+	project, err = m.GetProjectByPath("d/")
+	assert.Assert(t, err != nil)
+}

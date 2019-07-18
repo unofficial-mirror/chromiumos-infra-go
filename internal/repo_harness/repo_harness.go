@@ -10,7 +10,10 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"reflect"
+	"regexp"
 
+	"github.com/otiai10/copy"
 	"go.chromium.org/chromiumos/infra/go/internal/cmd"
 	"go.chromium.org/chromiumos/infra/go/internal/git"
 	"go.chromium.org/chromiumos/infra/go/internal/repo"
@@ -234,6 +237,15 @@ func (r *RepoHarness) AddFile(file File) error {
 	return nil
 }
 
+func (r *RepoHarness) Teardown() error {
+	if r.harnessRoot != "" {
+		root := r.harnessRoot
+		r.harnessRoot = ""
+		return os.RemoveAll(root)
+	}
+	return fmt.Errorf("harness was never initialized")
+}
+
 func (r *RepoHarness) AddFiles(files []File) error {
 	if err := r.assertInitialized(); err != nil {
 		return err
@@ -248,11 +260,71 @@ func (r *RepoHarness) AddFiles(files []File) error {
 	return nil
 }
 
-func (r *RepoHarness) Teardown() error {
-	if r.harnessRoot != "" {
-		root := r.harnessRoot
-		r.harnessRoot = ""
-		return os.RemoveAll(root)
+// getRemotePath gets the path to the remote project repo.
+func (r *RepoHarness) getRemotePath(project repo.Project) string {
+	return filepath.Join(r.harnessRoot, project.RemoteName, project.Name)
+}
+
+// unorderedEqual checks that the two arrays contain the same elements, but
+// they don't have to be the same order.
+func unorderedEqual(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
 	}
-	return fmt.Errorf("harness was never initialized")
+	am := make(map[string]int)
+	for _, v := range a {
+		am[v]++
+	}
+	bm := make(map[string]int)
+	for _, v := range b {
+		bm[v]++
+	}
+	return reflect.DeepEqual(am, bm)
+}
+
+// AssertProjectBranches asserts that the remote project has the correct branches.
+func (r *RepoHarness) AssertProjectBranches(project repo.Project, branches []string) error {
+	if err := r.assertInitialized(); err != nil {
+		return err
+	}
+	gitRepo := r.getRemotePath(project)
+	actual, err := git.MatchBranchNameWithNamespace(gitRepo, regexp.MustCompile(".*"), regexp.MustCompile("refs/heads/"))
+	if err != nil {
+		return errors.Annotate(err, "error getting branches").Err()
+	}
+	if !unorderedEqual(actual, branches) {
+		return fmt.Errorf("project branch mismatch. expected: %v got %v", branches, actual)
+	}
+	return nil
+}
+
+// Snapshot recursively copies a directory's contents to a temp dir.
+func (r *RepoHarness) Snapshot(path string) (string, error) {
+	snapshotDir, err := ioutil.TempDir(r.harnessRoot, "snapshot")
+	if err != nil {
+		return "", err
+	}
+	if err = copy.Copy(path, snapshotDir); err != nil {
+		return "", err
+	}
+	return snapshotDir, nil
+}
+
+// AssertSameContents checks that there's no difference between two directories.
+func (r *RepoHarness) AssertSameContents(path_a, path_b string) error {
+	if err := r.assertInitialized(); err != nil {
+		return err
+	}
+	ctx := context.Background()
+	var stdoutBuf, stderrBuf bytes.Buffer
+	cmd := []string{"-rq", path_a, path_b}
+	err := CommandRunnerImpl.RunCommand(ctx, &stdoutBuf, &stderrBuf, r.harnessRoot, "diff", cmd...)
+	if err != nil {
+		if err.Error() == "exit status 1" {
+			return fmt.Errorf("files differ")
+		} else {
+			return fmt.Errorf("error running diff")
+		}
+	}
+	return err
 }

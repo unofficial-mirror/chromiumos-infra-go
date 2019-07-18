@@ -52,10 +52,19 @@ func GetCurrentBranch(cwd string) string {
 // MatchBranchName returns the names of branches who match the specified
 // regular expression.
 func MatchBranchName(gitRepo string, pattern *regexp.Regexp) ([]string, error) {
+	// MatchBranchWithNamespace trims the namespace off the branches it returns.
+	// Here, we need a namespace that matches every string but doesn't match any character
+	// (so that nothing is trimmed).
+	nullNamespace := regexp.MustCompile("")
+	return MatchBranchNameWithNamespace(gitRepo, pattern, nullNamespace)
+}
+
+// MatchBranchNameWithNamespace returns the names of branches who match the specified
+// pattern and start with the specified namespace.
+func MatchBranchNameWithNamespace(gitRepo string, pattern, namespace *regexp.Regexp) ([]string, error) {
 	// Regex should be case insensitive.
-	if !strings.HasPrefix(pattern.String(), "(?i)") {
-		pattern = regexp.MustCompile("(?i)" + pattern.String())
-	}
+	namespace = regexp.MustCompile("(?i)^" + namespace.String())
+	pattern = regexp.MustCompile("(?i)" + pattern.String())
 
 	output, err := RunGit(gitRepo, []string{"ls-remote", gitRepo})
 	if err != nil {
@@ -71,6 +80,13 @@ func MatchBranchName(gitRepo string, pattern *regexp.Regexp) ([]string, error) {
 			continue
 		}
 		branch = strings.Fields(branch)[1]
+
+		// Only look at branches which match the namespace.
+		if !namespace.Match([]byte(branch)) {
+			continue
+		}
+		branch = namespace.ReplaceAllString(branch, "")
+
 		if pattern.Match([]byte(branch)) {
 			matchedBranches = append(matchedBranches, branch)
 		}
@@ -114,8 +130,12 @@ func StripRefs(ref string) string {
 // CreateBranch creates a branch.
 func CreateBranch(gitRepo, branch string) error {
 	output, err := RunGit(gitRepo, []string{"checkout", "-B", branch})
-	if err != nil && strings.Contains(output.Stderr, "not a valid branch name") {
-		return fmt.Errorf("%s is not a valid branch name", branch)
+	if err != nil {
+		if strings.Contains(output.Stderr, "not a valid branch name") {
+			return fmt.Errorf("%s is not a valid branch name", branch)
+		} else {
+			return fmt.Errorf(output.Stderr)
+		}
 	}
 	return err
 }

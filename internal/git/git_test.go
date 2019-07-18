@@ -98,6 +98,27 @@ func TestMatchBranchName_success(t *testing.T) {
 	assert.DeepEqual(t, expectedMatches, branches)
 }
 
+func TestMatchBranchNameWithNamespace_success(t *testing.T) {
+	fakeGitRepo := "top-secret-project"
+	fakeGitData := "e9cb56bd9af9365b43f82cecf28cc76d49df1f72  refs/changes/foo\n" +
+		"f9c1bb630f4475058d4a9db4aea52fc89d8f7b0d  refs/changes/bar\n" +
+		"2102915989de21d9251c11f0a7b5307e175e7677  refs/heads/foobar\n" +
+		"04975f9439ff75502b33d9491155692736e05b07  refs/heads/baz\n"
+
+	CommandRunnerImpl = cmd.FakeCommandRunner{
+		ExpectedCmd: []string{"git", "ls-remote", fakeGitRepo},
+		ExpectedDir: fakeGitRepo,
+		Stdout:      fakeGitData,
+	}
+
+	expectedMatches := []string{"foobar"}
+	pattern := regexp.MustCompile("FOO")
+	namespace := regexp.MustCompile("refs/heads/")
+	branches, err := MatchBranchNameWithNamespace(fakeGitRepo, pattern, namespace)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, expectedMatches, branches)
+}
+
 func TestGetRepoRevision(t *testing.T) {
 	sha := "6446dfef4b55689046395c2db7ba7c35377927fe"
 	CommandRunnerImpl = cmd.FakeCommandRunner{

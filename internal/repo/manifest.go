@@ -209,10 +209,10 @@ var (
 type BranchMode string
 
 const (
-	Unspecified BranchMode = "unspecified"
-	Pinned      BranchMode = "pinned"
-	Tot         BranchMode = "tot"
-	Create      BranchMode = "create"
+	UnspecifiedMode BranchMode = "unspecified"
+	Pinned          BranchMode = "pinned"
+	Tot             BranchMode = "tot"
+	Create          BranchMode = "create"
 )
 
 // ProjectBranchMode returns the branch mode (create, pinned, tot) of a project.
@@ -228,7 +228,7 @@ func (m *Manifest) ProjectBranchMode(project Project) BranchMode {
 		case MANIFEST_ATTR_BRANCHING_TOT:
 			return Tot
 		default:
-			return Unspecified
+			return UnspecifiedMode
 		}
 	}
 

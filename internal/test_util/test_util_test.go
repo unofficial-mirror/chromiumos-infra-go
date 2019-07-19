@@ -109,7 +109,7 @@ func TestAssertGitBranches_success(t *testing.T) {
 
 	assert.NilError(t, git.Init(tmpDir, false))
 
-	branches := []string{"branch1", "branch2", "branch3"}
+	branches := []string{"branch1", "branch2", "branch3", "extra"}
 	for _, branch := range branches {
 		assert.NilError(t, git.CreateBranch(tmpDir, branch))
 		// Empty commit so that branch is not "unborn".
@@ -117,7 +117,26 @@ func TestAssertGitBranches_success(t *testing.T) {
 		assert.NilError(t, err)
 	}
 
-	assert.NilError(t, AssertGitBranches(tmpDir, branches))
+	assert.NilError(t, AssertGitBranches(tmpDir, branches[:3]))
+}
+
+func TestAssertGitBranchesExact_success(t *testing.T) {
+	tmpDir, err := ioutil.TempDir("", "assert_git_branches_test")
+	assert.NilError(t, err)
+	defer os.RemoveAll(tmpDir)
+
+	assert.NilError(t, git.Init(tmpDir, false))
+
+	branches := []string{"branch1", "branch2", "branch3", "branch4"}
+	for _, branch := range branches {
+		assert.NilError(t, git.CreateBranch(tmpDir, branch))
+		// Empty commit so that branch is not "unborn".
+		_, err := git.RunGit(tmpDir, []string{"commit", "-m", "init", "--allow-empty"})
+		assert.NilError(t, err)
+	}
+
+	assert.NilError(t, AssertGitBranchesExact(tmpDir, append(branches, "branch2")))
+	assert.ErrorContains(t, AssertGitBranchesExact(tmpDir, branches[:3]), "mismatch")
 }
 
 func TestAssertGitBranches_failure(t *testing.T) {

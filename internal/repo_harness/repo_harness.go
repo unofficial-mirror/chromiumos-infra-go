@@ -45,17 +45,6 @@ const (
 	dirPerms       = 0777
 )
 
-var (
-	DefaultCrosHarnessConfig = RepoHarnessConfig{
-		Manifest: repo.Manifest{
-			Remotes: []repo.Remote{
-				{Name: "cros"},
-				{Name: "cros-internal"},
-			},
-		},
-	}
-)
-
 type RepoHarness struct {
 	// Manifest that defines the harness configuration.
 	manifest repo.Manifest
@@ -63,7 +52,6 @@ type RepoHarness struct {
 	harnessRoot string
 	// Local checkout.
 	LocalRepo string
-	config    RepoHarnessConfig
 }
 
 func (r *RepoHarness) RunCommand(cmd []string, cwd string) error {
@@ -133,22 +121,9 @@ func (r *RepoHarness) Initialize(config *RepoHarnessConfig) error {
 		}
 
 		// Make an initial commit so that the "master" branch is not unborn.
-		// To do this, we need to make a change in a local repository and push it to the
-		// remote.
-		// Add the repo as a remote to the corresponding local repo.
-		tmpRepo := filepath.Join(r.harnessRoot, "tmp-repo")
-		remoteRef := git.RemoteRef{
-			Remote: remoteName,
-			Ref:    "master",
+		if err = r.CreateRemoteRef(project, "master", ""); err != nil {
+			return errors.Annotate(err, "failed to init git repo for %s", projectLabel).Err()
 		}
-		errs := []error{
-			os.Mkdir(tmpRepo, dirPerms),
-			git.Init(tmpRepo, false),
-			git.AddRemote(tmpRepo, remoteName, projectPath),
-			git.CommitEmpty(tmpRepo, "init master branch"),
-			git.Push(tmpRepo, "master", false, remoteRef),
-		}
-
 		// If revision is set, create that branch too.
 		if project.Revision != "" && !strings.HasPrefix(project.Revision, "refs/heads/") {
 			return fmt.Errorf("revisions must be of the form refs/heads/<branch>")
@@ -156,15 +131,7 @@ func (r *RepoHarness) Initialize(config *RepoHarnessConfig) error {
 
 		revision := git.StripRefs(project.Revision)
 		if revision != "" && revision != "master" {
-			remoteRef.Ref = revision
-			commitMsg := fmt.Sprintf("init %s branch", revision)
-			errs = append(errs, git.CommitEmpty(tmpRepo, commitMsg))
-			errs = append(errs, git.Push(tmpRepo, "master", false, remoteRef))
-		}
-
-		errs = append(errs, os.RemoveAll(tmpRepo))
-		for _, err = range errs {
-			if err != nil {
+			if err = r.CreateRemoteRef(project, revision, ""); err != nil {
 				return errors.Annotate(err, "failed to init git repo for %s", projectLabel).Err()
 			}
 		}
@@ -207,6 +174,58 @@ func (r *RepoHarness) assertInitialized() error {
 	return nil
 }
 
+// CreateRemoteRef creates a remote ref for a specific project.
+// Otherwise, a temporary local checkout will be created and an empty commit
+// will be used to create the remote ref.
+func (r *RepoHarness) CreateRemoteRef(project repo.Project, ref string, commit string) error {
+	projectLabel := fmt.Sprintf("%s/%s", project.RemoteName, project.Name)
+	remoteProjectPath := r.getRemotePath(project)
+
+	var repoPath string
+	var err error
+	remoteRef := git.RemoteRef{
+		Ref: git.NormalizeRef(ref),
+	}
+
+	if commit == "" {
+		// Set up tmp local repo and make empty commit.
+		repoPath, err = ioutil.TempDir(r.harnessRoot, "tmp-repo")
+		defer os.RemoveAll(repoPath)
+		errs := []error{
+			err,
+			git.Init(repoPath, false),
+		}
+		for _, err := range errs {
+			if err != nil {
+				return errors.Annotate(err, "failed to make temp local repo").Err()
+			}
+		}
+		commitMsg := fmt.Sprintf("empty commit for ref %s %s", remoteRef.Remote, remoteRef.Ref)
+		_, err = git.RunGit(repoPath, []string{"commit", "-m", commitMsg, "--allow-empty"})
+		if err != nil {
+			return errors.Annotate(err, "failed to make empty commit").Err()
+		}
+
+		if err = git.AddRemote(repoPath, project.RemoteName, remoteProjectPath); err != nil {
+			if strings.Contains(err.Error(), "already exists") {
+				err = nil
+			} else {
+				return errors.Annotate(err, "failed to add remote %s to tmp repo", project.RemoteName).Err()
+			}
+		}
+		remoteRef.Remote = project.RemoteName
+		commit = "HEAD"
+	} else {
+		repoPath = remoteProjectPath
+		remoteRef.Remote = remoteProjectPath
+	}
+
+	if err := git.PushRef(repoPath, commit, false, remoteRef); err != nil {
+		return errors.Annotate(err, "failed to add remote ref %s %s:%s", projectLabel, commit, remoteRef.Ref).Err()
+	}
+	return nil
+}
+
 // TODO(@jackneus): Add support for adding files at particular revisions (or something similar).
 // This is needed for projects with multiple checkouts.
 func (r *RepoHarness) AddFile(file File) error {
@@ -218,7 +237,6 @@ func (r *RepoHarness) AddFile(file File) error {
 	if err != nil {
 		return err
 	}
-	remoteName := project.RemoteName
 	projectLabel := fmt.Sprintf("%s", project.Path)
 
 	// Populate project in specified remote with files. Because the remote repository is bare,
@@ -237,7 +255,7 @@ func (r *RepoHarness) AddFile(file File) error {
 
 	errs := []error{
 		os.Mkdir(tmpRepo, dirPerms),
-		git.Clone(filepath.Join(r.harnessRoot, remoteName, project.Name), tmpRepo),
+		git.Clone(r.getRemotePath(*project), tmpRepo),
 		ioutil.WriteFile(filePath, file.Contents, file.Perm),
 		git.PushChanges(tmpRepo, "master", "initial commit", false, remoteRef),
 		os.RemoveAll(tmpRepo),
@@ -286,6 +304,15 @@ func (r *RepoHarness) AssertProjectBranches(project repo.Project, branches []str
 	}
 	gitRepo := r.getRemotePath(project)
 	return test_util.AssertGitBranches(gitRepo, branches)
+}
+
+// AssertProjectBranchesExact asserts that the remote project has only the correct branches.
+func (r *RepoHarness) AssertProjectBranchesExact(project repo.Project, branches []string) error {
+	if err := r.assertInitialized(); err != nil {
+		return err
+	}
+	gitRepo := r.getRemotePath(project)
+	return test_util.AssertGitBranchesExact(gitRepo, branches)
 }
 
 // Snapshot recursively copies a directory's contents to a temp dir.

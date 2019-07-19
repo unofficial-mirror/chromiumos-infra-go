@@ -193,11 +193,11 @@ func PushChanges(gitRepo, localRef, commitMsg string, dryRun bool, pushTo Remote
 	if err != nil && !strings.Contains(err.Error(), "nothing to commit") {
 		return err
 	}
-	return Push(gitRepo, localRef, dryRun, pushTo)
+	return PushRef(gitRepo, localRef, dryRun, pushTo)
 }
 
-// Push pushes the specified local ref to the specified remote ref.
-func Push(gitRepo, localRef string, dryRun bool, pushTo RemoteRef) error {
+// PushRef pushes the specified local ref to the specified remote ref.
+func PushRef(gitRepo, localRef string, dryRun bool, pushTo RemoteRef) error {
 	ref := fmt.Sprintf("%s:%s", localRef, pushTo.Ref)
 	cmd := []string{"push", pushTo.Remote, ref}
 	if dryRun {
@@ -221,7 +221,9 @@ func Init(gitRepo string, bare bool) error {
 func AddRemote(gitRepo, remote, remoteLocation string) error {
 	output, err := RunGit(gitRepo, []string{"remote", "add", remote, remoteLocation})
 	if err != nil {
-		fmt.Printf("remote error: %s\n", output.Stderr)
+		if strings.Contains(output.Stderr, "already exists") {
+			return fmt.Errorf("remote already exists")
+		}
 	}
 	return err
 }

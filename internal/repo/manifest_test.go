@@ -276,7 +276,7 @@ func TestProjectBranchMode_annotation(t *testing.T) {
 	assert.Equal(t, manifest.ProjectBranchMode(manifest.Projects[0]), Create)
 	assert.Equal(t, manifest.ProjectBranchMode(manifest.Projects[1]), Pinned)
 	assert.Equal(t, manifest.ProjectBranchMode(manifest.Projects[2]), Tot)
-	assert.Equal(t, manifest.ProjectBranchMode(manifest.Projects[3]), Unspecified)
+	assert.Equal(t, manifest.ProjectBranchMode(manifest.Projects[3]), UnspecifiedMode)
 }
 
 func TestProjectBranchMode_remote(t *testing.T) {

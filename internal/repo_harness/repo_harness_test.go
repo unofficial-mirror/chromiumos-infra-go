@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"strings"
 	"testing"
 
 	"go.chromium.org/chromiumos/infra/go/internal/cmd"
@@ -43,12 +44,26 @@ var simpleFiles = []File{
 	{Project: "bar/", Name: "README", Contents: []byte("bar")},
 	{Project: "baz/", Name: "SECRET", Contents: []byte("internal only")},
 }
+var multilevelProjectHarnessConfig = RepoHarnessConfig{
+	Manifest: repo.Manifest{
+		Remotes: []repo.Remote{
+			{Name: "remote"},
+		},
+		Default: repo.Default{
+			RemoteName: "remote",
+			Revision:   "refs/heads/master",
+		},
+		Projects: []repo.Project{
+			{Path: "src/foo/bar", Name: "foo/bar"},
+		},
+	},
+}
 
-func TestInitialize_simple(t *testing.T) {
-	harnessConfig := simpleHarnessConfig
+func testInitialize(t *testing.T, config *RepoHarnessConfig) {
+	harnessConfig := config
 	harness := &RepoHarness{}
 	defer harness.Teardown()
-	err := harness.Initialize(&harnessConfig)
+	err := harness.Initialize(harnessConfig)
 	assert.NilError(t, err)
 
 	// Check that all local repos were created.
@@ -82,18 +97,77 @@ func TestInitialize_simple(t *testing.T) {
 	}
 }
 
+func TestInitialize_simple(t *testing.T) {
+	testInitialize(t, &simpleHarnessConfig)
+}
+
+// Test that a project with a multi-level name (e.g. foo/bar) is properly
+// created in the appropriate remote.
+func TestInitialize_multilevelProject(t *testing.T) {
+	testInitialize(t, &multilevelProjectHarnessConfig)
+}
+
 func TestInitialize_badRevision(t *testing.T) {
 	harnessConfig := RepoHarnessConfig{
 		Manifest: repo.Manifest{
 			Projects: []repo.Project{
 				{Name: "foo",
-					Revision: "deadbeef"},
+					Revision:   "deadbeef",
+					RemoteName: "cros"},
+			},
+			Remotes: []repo.Remote{
+				{Name: "cros"},
 			},
 		},
 	}
 	harness := &RepoHarness{}
 	defer harness.Teardown()
 	assert.ErrorContains(t, harness.Initialize(&harnessConfig), "refs/heads")
+}
+
+func TestCreateRemoteRef(t *testing.T) {
+	root, err := ioutil.TempDir("", "create_remote_ref_test")
+	defer os.RemoveAll(root)
+	assert.NilError(t, err)
+
+	harness := &RepoHarness{
+		manifest: repo.Manifest{
+			Remotes: []repo.Remote{
+				{Name: "cros"},
+			},
+			Projects: []repo.Project{
+				{Path: "foo/", Name: "foo", RemoteName: "cros"},
+			},
+		},
+		harnessRoot: root,
+	}
+	// Set up remote.
+	remotePath := filepath.Join(harness.harnessRoot, harness.manifest.Remotes[0].Name)
+	assert.NilError(t, os.Mkdir(remotePath, dirPerms))
+	// Set up remote project.
+	project := harness.manifest.Projects[0]
+	remoteProjectPath := filepath.Join(remotePath, project.Name)
+	assert.NilError(t, os.Mkdir(remoteProjectPath, dirPerms))
+	assert.NilError(t, git.Init(remoteProjectPath, false))
+
+	// Make initial commit.
+	_, err = git.RunGit(remoteProjectPath, []string{"commit", "-m", "init", "--allow-empty"})
+	assert.NilError(t, err)
+	output, err := git.RunGit(remoteProjectPath, []string{"rev-parse", "HEAD"})
+	assert.NilError(t, err)
+	commit := strings.TrimSpace(output.Stdout)
+	assert.NilError(t, harness.CreateRemoteRef(project, "ref1", commit))
+	assert.NilError(t, harness.CreateRemoteRef(project, "ref2", ""))
+
+	output, err = git.RunGit(remoteProjectPath, []string{"show-ref"})
+	refs := []string{}
+	for _, line := range strings.Split(output.Stdout, "\n") {
+		if line == "" {
+			continue
+		}
+		refs = append(refs, strings.Fields(line)[1])
+	}
+	assert.Assert(t, test_util.UnorderedContains(refs, []string{"refs/heads/ref1", "refs/heads/ref2"}))
 }
 
 func TestAddFile_simple(t *testing.T) {
@@ -196,7 +270,7 @@ func TestGetRemotePath(t *testing.T) {
 	assert.Equal(t, harness.getRemotePath(project), expectedPath)
 }
 
-func TestAssertProjectBranches_success(t *testing.T) {
+func TestAssertProjectBranches(t *testing.T) {
 	harness := &RepoHarness{
 		harnessRoot: "foo",
 	}
@@ -220,6 +294,38 @@ func TestAssertProjectBranches_success(t *testing.T) {
 
 	assert.NilError(t, harness.AssertProjectBranches(project, branches))
 	assert.ErrorContains(t, harness.AssertProjectBranches(project, []string{"bad"}), "mismatch")
+
+	// Set command runner back to the real one. Most tests in this package do not mock git.
+	git.CommandRunnerImpl = cmd.RealCommandRunner{}
+}
+
+func TestAssertProjectBranchesExact(t *testing.T) {
+	harness := &RepoHarness{
+		harnessRoot: "foo",
+	}
+	project := repo.Project{
+		RemoteName: "bar",
+		Name:       "baz",
+	}
+	projectPath := "foo/bar/baz"
+
+	branches := []string{"master", "branch"}
+	stdout := ""
+	for _, branch := range branches {
+		stdout += fmt.Sprintf("aaa refs/heads/%s\n", branch)
+	}
+
+	git.CommandRunnerImpl = cmd.FakeCommandRunner{
+		ExpectedCmd: []string{"git", "show-ref"},
+		ExpectedDir: projectPath,
+		Stdout:      stdout,
+	}
+
+	assert.NilError(t, harness.AssertProjectBranchesExact(project, branches))
+	assert.ErrorContains(t, harness.AssertProjectBranchesExact(project, append(branches, "extra")), "mismatch")
+
+	// Set command runner back to the real one. Most tests in this package do not mock git.
+	git.CommandRunnerImpl = cmd.RealCommandRunner{}
 }
 
 // createFooBarBaz creates foo bar baz file structure, the greatest file structure on earth

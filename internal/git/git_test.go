@@ -234,7 +234,7 @@ func TestPushChanges(t *testing.T) {
 	assert.NilError(t, err)
 }
 
-func TestPush(t *testing.T) {
+func TestPushRef(t *testing.T) {
 	fakeGitRepo := "repo"
 	localRef := "commitId"
 
@@ -249,7 +249,7 @@ func TestPush(t *testing.T) {
 		ExpectedCmd: []string{"git", "push", remoteRef.Remote, pushStr, "--dry-run"},
 	}
 
-	err := Push(fakeGitRepo, localRef, true, remoteRef)
+	err := PushRef(fakeGitRepo, localRef, true, remoteRef)
 	assert.NilError(t, err)
 }
 

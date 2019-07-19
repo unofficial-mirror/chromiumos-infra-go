@@ -195,3 +195,101 @@ func TestGetProjectByPath(t *testing.T) {
 	project, err = m.GetProjectByPath("d/")
 	assert.Assert(t, err != nil)
 }
+
+func TestGetProjects(t *testing.T) {
+	m := Manifest{
+		Projects: []Project{
+			{Path: "a1/", Name: "chromiumos/a"},
+			{Path: "a2/", Name: "chromiumos/a", Annotations: []Annotation{{Name: "branch-mode", Value: "pin"}}},
+			{Path: "b/", Name: "b", Annotations: []Annotation{{Name: "branch-mode", Value: "pin"}}},
+			{Path: "c/", Name: "c", Annotations: []Annotation{{Name: "branch-mode", Value: "tot"}}},
+			{Path: "d/", Name: "chromiumos/d"},
+			{Path: "e/", Name: "chromiumos/e"},
+		},
+		Remotes: []Remote{
+			{Name: "cros"},
+		},
+		Default: Default{
+			RemoteName: "cros",
+		},
+	}
+	m = *m.ResolveImplicitLinks()
+	singleProjects := m.GetSingleCheckoutProjects()
+	assert.Assert(t, reflect.DeepEqual(singleProjects, m.Projects[4:6]))
+	multiProjects := m.GetMultiCheckoutProjects()
+	assert.Assert(t, reflect.DeepEqual(multiProjects, m.Projects[:2]))
+	pinnedProjects := m.GetPinnedProjects()
+	assert.Assert(t, reflect.DeepEqual(pinnedProjects, m.Projects[1:3]))
+	totProjects := m.GetTotProjects()
+	assert.Assert(t, reflect.DeepEqual(totProjects, m.Projects[3:4]))
+}
+
+var canBranchTestManifestAnnotation = Manifest{
+	Projects: []Project{
+		// Projects with annotations labeling branch mode.
+		{Path: "foo1/", Name: "foo1",
+			Annotations: []Annotation{
+				{Name: "branch-mode", Value: "create"},
+			},
+		},
+		{Path: "foo2/", Name: "foo2",
+			Annotations: []Annotation{
+				{Name: "branch-mode", Value: "pin"},
+			},
+		},
+		{Path: "foo3/", Name: "foo3",
+			Annotations: []Annotation{
+				{Name: "branch-mode", Value: "tot"},
+			},
+		},
+		{Path: "foo4/", Name: "foo4",
+			Annotations: []Annotation{
+				{Name: "branch-mode", Value: "bogus"},
+			},
+		},
+	},
+}
+var canBranchTestManifestRemote = Manifest{
+	Projects: []Project{
+		// Remote has name but no alias. Project is branchable.
+		{Path: "bar/", Name: "chromiumos/bar", RemoteName: "cros"},
+		// Remote has alias. Project is branchable.
+		{Path: "baz1/", Name: "aosp/baz", RemoteName: "cros1"},
+		// Remote has alias. Remote is not a cros remote.
+		{Path: "baz2/", Name: "aosp/baz", RemoteName: "cros2"},
+		// Remote has alias. Remote is a cros remote, but not a branchable one.
+		{Path: "fizz/", Name: "fizz", RemoteName: "cros"},
+		// Remote has name but no alias. Remote is a branchable remote, but specific
+		// project is not branchable.
+		{Path: "buzz/", Name: "buzz", RemoteName: "weave"},
+	},
+	Remotes: []Remote{
+		{Name: "cros"},
+		{Name: "cros1", Alias: "cros"},
+		{Name: "cros2", Alias: "github"},
+		{Name: "weave"},
+	},
+}
+
+func TestProjectBranchMode_annotation(t *testing.T) {
+	manifest := canBranchTestManifestAnnotation
+	assert.Equal(t, manifest.ProjectBranchMode(manifest.Projects[0]), Create)
+	assert.Equal(t, manifest.ProjectBranchMode(manifest.Projects[1]), Pinned)
+	assert.Equal(t, manifest.ProjectBranchMode(manifest.Projects[2]), Tot)
+	assert.Equal(t, manifest.ProjectBranchMode(manifest.Projects[3]), Unspecified)
+}
+
+func TestProjectBranchMode_remote(t *testing.T) {
+	manifest := canBranchTestManifestRemote
+	// Remote has name but no alias. Project is branchable.
+	assert.Equal(t, manifest.ProjectBranchMode(manifest.Projects[0]), Create)
+	// Remote has alias. Project is branchable.
+	assert.Equal(t, manifest.ProjectBranchMode(manifest.Projects[1]), Create)
+	// Remote has alias. Remote is not a cros remote.
+	assert.Equal(t, manifest.ProjectBranchMode(manifest.Projects[2]), Pinned)
+	// Remote has alias. Remote is a cros remote, but not a branchable one.
+	assert.Equal(t, manifest.ProjectBranchMode(manifest.Projects[4]), Pinned)
+	// Remote has name but no alias. Remote is a branchable remote, but specific
+	// project is not branchable.
+	assert.Equal(t, manifest.ProjectBranchMode(manifest.Projects[3]), Pinned)
+}

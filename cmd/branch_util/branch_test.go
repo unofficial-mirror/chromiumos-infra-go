@@ -31,34 +31,16 @@ var branchNameTestManifest = repo.Manifest{
 
 var canBranchTestManifest = repo.Manifest{
 	Projects: []repo.Project{
-		// Projects with annotations labeling branch mode.
-		{Path: "foo1/", Name: "foo",
+		{Path: "foo/", Name: "foo",
 			Annotations: []repo.Annotation{
 				{Name: "branch-mode", Value: "create"},
 			},
 		},
-		{Path: "foo2/", Name: "foo",
+		{Path: "bar/", Name: "bar",
 			Annotations: []repo.Annotation{
 				{Name: "branch-mode", Value: "pin"},
 			},
 		},
-		// Remote has name but no alias. Project is branchable.
-		{Path: "bar/", Name: "chromiumos/bar", RemoteName: "cros"},
-		// Remote has alias. Project is branchable.
-		{Path: "baz1/", Name: "aosp/baz", RemoteName: "cros1"},
-		// Remote has alias. Remote is not a cros remote.
-		{Path: "baz2/", Name: "aosp/baz", RemoteName: "cros2"},
-		// Remote has alias. Remote is a cros remote, but not a branchable one.
-		{Path: "fizz/", Name: "fizz", RemoteName: "cros"},
-		// Remote has name but no alias. Remote is a branchable remote, but specific
-		// project is not branchable.
-		{Path: "buzz/", Name: "buzz", RemoteName: "weave"},
-	},
-	Remotes: []repo.Remote{
-		{Name: "cros"},
-		{Name: "cros1", Alias: "cros"},
-		{Name: "cros2", Alias: "github"},
-		{Name: "weave"},
 	},
 }
 
@@ -93,25 +75,10 @@ func TestProjectBranchName_withOriginal(t *testing.T) {
 	assert.Equal(t, projectBranchName("mybranch", manifest.Projects[4], "oldbranch"), "mybranch-factory-101")
 }
 
-func TestCanBranchProject_annotation(t *testing.T) {
+func TestCanBranchProject(t *testing.T) {
 	manifest := canBranchTestManifest
 	assert.Assert(t, canBranchProject(manifest, manifest.Projects[0]))
 	assert.Assert(t, !canBranchProject(manifest, manifest.Projects[1]))
-}
-
-func TestCanBranchProject_remote(t *testing.T) {
-	manifest := canBranchTestManifest
-	// Remote has name but no alias. Project is branchable.
-	assert.Assert(t, canBranchProject(manifest, manifest.Projects[2]))
-	// Remote has alias. Project is branchable.
-	assert.Assert(t, canBranchProject(manifest, manifest.Projects[3]))
-	// Remote has alias. Remote is not a cros remote.
-	assert.Assert(t, !canBranchProject(manifest, manifest.Projects[4]))
-	// Remote has alias. Remote is a cros remote, but not a branchable one.
-	assert.Assert(t, !canBranchProject(manifest, manifest.Projects[6]))
-	// Remote has name but no alias. Remote is a branchable remote, but specific
-	// project is not branchable.
-	assert.Assert(t, !canBranchProject(manifest, manifest.Projects[5]))
 }
 
 var branchesTestManifest = repo.Manifest{

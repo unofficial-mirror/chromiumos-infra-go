@@ -13,6 +13,7 @@ import (
 	"log"
 	"net/http"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -94,6 +95,153 @@ func (m *Manifest) GetProjectByPath(name string) (*Project, error) {
 		}
 	}
 	return &Project{}, fmt.Errorf("project %s does not exist in manifest", name)
+}
+
+type projectType string
+
+const (
+	singleCheckout projectType = "single"
+	multiCheckout  projectType = "multi"
+	pinned         projectType = "pinned"
+	tot            projectType = "tot"
+)
+
+func (m *Manifest) getProjects(ptype projectType) []Project {
+	projectCount := make(map[string]int)
+
+	for _, project := range m.Projects {
+		projectCount[project.Name] += 1
+	}
+
+	projects := []Project{}
+	for _, project := range m.Projects {
+		includeProject := false
+		projectMode := m.ProjectBranchMode(project)
+		if projectMode == Pinned {
+			includeProject = ptype == pinned
+		} else if projectMode == Tot {
+			includeProject = ptype == tot
+		} else if projectCount[project.Name] == 1 {
+			includeProject = ptype == singleCheckout
+		}
+		// Restart the if/else if block here because it is possible
+		// to have a project with multiple checkouts, some of which
+		// are pinned/tot and some of which are not.
+		if projectCount[project.Name] > 1 {
+			includeProject = includeProject || ptype == multiCheckout
+		}
+		if includeProject {
+			projects = append(projects, project)
+		}
+	}
+	return projects
+}
+
+// GetSingleCheckoutProjects returns all projects in the manifest that have a
+// single checkout and are not pinned/tot.
+func (m *Manifest) GetSingleCheckoutProjects() []Project {
+	return m.getProjects(singleCheckout)
+}
+
+// GetMultiCheckoutProjects returns all projects in the manifest that have a
+// multiple checkouts and are not pinned/tot.
+func (m *Manifest) GetMultiCheckoutProjects() []Project {
+	return m.getProjects(multiCheckout)
+}
+
+// GetPinnedProjects returns all projects in the manifest that are
+// pinned.
+func (m *Manifest) GetPinnedProjects() []Project {
+	return m.getProjects(pinned)
+}
+
+// GetTotProjects returns all projects in the manifest that are
+// tot.
+func (m *Manifest) GetTotProjects() []Project {
+	return m.getProjects(tot)
+}
+
+var (
+	GOB_HOST              = "%s.googlesource.com"
+	EXTERNAL_GOB_INSTANCE = "chromium"
+	EXTERNAL_GOB_HOST     = fmt.Sprintf(GOB_HOST, EXTERNAL_GOB_INSTANCE)
+	EXTERNAL_GOB_URL      = fmt.Sprintf("https://%s", EXTERNAL_GOB_HOST)
+
+	INTERNAL_GOB_INSTANCE = "chrome-internal"
+	INTERNAL_GOB_HOST     = fmt.Sprintf(GOB_HOST, INTERNAL_GOB_INSTANCE)
+	INTERNAL_GOB_URL      = fmt.Sprintf("https://%s", INTERNAL_GOB_HOST)
+
+	AOSP_GOB_INSTANCE = "android"
+	AOSP_GOB_HOST     = fmt.Sprintf(GOB_HOST, AOSP_GOB_INSTANCE)
+	AOSP_GOB_URL      = fmt.Sprintf("https://%s", AOSP_GOB_HOST)
+
+	WEAVE_GOB_INSTANCE = "weave"
+	WEAVE_GOB_HOST     = fmt.Sprintf(GOB_HOST, WEAVE_GOB_INSTANCE)
+	WEAVE_GOB_URL      = fmt.Sprintf("https://%s", WEAVE_GOB_HOST)
+
+	external_remote = "cros"
+	internal_remote = "cros-internal"
+
+	CROS_REMOTES = map[string]string{
+		external_remote: EXTERNAL_GOB_URL,
+		internal_remote: INTERNAL_GOB_URL,
+		"aosp":          AOSP_GOB_URL,
+		"weave":         WEAVE_GOB_URL,
+	}
+
+	// Mapping 'remote name' -> regexp that matches names of repositories on
+	// that remote that can be branched when creating CrOS branch.
+	// Branching script will actually create a new git ref when branching
+	// these projects. It won't attempt to create a git ref for other projects
+	// that may be mentioned in a manifest. If a remote is missing from this
+	// dictionary, all projects on that remote are considered to not be
+	// branchable.
+	BRANCHABLE_PROJECTS = map[string]*regexp.Regexp{
+		external_remote: regexp.MustCompile("(chromiumos|aosp)/(.+)"),
+		internal_remote: regexp.MustCompile("chromeos/(.+)"),
+	}
+
+	MANIFEST_ATTR_BRANCHING_CREATE = "create"
+	MANIFEST_ATTR_BRANCHING_PIN    = "pin"
+	MANIFEST_ATTR_BRANCHING_TOT    = "tot"
+)
+
+type BranchMode string
+
+const (
+	Unspecified BranchMode = "unspecified"
+	Pinned      BranchMode = "pinned"
+	Tot         BranchMode = "tot"
+	Create      BranchMode = "create"
+)
+
+// ProjectBranchMode returns the branch mode (create, pinned, tot) of a project.
+func (m *Manifest) ProjectBranchMode(project Project) BranchMode {
+	// Anotation is set.
+	explicitMode, _ := project.GetAnnotation("branch-mode")
+	if explicitMode != "" {
+		switch explicitMode {
+		case MANIFEST_ATTR_BRANCHING_CREATE:
+			return Create
+		case MANIFEST_ATTR_BRANCHING_PIN:
+			return Pinned
+		case MANIFEST_ATTR_BRANCHING_TOT:
+			return Tot
+		default:
+			return Unspecified
+		}
+	}
+
+	// Othwerise, peek at remote.
+	remote := m.GetRemoteByName(project.RemoteName)
+	remoteName := remote.GitName()
+	_, inCrosRemote := CROS_REMOTES[remoteName]
+	projectRegexp, inBranchableProjects := BRANCHABLE_PROJECTS[remoteName]
+	if inCrosRemote && inBranchableProjects && projectRegexp.MatchString(project.Name) {
+		return Create
+	} else {
+		return Pinned
+	}
 }
 
 // GetAnnotation returns the value of the annotation with the

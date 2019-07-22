@@ -82,7 +82,7 @@ func TestMatchBranchName_success(t *testing.T) {
 		"04975f9439ff75502b33d9491155692736e05b07  refs/heads/baz\n"
 
 	CommandRunnerImpl = cmd.FakeCommandRunner{
-		ExpectedCmd: []string{"git", "ls-remote", fakeGitRepo},
+		ExpectedCmd: []string{"git", "show-ref"},
 		ExpectedDir: fakeGitRepo,
 		Stdout:      fakeGitData,
 	}
@@ -106,7 +106,7 @@ func TestMatchBranchNameWithNamespace_success(t *testing.T) {
 		"04975f9439ff75502b33d9491155692736e05b07  refs/heads/baz\n"
 
 	CommandRunnerImpl = cmd.FakeCommandRunner{
-		ExpectedCmd: []string{"git", "ls-remote", fakeGitRepo},
+		ExpectedCmd: []string{"git", "show-ref"},
 		ExpectedDir: fakeGitRepo,
 		Stdout:      fakeGitData,
 	}

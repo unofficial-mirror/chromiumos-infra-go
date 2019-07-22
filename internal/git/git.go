@@ -66,10 +66,14 @@ func MatchBranchNameWithNamespace(gitRepo string, pattern, namespace *regexp.Reg
 	namespace = regexp.MustCompile("(?i)^" + namespace.String())
 	pattern = regexp.MustCompile("(?i)" + pattern.String())
 
-	output, err := RunGit(gitRepo, []string{"ls-remote", gitRepo})
+	output, err := RunGit(gitRepo, []string{"show-ref"})
 	if err != nil {
+		if strings.Contains(err.Error(), "exit status 1") {
+			// Not a fatal error, just no branches.
+			return []string{}, nil
+		}
 		// Could not read branches.
-		return []string{}, fmt.Errorf("git error: %s\nstderr: %s", err.Error(), output.Stderr)
+		return []string{}, fmt.Errorf("git error: %s\nstdout: %s stderr: %s", err.Error(), output.Stdout, output.Stderr)
 	}
 	// Find all branches that match the pattern.
 	branches := strings.Split(output.Stdout, "\n")

@@ -4,12 +4,14 @@
 package repo_harness
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
 
+	"go.chromium.org/chromiumos/infra/go/internal/cmd"
 	"go.chromium.org/chromiumos/infra/go/internal/git"
 	"go.chromium.org/chromiumos/infra/go/internal/repo"
 	"gotest.tools/assert"
@@ -148,12 +150,6 @@ func TestTeardown(t *testing.T) {
 	assert.Equal(t, harness.harnessRoot, "")
 }
 
-func TestUnorderedEqual(t *testing.T) {
-	a := []string{"a", "b", "c", "a"}
-	b := []string{"b", "c", "a", "a"}
-	assert.Assert(t, unorderedEqual(a, b))
-}
-
 func TestGetRemotePath(t *testing.T) {
 	harnessConfig := simpleHarnessConfig
 	harness := &RepoHarness{}
@@ -167,35 +163,29 @@ func TestGetRemotePath(t *testing.T) {
 }
 
 func TestAssertProjectBranches_success(t *testing.T) {
-	harnessConfig := simpleHarnessConfig
-	harness := &RepoHarness{}
-	defer harness.Teardown()
-	err := harness.Initialize(&harnessConfig)
-	assert.NilError(t, err)
-
-	project := harness.manifest.Projects[0]
-	localProject := filepath.Join(harness.LocalRepo, project.Path)
-	// Add branch. To do this, we need to create a branch locally and push that to the remote.
-	branchName := "mybranch"
-	assert.NilError(t, git.CreateBranch(localProject, branchName))
-	assert.NilError(t, ioutil.WriteFile(filepath.Join(localProject, "foo"), []byte("foo"), 0666))
-	remoteRef := git.RemoteRef{
-		Remote: project.RemoteName,
-		Ref:    branchName,
+	harness := &RepoHarness{
+		harnessRoot: "foo",
 	}
-	assert.NilError(t, git.PushChanges(localProject, branchName, "commit", false, remoteRef))
-	assert.NilError(t, harness.AssertProjectBranches(project, []string{"master", branchName}))
-}
+	project := repo.Project{
+		RemoteName: "bar",
+		Name:       "baz",
+	}
+	projectPath := "foo/bar/baz"
 
-func TestAssertProjectBranches_failure(t *testing.T) {
-	harnessConfig := simpleHarnessConfig
-	harness := &RepoHarness{}
-	defer harness.Teardown()
-	err := harness.Initialize(&harnessConfig)
-	assert.NilError(t, err)
+	branches := []string{"master", "branch"}
+	stdout := ""
+	for _, branch := range branches {
+		stdout += fmt.Sprintf("aaa refs/heads/%s\n", branch)
+	}
 
-	project := harness.manifest.Projects[0]
-	assert.ErrorContains(t, harness.AssertProjectBranches(project, []string{"master", "foo"}), "mismatch")
+	git.CommandRunnerImpl = cmd.FakeCommandRunner{
+		ExpectedCmd: []string{"git", "show-ref"},
+		ExpectedDir: projectPath,
+		Stdout:      stdout,
+	}
+
+	assert.NilError(t, harness.AssertProjectBranches(project, branches))
+	assert.ErrorContains(t, harness.AssertProjectBranches(project, []string{"bad"}), "mismatch")
 }
 
 // createFooBarBaz creates foo bar baz file structure, the greatest file structure on earth
@@ -221,11 +211,7 @@ func checkFooBarBaz(t *testing.T, root, bazContents string) {
 }
 
 func TestSnapshot(t *testing.T) {
-	harnessConfig := simpleHarnessConfig
 	harness := &RepoHarness{}
-	defer harness.Teardown()
-	err := harness.Initialize(&harnessConfig)
-	assert.NilError(t, err)
 
 	// Create a hierachy of files.
 	root, err := ioutil.TempDir("", "snapshot_test")
@@ -238,27 +224,4 @@ func TestSnapshot(t *testing.T) {
 	snapshotDir, err := harness.Snapshot(root)
 	assert.NilError(t, err)
 	checkFooBarBaz(t, snapshotDir, bazContents)
-}
-
-func TestSameContents(t *testing.T) {
-	harnessConfig := simpleHarnessConfig
-	harness := &RepoHarness{}
-	defer harness.Teardown()
-	err := harness.Initialize(&harnessConfig)
-	assert.NilError(t, err)
-
-	foo1, err := ioutil.TempDir("", "nodiff_test")
-	defer os.RemoveAll(foo1)
-	createFooBarBaz(t, foo1, "ヽ༼ຈل͜ຈ༽ﾉ")
-
-	foo2, err := ioutil.TempDir("", "nodiff_test")
-	defer os.RemoveAll(foo2)
-	createFooBarBaz(t, foo2, "ヽ༼ຈل͜ຈ༽ﾉ")
-
-	foo3, err := ioutil.TempDir("", "nodiff_test")
-	defer os.RemoveAll(foo3)
-	createFooBarBaz(t, foo3, "ヽ༼ಠل͜ಠ༽ﾉ")
-
-	assert.NilError(t, harness.AssertSameContents(foo1, foo2))
-	assert.ErrorContains(t, harness.AssertSameContents(foo1, foo3), "differ")
 }

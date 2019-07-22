@@ -9,11 +9,13 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"testing"
 
 	"go.chromium.org/chromiumos/infra/go/internal/cmd"
 	"go.chromium.org/chromiumos/infra/go/internal/git"
 	"go.chromium.org/chromiumos/infra/go/internal/repo"
+	"go.chromium.org/chromiumos/infra/go/internal/test_util"
 	"gotest.tools/assert"
 )
 
@@ -28,7 +30,7 @@ var simpleHarnessConfig = RepoHarnessConfig{
 			Revision:   "refs/heads/master",
 		},
 		Projects: []repo.Project{
-			{Path: "foo1/", Name: "foo"},
+			{Path: "foo1/", Name: "foo", Revision: "refs/heads/foo"},
 			{Path: "foo2/", Name: "foo"},
 			{Path: "bar/", Name: "bar"},
 			{Path: "baz/", Name: "baz", RemoteName: "cros-internal"},
@@ -60,6 +62,38 @@ func TestInitialize_simple(t *testing.T) {
 		_, err := os.Stat(filepath.Join(harness.harnessRoot, remote.Name))
 		assert.NilError(t, err)
 	}
+
+	// Check that appropraite projects were created and initialized.
+	for _, project := range harnessConfig.Manifest.Projects {
+		projectPath := filepath.Join(harness.harnessRoot, project.RemoteName, project.Name)
+		_, err := os.Stat(projectPath)
+		assert.NilError(t, err)
+		branches, err := git.MatchBranchName(projectPath, regexp.MustCompile("master"))
+		assert.NilError(t, err)
+		assert.Assert(t, test_util.UnorderedContains(branches, []string{git.NormalizeRef("master")}))
+
+		// If project has revision set, check that that branch was create too.
+		if project.Revision != "" && project.Revision != "master" {
+			revisionBranch := project.Revision
+			branches, err := git.MatchBranchName(projectPath, regexp.MustCompile(revisionBranch))
+			assert.NilError(t, err)
+			assert.Assert(t, test_util.UnorderedContains(branches, []string{revisionBranch}))
+		}
+	}
+}
+
+func TestInitialize_badRevision(t *testing.T) {
+	harnessConfig := RepoHarnessConfig{
+		Manifest: repo.Manifest{
+			Projects: []repo.Project{
+				{Name: "foo",
+					Revision: "deadbeef"},
+			},
+		},
+	}
+	harness := &RepoHarness{}
+	defer harness.Teardown()
+	assert.ErrorContains(t, harness.Initialize(&harnessConfig), "refs/heads")
 }
 
 func TestAddFile_simple(t *testing.T) {

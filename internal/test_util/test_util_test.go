@@ -44,6 +44,14 @@ func TestUnorderedEqual(t *testing.T) {
 	assert.Assert(t, !UnorderedEqual(a, c))
 }
 
+func TestUnorderedContains(t *testing.T) {
+	a := []string{"a", "b", "c", "a"}
+	b := []string{"b", "c"}
+	c := []string{"b", "d"}
+	assert.Assert(t, UnorderedContains(a, b))
+	assert.Assert(t, !UnorderedContains(a, c))
+}
+
 func TestAssertContentsEqual(t *testing.T) {
 	foo1, err := ioutil.TempDir("", "nodiff_test")
 	assert.NilError(t, err)

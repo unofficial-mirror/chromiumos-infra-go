@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/otiai10/copy"
 	"go.chromium.org/chromiumos/infra/go/internal/cmd"
@@ -144,10 +145,24 @@ func (r *RepoHarness) Initialize(config *RepoHarnessConfig) error {
 			os.Mkdir(tmpRepo, dirPerms),
 			git.Init(tmpRepo, false),
 			git.AddRemote(tmpRepo, remoteName, projectPath),
-			ioutil.WriteFile(filepath.Join(tmpRepo, ".harnessInit"), []byte(project.Path), readWritePerms),
-			git.PushChanges(tmpRepo, "master", "initial commit", false, remoteRef),
-			os.RemoveAll(tmpRepo),
+			git.CommitEmpty(tmpRepo, "init master branch"),
+			git.Push(tmpRepo, "master", false, remoteRef),
 		}
+
+		// If revision is set, create that branch too.
+		if project.Revision != "" && !strings.HasPrefix(project.Revision, "refs/heads/") {
+			return fmt.Errorf("revisions must be of the form refs/heads/<branch>")
+		}
+
+		revision := git.StripRefs(project.Revision)
+		if revision != "" && revision != "master" {
+			remoteRef.Ref = revision
+			commitMsg := fmt.Sprintf("init %s branch", revision)
+			errs = append(errs, git.CommitEmpty(tmpRepo, commitMsg))
+			errs = append(errs, git.Push(tmpRepo, "master", false, remoteRef))
+		}
+
+		errs = append(errs, os.RemoveAll(tmpRepo))
 		for _, err = range errs {
 			if err != nil {
 				return errors.Annotate(err, "failed to init git repo for %s", projectLabel).Err()

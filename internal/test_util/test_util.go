@@ -37,6 +37,21 @@ func UnorderedEqual(a, b []string) bool {
 	return reflect.DeepEqual(am, bm)
 }
 
+// UnorderedContains checks that arr has certain elements.
+func UnorderedContains(arr, has []string) bool {
+	elts := make(map[string]int)
+	for _, v := range arr {
+		elts[v]++
+	}
+	for _, elt := range has {
+		_, ok := elts[elt]
+		if !ok {
+			return false
+		}
+	}
+	return true
+}
+
 // AssertContentsEqual checks that there's no difference between two directories/files.
 func AssertContentsEqual(path_a, path_b string) error {
 	ai, err := os.Stat(path_a)

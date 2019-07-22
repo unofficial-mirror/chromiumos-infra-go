@@ -189,6 +189,19 @@ func TestCommitAll(t *testing.T) {
 	assert.NilError(t, err)
 }
 
+func TestCommitEmpty(t *testing.T) {
+	fakeGitRepo := "repo"
+	commitMsg := "commit"
+
+	CommandRunnerImpl = cmd.FakeCommandRunner{
+		ExpectedDir: fakeGitRepo,
+		ExpectedCmd: []string{"git", "commit", "-m", commitMsg, "--allow-empty"},
+	}
+
+	err := CommitEmpty(fakeGitRepo, commitMsg)
+	assert.NilError(t, err)
+}
+
 func TestPushChanges(t *testing.T) {
 	fakeGitRepo := "da-bank"
 	commitMsg := "da-money"
@@ -218,6 +231,25 @@ func TestPushChanges(t *testing.T) {
 	}
 
 	err := PushChanges(fakeGitRepo, localRef, commitMsg, true, remoteRef)
+	assert.NilError(t, err)
+}
+
+func TestPush(t *testing.T) {
+	fakeGitRepo := "repo"
+	localRef := "commitId"
+
+	remoteRef := RemoteRef{
+		Remote: "remote",
+		Ref:    "ref",
+	}
+
+	pushStr := fmt.Sprintf("%s:%s", localRef, remoteRef.Ref)
+	CommandRunnerImpl = cmd.FakeCommandRunner{
+		ExpectedDir: fakeGitRepo,
+		ExpectedCmd: []string{"git", "push", remoteRef.Remote, pushStr, "--dry-run"},
+	}
+
+	err := Push(fakeGitRepo, localRef, true, remoteRef)
 	assert.NilError(t, err)
 }
 

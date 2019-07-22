@@ -104,7 +104,7 @@ func GetGitRepoRevision(cwd string) (string, error) {
 	return strings.TrimSpace(output.Stdout), err
 }
 
-// StipRefsHead removes leading 'refs/heads/' from a ref name.
+// StripRefsHead removes leading 'refs/heads/' from a ref name.
 func StripRefsHead(ref string) string {
 	return strings.TrimPrefix(ref, "refs/heads/")
 }
@@ -177,6 +177,14 @@ func CommitAll(gitRepo, commitMsg string) error {
 	return nil
 }
 
+// CommitEmpty makes an empty commit (assuming nothing is staged).
+func CommitEmpty(gitRepo, commitMsg string) error {
+	if output, err := RunGit(gitRepo, []string{"commit", "-m", commitMsg, "--allow-empty"}); err != nil {
+		return fmt.Errorf(output.Stderr)
+	}
+	return nil
+}
+
 // PushGitChanges stages and commits any local changes before pushing the commit
 // to the specified remote ref.
 func PushChanges(gitRepo, localRef, commitMsg string, dryRun bool, pushTo RemoteRef) error {
@@ -185,12 +193,17 @@ func PushChanges(gitRepo, localRef, commitMsg string, dryRun bool, pushTo Remote
 	if err != nil && !strings.Contains(err.Error(), "nothing to commit") {
 		return err
 	}
+	return Push(gitRepo, localRef, dryRun, pushTo)
+}
+
+// Push pushes the specified local ref to the specified remote ref.
+func Push(gitRepo, localRef string, dryRun bool, pushTo RemoteRef) error {
 	ref := fmt.Sprintf("%s:%s", localRef, pushTo.Ref)
 	cmd := []string{"push", pushTo.Remote, ref}
 	if dryRun {
 		cmd = append(cmd, "--dry-run")
 	}
-	_, err = RunGit(gitRepo, cmd)
+	_, err := RunGit(gitRepo, cmd)
 	return err
 }
 

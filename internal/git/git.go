@@ -99,9 +99,24 @@ func MatchBranchNameWithNamespace(gitRepo string, pattern, namespace *regexp.Reg
 }
 
 // GetGitRepoRevision finds and returns the revision of a branch.
-func GetGitRepoRevision(cwd string) (string, error) {
-	output, err := RunGit(cwd, []string{"rev-parse", "HEAD"})
+func GetGitRepoRevision(cwd, branch string) (string, error) {
+	if branch == "" {
+		branch = "HEAD"
+	}
+	output, err := RunGit(cwd, []string{"rev-parse", branch})
 	return strings.TrimSpace(output.Stdout), err
+}
+
+// IsReachable determines whether one commit ref is reachable from another.
+func IsReachable(cwd, to_ref, from_ref string) (bool, error) {
+	_, err := RunGit(cwd, []string{"merge-base", "--is-ancestor", to_ref, from_ref})
+	if err != nil {
+		if strings.Contains(err.Error(), "exit status 1") {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
 }
 
 // StripRefsHead removes leading 'refs/heads/' from a ref name.

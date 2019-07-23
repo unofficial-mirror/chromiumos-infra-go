@@ -137,7 +137,7 @@ func (c *CrosCheckout) EnsureProject(project repo.Project) error {
 
 // GitRevision returns the project's current git revision on disk.
 func (c *CrosCheckout) GitRevision(project repo.Project) (string, error) {
-	return git.GetGitRepoRevision(c.AbsoluteProjectPath(project))
+	return git.GetGitRepoRevision(c.AbsoluteProjectPath(project), "HEAD")
 }
 
 // RunGit runs the specified git command in the project dir.

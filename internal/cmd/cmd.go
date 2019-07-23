@@ -32,6 +32,7 @@ type FakeCommandRunner struct {
 	ExpectedCmd []string
 	ExpectedDir string
 	FailCommand bool
+	FailError   string
 }
 
 func (c FakeCommandRunner) RunCommand(ctx context.Context, stdoutBuf, stderrBuf *bytes.Buffer, dir, name string, args ...string) error {
@@ -51,7 +52,7 @@ func (c FakeCommandRunner) RunCommand(ctx context.Context, stdoutBuf, stderrBuf 
 		}
 	}
 	if c.FailCommand {
-		return &exec.ExitError{}
+		return fmt.Errorf(c.FailError)
 	}
 	return nil
 }

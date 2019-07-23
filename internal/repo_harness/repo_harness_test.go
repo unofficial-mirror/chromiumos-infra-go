@@ -66,6 +66,10 @@ func testInitialize(t *testing.T, config *RepoHarnessConfig) {
 	err := harness.Initialize(harnessConfig)
 	assert.NilError(t, err)
 
+	// Check that snapshots/ dir was created.
+	_, err = os.Stat(filepath.Join(harness.harnessRoot, "snapshots"))
+	assert.NilError(t, err)
+
 	// Check that all local repos were created.
 	for _, project := range harnessConfig.Manifest.Projects {
 		_, err := os.Stat(filepath.Join(harness.LocalRepo, project.Path))
@@ -351,17 +355,90 @@ func checkFooBarBaz(t *testing.T, root, bazContents string) {
 }
 
 func TestSnapshot(t *testing.T) {
-	harness := &RepoHarness{}
+	root, err := ioutil.TempDir("", "assert_test")
+	assert.NilError(t, err)
+	defer os.RemoveAll(root)
+	harness := &RepoHarness{
+		harnessRoot: root,
+	}
+	assert.NilError(t, os.Mkdir(filepath.Join(harness.harnessRoot, "snapshots"), 0777))
 
 	// Create a hierachy of files.
-	root, err := ioutil.TempDir("", "snapshot_test")
-	defer os.RemoveAll(root)
+	fooRoot, err := ioutil.TempDir(harness.harnessRoot, "snapshot_test")
 	assert.NilError(t, err)
 	bazContents := "foo, bar and baz, oh my!"
-	createFooBarBaz(t, root, bazContents)
+	createFooBarBaz(t, fooRoot, bazContents)
 
 	// Create snapshot and verify accuracy.
-	snapshotDir, err := harness.Snapshot(root)
+	snapshotDir, err := harness.Snapshot(fooRoot)
 	assert.NilError(t, err)
 	checkFooBarBaz(t, snapshotDir, bazContents)
+}
+
+func TestAssertProjectBranchEqual(t *testing.T) {
+	root, err := ioutil.TempDir("", "assert_test")
+	assert.NilError(t, err)
+	defer os.RemoveAll(root)
+	harness := &RepoHarness{
+		harnessRoot: root,
+	}
+
+	local, err := ioutil.TempDir(harness.harnessRoot, "")
+	assert.NilError(t, err)
+	remote, err := ioutil.TempDir(harness.harnessRoot, "")
+	assert.NilError(t, err)
+
+	project := repo.Project{
+		Name: filepath.Base(local),
+	}
+
+	// Initialize remote repo and make a commit.
+	assert.NilError(t, git.Init(remote, false))
+	assert.NilError(t, ioutil.WriteFile(filepath.Join(remote, "foo"), []byte("foo"), 0644))
+	assert.NilError(t, git.CommitAll(remote, "init commit"))
+	// Clone remote so that we have two identical repos.
+	assert.NilError(t, git.Clone(remote, local))
+	fmt.Printf("%s %s\n", remote, local)
+	assert.NilError(t, harness.AssertProjectBranchEqual(project, "master", remote))
+	// Now, make commit to local.
+	assert.NilError(t, ioutil.WriteFile(filepath.Join(local, "bar"), []byte("bar"), 0644))
+	assert.NilError(t, git.CommitAll(local, "addl commit"))
+	assert.ErrorContains(t, harness.AssertProjectBranchEqual(project, "master", remote), "mismatch")
+}
+
+func TestAssertProjectBranchHasAncestor(t *testing.T) {
+	root, err := ioutil.TempDir("", "assert_test")
+	assert.NilError(t, err)
+	defer os.RemoveAll(root)
+	harness := &RepoHarness{
+		harnessRoot: root,
+	}
+
+	local, err := ioutil.TempDir(harness.harnessRoot, "")
+	assert.NilError(t, err)
+	remote, err := ioutil.TempDir(harness.harnessRoot, "")
+	assert.NilError(t, err)
+
+	project := repo.Project{
+		Name: filepath.Base(local),
+	}
+
+	// Initialize remote repo and make a commit.
+	assert.NilError(t, git.Init(remote, false))
+	assert.NilError(t, ioutil.WriteFile(filepath.Join(remote, "foo"), []byte("foo"), 0644))
+	assert.NilError(t, git.CommitAll(remote, "init commit"))
+	// Clone remote so that we have two identical repos.
+	assert.NilError(t, git.Clone(remote, local))
+	fmt.Printf("%s %s\n", remote, local)
+	assert.NilError(t, harness.AssertProjectBranchHasAncestor(project, "master", remote))
+
+	// Now, make commit to local. We should still be good.
+	assert.NilError(t, ioutil.WriteFile(filepath.Join(local, "bar"), []byte("bar"), 0644))
+	assert.NilError(t, git.CommitAll(local, "addl commit"))
+	assert.NilError(t, harness.AssertProjectBranchHasAncestor(project, "master", remote))
+
+	// But if we make a commit to remote, our local repo will no longer descend from it.
+	assert.NilError(t, ioutil.WriteFile(filepath.Join(remote, "baz"), []byte("baz"), 0644))
+	assert.NilError(t, git.CommitAll(remote, "addl commit"))
+	assert.ErrorContains(t, harness.AssertProjectBranchHasAncestor(project, "master", remote), "does not descend")
 }

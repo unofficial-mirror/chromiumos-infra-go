@@ -74,6 +74,10 @@ func (r *RepoHarness) Initialize(config *RepoHarnessConfig) error {
 	if err != nil {
 		return errors.Annotate(err, "failed to create harness root dir").Err()
 	}
+	// Create snapshots/ dir.
+	if err = os.Mkdir(filepath.Join(r.harnessRoot, "snapshots"), dirPerms); err != nil {
+		return errors.Annotate(err, "failed to create harness snapshots dir").Err()
+	}
 
 	// Resolve implicit links in the manifest. We do this so that each project has
 	// an explicit remote listed.
@@ -315,9 +319,51 @@ func (r *RepoHarness) AssertProjectBranchesExact(project repo.Project, branches 
 	return test_util.AssertGitBranchesExact(gitRepo, branches)
 }
 
+// AssertProjectBranchEqual asserts that the specified branch in the project matches
+// the corresponding branch in the given snapshot.
+func (r *RepoHarness) AssertProjectBranchEqual(project repo.Project, branch, snapshotPath string) error {
+	if err := r.assertInitialized(); err != nil {
+		return err
+	}
+	expected, err := git.GetGitRepoRevision(snapshotPath, branch)
+	if err != nil {
+		return err
+	}
+	actual, err := git.GetGitRepoRevision(r.getRemotePath(project), branch)
+	if err != nil {
+		return err
+	}
+	if expected != actual {
+		return fmt.Errorf("mismatch for branch %s: project at revision %s, snapshot at revision %s", branch, actual, expected)
+	}
+	return nil
+}
+
+// AssertProjectBranchHasAncestor asserts that the specified branch in the project descends
+// from the given snapshot.
+func (r *RepoHarness) AssertProjectBranchHasAncestor(project repo.Project, branch, snapshotPath string) error {
+	ancestor, err := git.GetGitRepoRevision(snapshotPath, project.Revision)
+	if err != nil {
+		return err
+	}
+	descendent, err := git.GetGitRepoRevision(r.getRemotePath(project), branch)
+	if err != nil {
+		return err
+	}
+	ok, err := git.IsReachable(r.getRemotePath(project), ancestor, descendent)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return fmt.Errorf("branch %s does not descend from snapshot at %s", branch, snapshotPath)
+	}
+	return nil
+}
+
 // Snapshot recursively copies a directory's contents to a temp dir.
 func (r *RepoHarness) Snapshot(path string) (string, error) {
-	snapshotDir, err := ioutil.TempDir(r.harnessRoot, "snapshot")
+	snapshotRoot := filepath.Join(r.harnessRoot, "snapshots/")
+	snapshotDir, err := ioutil.TempDir(snapshotRoot, "snapshot")
 	if err != nil {
 		return "", err
 	}

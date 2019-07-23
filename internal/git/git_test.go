@@ -126,9 +126,41 @@ func TestGetRepoRevision(t *testing.T) {
 		ExpectedDir: "project",
 		Stdout:      sha,
 	}
-	res, err := GetGitRepoRevision("project")
+	res, err := GetGitRepoRevision("project", "")
 	assert.NilError(t, err)
 	assert.Equal(t, res, sha)
+}
+
+func TestIsReachable_true(t *testing.T) {
+	fakeGitRepo := "gitRepo"
+	toRef := "beef"
+	fromRef := "deaf"
+
+	CommandRunnerImpl = cmd.FakeCommandRunner{
+		ExpectedCmd: []string{"git", "merge-base", "--is-ancestor", toRef, fromRef},
+		ExpectedDir: fakeGitRepo,
+	}
+
+	ok, err := IsReachable(fakeGitRepo, toRef, fromRef)
+	assert.NilError(t, err)
+	assert.Assert(t, ok)
+}
+
+func TestIsReachable_false(t *testing.T) {
+	fakeGitRepo := "gitRepo"
+	toRef := "beef"
+	fromRef := "deaf"
+
+	CommandRunnerImpl = cmd.FakeCommandRunner{
+		ExpectedCmd: []string{"git", "merge-base", "--is-ancestor", toRef, fromRef},
+		ExpectedDir: fakeGitRepo,
+		FailCommand: true,
+		FailError:   "exit status 1",
+	}
+
+	ok, err := IsReachable(fakeGitRepo, toRef, fromRef)
+	assert.NilError(t, err)
+	assert.Assert(t, !ok)
 }
 
 func TestCreateBranch(t *testing.T) {

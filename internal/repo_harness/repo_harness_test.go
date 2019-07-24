@@ -134,7 +134,7 @@ func TestCreateRemoteRef(t *testing.T) {
 	defer os.RemoveAll(root)
 	assert.NilError(t, err)
 
-	harness := &GenericRepoHarness{
+	harness := &RepoHarness{
 		manifest: repo.Manifest{
 			Remotes: []repo.Remote{
 				{Name: "cros"},
@@ -182,7 +182,8 @@ func TestAddFile_simple(t *testing.T) {
 	assert.NilError(t, err)
 
 	for _, file := range simpleFiles {
-		assert.NilError(t, harness.AddFile(file))
+		_, err = harness.AddFile(file)
+		assert.NilError(t, err)
 	}
 
 	// Check that all files were added to remotes.
@@ -395,14 +396,16 @@ func TestAssertProjectBranchEqual(t *testing.T) {
 	// Initialize remote repo and make a commit.
 	assert.NilError(t, git.Init(remote, false))
 	assert.NilError(t, ioutil.WriteFile(filepath.Join(remote, "foo"), []byte("foo"), 0644))
-	assert.NilError(t, git.CommitAll(remote, "init commit"))
+	_, err = git.CommitAll(remote, "init commit")
+	assert.NilError(t, err)
 	// Clone remote so that we have two identical repos.
 	assert.NilError(t, git.Clone(remote, local))
 	fmt.Printf("%s %s\n", remote, local)
 	assert.NilError(t, harness.AssertProjectBranchEqual(project, "master", remote))
 	// Now, make commit to local.
 	assert.NilError(t, ioutil.WriteFile(filepath.Join(local, "bar"), []byte("bar"), 0644))
-	assert.NilError(t, git.CommitAll(local, "addl commit"))
+	_, err = git.CommitAll(local, "addl commit")
+	assert.NilError(t, err)
 	assert.ErrorContains(t, harness.AssertProjectBranchEqual(project, "master", remote), "mismatch")
 }
 
@@ -426,7 +429,8 @@ func TestAssertProjectBranchHasAncestor(t *testing.T) {
 	// Initialize remote repo and make a commit.
 	assert.NilError(t, git.Init(remote, false))
 	assert.NilError(t, ioutil.WriteFile(filepath.Join(remote, "foo"), []byte("foo"), 0644))
-	assert.NilError(t, git.CommitAll(remote, "init commit"))
+	_, err = git.CommitAll(remote, "init commit")
+	assert.NilError(t, err)
 	// Clone remote so that we have two identical repos.
 	assert.NilError(t, git.Clone(remote, local))
 	fmt.Printf("%s %s\n", remote, local)
@@ -434,11 +438,13 @@ func TestAssertProjectBranchHasAncestor(t *testing.T) {
 
 	// Now, make commit to local. We should still be good.
 	assert.NilError(t, ioutil.WriteFile(filepath.Join(local, "bar"), []byte("bar"), 0644))
-	assert.NilError(t, git.CommitAll(local, "addl commit"))
+	_, err = git.CommitAll(local, "addl commit")
+	assert.NilError(t, err)
 	assert.NilError(t, harness.AssertProjectBranchHasAncestor(project, "master", remote))
 
 	// But if we make a commit to remote, our local repo will no longer descend from it.
 	assert.NilError(t, ioutil.WriteFile(filepath.Join(remote, "baz"), []byte("baz"), 0644))
-	assert.NilError(t, git.CommitAll(remote, "addl commit"))
+	_, err = git.CommitAll(remote, "addl commit")
+	assert.NilError(t, err)
 	assert.ErrorContains(t, harness.AssertProjectBranchHasAncestor(project, "master", remote), "does not descend")
 }

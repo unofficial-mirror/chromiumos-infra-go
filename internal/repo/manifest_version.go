@@ -190,7 +190,7 @@ func (v *VersionInfo) UpdateVersionFile(commitMsg string, dryRun bool, pushTo gi
 		return errors.Annotate(err, "could not write version file %s", v.VersionFile).Err()
 	}
 	// Push changes to remote.
-	if err = git.PushChanges(repoDir, pushBranch, commitMsg, dryRun, pushTo); err != nil {
+	if _, err = git.PushChanges(repoDir, pushBranch, commitMsg, dryRun, pushTo); err != nil {
 		return errors.Annotate(err, "failed to push version file changes to remote %s:%s",
 			pushTo.Remote, pushTo.Ref).Err()
 	}

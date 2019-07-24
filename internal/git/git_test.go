@@ -214,24 +214,40 @@ func TestCommitAll(t *testing.T) {
 				ExpectedDir: fakeGitRepo,
 				ExpectedCmd: []string{"git", "commit", "-m", commitMsg},
 			},
+			{
+				ExpectedDir: fakeGitRepo,
+				ExpectedCmd: []string{"git", "rev-parse", "HEAD"},
+				Stdout:      "abcde12345\n\n\t\n",
+			},
 		},
 	}
 
-	err := CommitAll(fakeGitRepo, commitMsg)
+	commit, err := CommitAll(fakeGitRepo, commitMsg)
 	assert.NilError(t, err)
+	assert.Equal(t, commit, "abcde12345")
 }
 
 func TestCommitEmpty(t *testing.T) {
 	fakeGitRepo := "repo"
 	commitMsg := "commit"
 
-	CommandRunnerImpl = cmd.FakeCommandRunner{
-		ExpectedDir: fakeGitRepo,
-		ExpectedCmd: []string{"git", "commit", "-m", commitMsg, "--allow-empty"},
+	CommandRunnerImpl = &cmd.FakeCommandRunnerMulti{
+		CommandRunners: []cmd.FakeCommandRunner{
+			{
+				ExpectedDir: fakeGitRepo,
+				ExpectedCmd: []string{"git", "commit", "-m", commitMsg, "--allow-empty"},
+			},
+			{
+				ExpectedDir: fakeGitRepo,
+				ExpectedCmd: []string{"git", "rev-parse", "HEAD"},
+				Stdout:      "abcde12345\n\n\t\n",
+			},
+		},
 	}
 
-	err := CommitEmpty(fakeGitRepo, commitMsg)
+	commit, err := CommitEmpty(fakeGitRepo, commitMsg)
 	assert.NilError(t, err)
+	assert.Equal(t, commit, "abcde12345")
 }
 
 func TestPushChanges(t *testing.T) {
@@ -257,13 +273,19 @@ func TestPushChanges(t *testing.T) {
 			},
 			{
 				ExpectedDir: fakeGitRepo,
+				ExpectedCmd: []string{"git", "rev-parse", "HEAD"},
+				Stdout:      "abcde\n",
+			},
+			{
+				ExpectedDir: fakeGitRepo,
 				ExpectedCmd: []string{"git", "push", remoteRef.Remote, pushStr, "--dry-run"},
 			},
 		},
 	}
 
-	err := PushChanges(fakeGitRepo, localRef, commitMsg, true, remoteRef)
+	commit, err := PushChanges(fakeGitRepo, localRef, commitMsg, true, remoteRef)
 	assert.NilError(t, err)
+	assert.Equal(t, commit, "abcde")
 }
 
 func TestPushRef(t *testing.T) {
@@ -331,7 +353,8 @@ func TestCheckout(t *testing.T) {
 	assert.NilError(t, CreateBranch(tmpDir, "branch1"))
 	// In order for the ref to be created, need to commit something.
 	assert.NilError(t, ioutil.WriteFile(filepath.Join(tmpDir, "foo"), []byte("foo"), 0644))
-	assert.NilError(t, CommitAll(tmpDir, "init commit"))
+	_, err = CommitAll(tmpDir, "init commit")
+	assert.NilError(t, err)
 	// Create second branch (will switch to this branch).
 	assert.NilError(t, CreateBranch(tmpDir, "branch2"))
 	// Try checking out a nonexistent branch.
@@ -355,7 +378,8 @@ func TestDeleteBranch_success(t *testing.T) {
 	assert.NilError(t, CreateBranch(tmpDir, "master"))
 	// In order for the ref to be created, need to commit something.
 	assert.NilError(t, ioutil.WriteFile(filepath.Join(tmpDir, "foo"), []byte("foo"), 0644))
-	assert.NilError(t, CommitAll(tmpDir, "init commit"))
+	_, err = CommitAll(tmpDir, "init commit")
+	assert.NilError(t, err)
 	// Create branch to be deleted.
 	assert.NilError(t, CreateBranch(tmpDir, branchName))
 	// Switch back to master.
@@ -396,12 +420,14 @@ func TestDeleteBranch_unmerged(t *testing.T) {
 	assert.NilError(t, CreateBranch(tmpDir, "master"))
 	// In order for the ref to be created, need to commit something.
 	assert.NilError(t, ioutil.WriteFile(filepath.Join(tmpDir, "foo"), []byte("foo"), 0644))
-	assert.NilError(t, CommitAll(tmpDir, "init commit"))
+	_, err = CommitAll(tmpDir, "init commit")
+	assert.NilError(t, err)
 	// Create test branch.
 	assert.NilError(t, CreateBranch(tmpDir, branchName))
 	// Make a change to branch.
 	assert.NilError(t, ioutil.WriteFile(filepath.Join(tmpDir, "bar"), []byte("bar"), 0644))
-	assert.NilError(t, CommitAll(tmpDir, "init commit"))
+	_, err = CommitAll(tmpDir, "init commit")
+	assert.NilError(t, err)
 	// Switch back to master.
 	assert.NilError(t, Checkout(tmpDir, "master"))
 	// Should not be able to delete.

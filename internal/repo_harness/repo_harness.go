@@ -157,9 +157,12 @@ func (r *RepoHarness) Initialize(config *RepoHarnessConfig) error {
 	errs := []error{
 		git.Init(manifestRepo, false),
 		r.manifest.Write(manifestPath),
-		git.CommitAll(manifestRepo, "commit manifest"),
-		r.runCommand([]string{"repo", "init", "--manifest-url", manifestRepo}, r.LocalRepo),
 	}
+	_, err = git.CommitAll(manifestRepo, "commit manifest")
+	errs = append(errs,
+		err,
+		r.runCommand([]string{"repo", "init", "--manifest-url", manifestRepo}, r.LocalRepo),
+	)
 
 	for _, err := range errs {
 		if err != nil {
@@ -193,7 +196,7 @@ func (r *RepoHarness) Teardown() error {
 // CreateRemoteRef creates a remote ref for a specific project.
 // Otherwise, a temporary local checkout will be created and an empty commit
 // will be used to create the remote ref.
-func (r *GenericRepoHarness) CreateRemoteRef(project repo.Project, ref, commit string) error {
+func (r *RepoHarness) CreateRemoteRef(project repo.Project, ref, commit string) error {
 	projectLabel := fmt.Sprintf("%s/%s", project.RemoteName, project.Name)
 	remoteProjectPath := r.getRemotePath(project)
 
@@ -217,7 +220,7 @@ func (r *GenericRepoHarness) CreateRemoteRef(project repo.Project, ref, commit s
 			}
 		}
 		commitMsg := fmt.Sprintf("empty commit for ref %s %s", remoteRef.Remote, remoteRef.Ref)
-		_, err = git.RunGit(repoPath, []string{"commit", "-m", commitMsg, "--allow-empty"})
+		commit, err = git.CommitEmpty(repoPath, commitMsg)
 		if err != nil {
 			return errors.Annotate(err, "failed to make empty commit").Err()
 		}
@@ -230,7 +233,6 @@ func (r *GenericRepoHarness) CreateRemoteRef(project repo.Project, ref, commit s
 			}
 		}
 		remoteRef.Remote = project.RemoteName
-		commit = "HEAD"
 	} else {
 		repoPath = remoteProjectPath
 		remoteRef.Remote = remoteProjectPath
@@ -242,16 +244,16 @@ func (r *GenericRepoHarness) CreateRemoteRef(project repo.Project, ref, commit s
 	return nil
 }
 
-// TODO(@jackneus): Add support for adding files at particular revisions (or something similar).
 // This is needed for projects with multiple checkouts.
-func (r *RepoHarness) AddFile(file File) error {
+// Returns the sha1 of the commit that adds the file.
+func (r *RepoHarness) AddFile(file File) (string, error) {
 	if err := r.assertInitialized(); err != nil {
-		return err
+		return "", err
 	}
 
 	project, err := r.manifest.GetProjectByPath(file.Project)
 	if err != nil {
-		return err
+		return "", err
 	}
 	projectLabel := fmt.Sprintf("%s", project.Path)
 
@@ -273,24 +275,29 @@ func (r *RepoHarness) AddFile(file File) error {
 		os.Mkdir(tmpRepo, dirPerms),
 		git.Clone(r.getRemotePath(*project), tmpRepo),
 		ioutil.WriteFile(filePath, file.Contents, file.Perm),
-		git.PushChanges(tmpRepo, "master", "initial commit", false, remoteRef),
-		os.RemoveAll(tmpRepo),
 	}
+	commit, err := git.PushChanges(tmpRepo, "master", "initial commit", false, remoteRef)
+	errs = append(errs,
+		err,
+		os.RemoveAll(tmpRepo),
+	)
 	for _, err = range errs {
 		if err != nil {
-			return errors.Annotate(err, "failed to add file %s to %s", file.Name, projectLabel).Err()
+			return "", errors.Annotate(err, "failed to add file %s to %s", file.Name, projectLabel).Err()
 		}
 	}
 
-	return nil
+	return commit, nil
 }
 
+// TODO(@jackneus): rewrite so that only one commit is made to each project.
+// Return a map with the sha1's of the commits.
 func (r *RepoHarness) AddFiles(files []File) error {
 	if err := r.assertInitialized(); err != nil {
 		return err
 	}
 	for _, file := range files {
-		err := r.AddFile(file)
+		_, err := r.AddFile(file)
 		if err != nil {
 			return err
 		}

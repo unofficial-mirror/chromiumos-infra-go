@@ -178,37 +178,47 @@ func CreateTrackingBranch(gitRepo, branch string, remoteRef RemoteRef) error {
 }
 
 // CommitAll adds all local changes and commits them.
-func CommitAll(gitRepo, commitMsg string) error {
+// Returns the sha1 of the commit.
+func CommitAll(gitRepo, commitMsg string) (string, error) {
 	if output, err := RunGit(gitRepo, []string{"add", "-A"}); err != nil {
-		return fmt.Errorf(output.Stderr)
+		return "", fmt.Errorf(output.Stderr)
 	}
 	if output, err := RunGit(gitRepo, []string{"commit", "-m", commitMsg}); err != nil {
 		if strings.Contains(output.Stdout, "nothing to commit") {
-			return fmt.Errorf(output.Stdout)
+			return "", fmt.Errorf(output.Stdout)
 		} else {
-			return fmt.Errorf(output.Stderr)
+			return "", fmt.Errorf(output.Stderr)
 		}
 	}
-	return nil
+	output, err := RunGit(gitRepo, []string{"rev-parse", "HEAD"})
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(output.Stdout), nil
 }
 
 // CommitEmpty makes an empty commit (assuming nothing is staged).
-func CommitEmpty(gitRepo, commitMsg string) error {
+// Returns the sha1 of the commit.
+func CommitEmpty(gitRepo, commitMsg string) (string, error) {
 	if output, err := RunGit(gitRepo, []string{"commit", "-m", commitMsg, "--allow-empty"}); err != nil {
-		return fmt.Errorf(output.Stderr)
+		return "", fmt.Errorf(output.Stderr)
 	}
-	return nil
+	output, err := RunGit(gitRepo, []string{"rev-parse", "HEAD"})
+	if err != nil {
+		return "", nil
+	}
+	return strings.TrimSpace(output.Stdout), nil
 }
 
-// PushGitChanges stages and commits any local changes before pushing the commit
-// to the specified remote ref.
-func PushChanges(gitRepo, localRef, commitMsg string, dryRun bool, pushTo RemoteRef) error {
-	err := CommitAll(gitRepo, commitMsg)
+// PushChanges stages and commits any local changes before pushing the commit
+// to the specified remote ref. Returns the sha1 of the commit.
+func PushChanges(gitRepo, localRef, commitMsg string, dryRun bool, pushTo RemoteRef) (string, error) {
+	commit, err := CommitAll(gitRepo, commitMsg)
 	// It's ok if there's nothing to commit, we can still try to push.
 	if err != nil && !strings.Contains(err.Error(), "nothing to commit") {
-		return err
+		return "", err
 	}
-	return PushRef(gitRepo, localRef, dryRun, pushTo)
+	return commit, PushRef(gitRepo, localRef, dryRun, pushTo)
 }
 
 // PushRef pushes the specified local ref to the specified remote ref.

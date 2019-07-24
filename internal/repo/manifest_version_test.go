@@ -138,6 +138,10 @@ func TestUpdateVersionFile_success(t *testing.T) {
 			},
 			{
 				ExpectedDir: tmpDir,
+				ExpectedCmd: []string{"git", "rev-parse", "HEAD"},
+			},
+			{
+				ExpectedDir: tmpDir,
 				ExpectedCmd: []string{"git", "push", remoteRef.Remote, pushRefs, "--dry-run"},
 			},
 		},

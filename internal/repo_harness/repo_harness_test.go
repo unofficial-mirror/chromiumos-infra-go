@@ -31,8 +31,8 @@ var simpleHarnessConfig = RepoHarnessConfig{
 			Revision:   "refs/heads/master",
 		},
 		Projects: []repo.Project{
-			{Path: "foo1/", Name: "foo", Revision: "refs/heads/foo"},
-			{Path: "foo2/", Name: "foo"},
+			{Path: "foo1/", Name: "foo", Revision: "refs/heads/foo1"},
+			{Path: "foo2/", Name: "foo", Revision: "refs/heads/foo2"},
 			{Path: "bar/", Name: "bar"},
 			{Path: "baz/", Name: "baz", RemoteName: "cros-internal"},
 		},
@@ -134,7 +134,7 @@ func TestCreateRemoteRef(t *testing.T) {
 	defer os.RemoveAll(root)
 	assert.NilError(t, err)
 
-	harness := &RepoHarness{
+	harness := &GenericRepoHarness{
 		manifest: repo.Manifest{
 			Remotes: []repo.Remote{
 				{Name: "cros"},

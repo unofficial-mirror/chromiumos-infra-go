@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/otiai10/copy"
 	"go.chromium.org/chromiumos/infra/go/internal/cmd"
@@ -58,7 +59,8 @@ func (r *RepoHarness) runCommand(cmd []string, cwd string) error {
 	if cwd == "" {
 		cwd = r.harnessRoot
 	}
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 	var stdoutBuf, stderrBuf bytes.Buffer
 	err := CommandRunnerImpl.RunCommand(ctx, &stdoutBuf, &stderrBuf, cwd, cmd[0], cmd[1:]...)
 	if err != nil {
@@ -110,23 +112,22 @@ func (r *RepoHarness) Initialize(config *RepoHarnessConfig) error {
 		projectPath := filepath.Join(r.harnessRoot, remoteName, project.Name)
 		projectLabel := fmt.Sprintf("project %s (remote %s)", project.Name, remoteName)
 
-		// Project could already exist due to multiple checkouts. If it does, skip.
-		if _, err = os.Stat(projectPath); err == nil {
-			continue
-		}
+		// Project could already exist due to multiple checkouts. If it does, skip
+		// initialization/master branch setup.
+		if _, err = os.Stat(projectPath); err != nil {
+			// Create project directory.
+			if err = os.MkdirAll(projectPath, dirPerms); err != nil {
+				return errors.Annotate(err, "failed to create dir for %s", projectLabel).Err()
+			}
+			// Initialize bare repo in project directory.
+			if err = git.Init(projectPath, true); err != nil {
+				return errors.Annotate(err, "failed to init git repo for %s", projectLabel).Err()
+			}
 
-		// Create project directory.
-		if err = os.MkdirAll(projectPath, dirPerms); err != nil {
-			return errors.Annotate(err, "failed to create dir for %s", projectLabel).Err()
-		}
-		// Initialize bare repo in project directory.
-		if err = git.Init(projectPath, true); err != nil {
-			return errors.Annotate(err, "failed to init git repo for %s", projectLabel).Err()
-		}
-
-		// Make an initial commit so that the "master" branch is not unborn.
-		if err = r.CreateRemoteRef(project, "master", ""); err != nil {
-			return errors.Annotate(err, "failed to init git repo for %s", projectLabel).Err()
+			// Make an initial commit so that the "master" branch is not unborn.
+			if err = r.CreateRemoteRef(project, "master", ""); err != nil {
+				return errors.Annotate(err, "failed to init git repo for %s", projectLabel).Err()
+			}
 		}
 		// If revision is set, create that branch too.
 		if project.Revision != "" && !strings.HasPrefix(project.Revision, "refs/heads/") {
@@ -146,6 +147,7 @@ func (r *RepoHarness) Initialize(config *RepoHarnessConfig) error {
 	// `repo sync`.
 	// TOOD(@jackneus): Will syncing from (and then deleting) a temp repo make subsequent
 	// `repo sync`s fail?
+	// Answer: yes
 	manifestRepo, err := ioutil.TempDir(r.harnessRoot, "manifest-repo")
 	defer os.RemoveAll(manifestRepo)
 	if err != nil {
@@ -158,6 +160,7 @@ func (r *RepoHarness) Initialize(config *RepoHarnessConfig) error {
 		git.CommitAll(manifestRepo, "commit manifest"),
 		r.runCommand([]string{"repo", "init", "--manifest-url", manifestRepo}, r.LocalRepo),
 	}
+
 	for _, err := range errs {
 		if err != nil {
 			return errors.Annotate(err, "failed to initialize local checkout").Err()
@@ -190,7 +193,7 @@ func (r *RepoHarness) Teardown() error {
 // CreateRemoteRef creates a remote ref for a specific project.
 // Otherwise, a temporary local checkout will be created and an empty commit
 // will be used to create the remote ref.
-func (r *RepoHarness) CreateRemoteRef(project repo.Project, ref string, commit string) error {
+func (r *GenericRepoHarness) CreateRemoteRef(project repo.Project, ref, commit string) error {
 	projectLabel := fmt.Sprintf("%s/%s", project.RemoteName, project.Name)
 	remoteProjectPath := r.getRemotePath(project)
 

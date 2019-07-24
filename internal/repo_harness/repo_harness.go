@@ -32,6 +32,11 @@ type File struct {
 	Perm     os.FileMode
 }
 
+const (
+	readWritePerms = 0666
+	dirPerms       = 0777
+)
+
 type RepoHarnessConfig struct {
 	// Initialize() will create a test harness with
 	// the appropriate remote repos and a local repo.
@@ -39,11 +44,6 @@ type RepoHarnessConfig struct {
 	// projects created (with initialized git repos inside them).
 	Manifest repo.Manifest
 }
-
-const (
-	readWritePerms = 0666
-	dirPerms       = 0777
-)
 
 type RepoHarness struct {
 	// Manifest that defines the harness configuration.
@@ -54,7 +54,7 @@ type RepoHarness struct {
 	LocalRepo string
 }
 
-func (r *RepoHarness) RunCommand(cmd []string, cwd string) error {
+func (r *RepoHarness) runCommand(cmd []string, cwd string) error {
 	if cwd == "" {
 		cwd = r.harnessRoot
 	}
@@ -156,14 +156,14 @@ func (r *RepoHarness) Initialize(config *RepoHarnessConfig) error {
 		git.Init(manifestRepo, false),
 		r.manifest.Write(manifestPath),
 		git.CommitAll(manifestRepo, "commit manifest"),
-		r.RunCommand([]string{"repo", "init", "--manifest-url", manifestRepo}, r.LocalRepo),
+		r.runCommand([]string{"repo", "init", "--manifest-url", manifestRepo}, r.LocalRepo),
 	}
 	for _, err := range errs {
 		if err != nil {
 			return errors.Annotate(err, "failed to initialize local checkout").Err()
 		}
 	}
-	err = r.RunCommand([]string{"repo", "sync"}, r.LocalRepo)
+	err = r.runCommand([]string{"repo", "sync"}, r.LocalRepo)
 	if err != nil {
 		return errors.Annotate(err, "failed to sync local checkout").Err()
 	}
@@ -176,6 +176,15 @@ func (r *RepoHarness) assertInitialized() error {
 		return fmt.Errorf("repo harness needs to be initialized")
 	}
 	return nil
+}
+
+func (r *RepoHarness) Teardown() error {
+	if r.harnessRoot != "" {
+		root := r.harnessRoot
+		r.harnessRoot = ""
+		return os.RemoveAll(root)
+	}
+	return fmt.Errorf("harness was never initialized")
 }
 
 // CreateRemoteRef creates a remote ref for a specific project.
@@ -273,15 +282,6 @@ func (r *RepoHarness) AddFile(file File) error {
 	return nil
 }
 
-func (r *RepoHarness) Teardown() error {
-	if r.harnessRoot != "" {
-		root := r.harnessRoot
-		r.harnessRoot = ""
-		return os.RemoveAll(root)
-	}
-	return fmt.Errorf("harness was never initialized")
-}
-
 func (r *RepoHarness) AddFiles(files []File) error {
 	if err := r.assertInitialized(); err != nil {
 		return err
@@ -294,6 +294,19 @@ func (r *RepoHarness) AddFiles(files []File) error {
 	}
 
 	return nil
+}
+
+// Snapshot recursively copies a directory's contents to a temp dir.
+func (r *RepoHarness) Snapshot(path string) (string, error) {
+	snapshotRoot := filepath.Join(r.harnessRoot, "snapshots/")
+	snapshotDir, err := ioutil.TempDir(snapshotRoot, "snapshot")
+	if err != nil {
+		return "", err
+	}
+	if err = copy.Copy(path, snapshotDir); err != nil {
+		return "", err
+	}
+	return snapshotDir, nil
 }
 
 // getRemotePath gets the path to the remote project repo.
@@ -358,17 +371,4 @@ func (r *RepoHarness) AssertProjectBranchHasAncestor(project repo.Project, branc
 		return fmt.Errorf("branch %s does not descend from snapshot at %s", branch, snapshotPath)
 	}
 	return nil
-}
-
-// Snapshot recursively copies a directory's contents to a temp dir.
-func (r *RepoHarness) Snapshot(path string) (string, error) {
-	snapshotRoot := filepath.Join(r.harnessRoot, "snapshots/")
-	snapshotDir, err := ioutil.TempDir(snapshotRoot, "snapshot")
-	if err != nil {
-		return "", err
-	}
-	if err = copy.Copy(path, snapshotDir); err != nil {
-		return "", err
-	}
-	return snapshotDir, nil
 }

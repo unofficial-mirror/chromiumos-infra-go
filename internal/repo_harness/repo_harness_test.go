@@ -38,11 +38,22 @@ var simpleHarnessConfig = RepoHarnessConfig{
 		},
 	},
 }
-var simpleFiles = []File{
-	{Project: "foo1/", Name: "README", Contents: []byte("foo1")},
-	{Project: "foo2/", Name: "ALSO_README", Contents: []byte("foo2")},
-	{Project: "bar/", Name: "README", Contents: []byte("bar")},
-	{Project: "baz/", Name: "SECRET", Contents: []byte("internal only")},
+
+// Maps project path to files.
+var simpleFiles = map[string]([]File){
+	"foo1/": []File{
+		{Name: "README", Contents: []byte("foo1")},
+		{Name: "code/DOCS", Contents: []byte("this is a document in a subdirectory")},
+	},
+	"foo2/": []File{
+		{Name: "ALSO_README", Contents: []byte("foo2")},
+	},
+	"bar/": []File{
+		{Name: "README", Contents: []byte("bar")},
+	},
+	"baz/": []File{
+		{Name: "SECRET", Contents: []byte("internal only")},
+	},
 }
 var multilevelProjectHarnessConfig = RepoHarnessConfig{
 	Manifest: repo.Manifest{
@@ -174,42 +185,6 @@ func TestCreateRemoteRef(t *testing.T) {
 	assert.Assert(t, test_util.UnorderedContains(refs, []string{"refs/heads/ref1", "refs/heads/ref2"}))
 }
 
-func TestAddFile_simple(t *testing.T) {
-	harnessConfig := simpleHarnessConfig
-	harness := &RepoHarness{}
-	defer harness.Teardown()
-	err := harness.Initialize(&harnessConfig)
-	assert.NilError(t, err)
-
-	for _, file := range simpleFiles {
-		_, err = harness.AddFile(file)
-		assert.NilError(t, err)
-	}
-
-	// Check that all files were added to remotes.
-	for _, file := range simpleFiles {
-		project, err := harness.manifest.GetProjectByPath(file.Project)
-		assert.NilError(t, err)
-		remoteName := project.RemoteName
-
-		tmpDir, err := ioutil.TempDir(harness.harnessRoot, "tmp-clone-dir")
-
-		err = git.Clone(filepath.Join(harness.harnessRoot, remoteName, project.Name), tmpDir)
-		assert.NilError(t, err)
-
-		// Check that file exists.
-		filePath := filepath.Join(tmpDir, file.Name)
-		_, err = os.Stat(filePath)
-		assert.NilError(t, err)
-		// Check file contents.
-		fileContents, err := ioutil.ReadFile(filePath)
-		assert.NilError(t, err)
-		assert.Assert(t, reflect.DeepEqual(file.Contents, fileContents))
-
-		os.RemoveAll(tmpDir)
-	}
-}
-
 func TestAddFiles_simple(t *testing.T) {
 	harnessConfig := simpleHarnessConfig
 	harness := &RepoHarness{}
@@ -217,30 +192,119 @@ func TestAddFiles_simple(t *testing.T) {
 	err := harness.Initialize(&harnessConfig)
 	assert.NilError(t, err)
 
-	assert.NilError(t, harness.AddFiles(simpleFiles))
+	for _, project := range simpleHarnessConfig.Manifest.Projects {
+		files, ok := simpleFiles[project.Path]
+		if !ok {
+			continue
+		}
+		_, err := harness.AddFiles(project, "master", files)
+		assert.NilError(t, err)
+	}
 
 	// Check that all files were added to remotes.
-	for _, file := range simpleFiles {
-		project, err := harness.manifest.GetProjectByPath(file.Project)
+	for projectPath, files := range simpleFiles {
+		project, err := harness.manifest.GetProjectByPath(projectPath)
 		assert.NilError(t, err)
-		remoteName := project.RemoteName
-
 		tmpDir, err := ioutil.TempDir(harness.harnessRoot, "tmp-clone-dir")
 
-		err = git.Clone(filepath.Join(harness.harnessRoot, remoteName, project.Name), tmpDir)
+		err = git.Clone(harness.getRemotePath(*project), tmpDir)
 		assert.NilError(t, err)
 
-		// Check that file exists.
-		filePath := filepath.Join(tmpDir, file.Name)
-		_, err = os.Stat(filePath)
-		assert.NilError(t, err)
-		// Check file contents.
-		fileContents, err := ioutil.ReadFile(filePath)
-		assert.NilError(t, err)
-		assert.Assert(t, reflect.DeepEqual(file.Contents, fileContents))
-
+		for _, file := range files {
+			// Check that file exists.
+			filePath := filepath.Join(tmpDir, file.Name)
+			_, err = os.Stat(filePath)
+			assert.NilError(t, err)
+			// Check file contents.
+			fileContents, err := ioutil.ReadFile(filePath)
+			assert.NilError(t, err)
+			assert.Assert(t, reflect.DeepEqual(file.Contents, fileContents))
+		}
 		os.RemoveAll(tmpDir)
 	}
+}
+
+// Tests a few specific things:
+// Creating a file in a branch other than master
+// Creating a nested file (e.g. a/b/c.txt)
+func TestAddFile(t *testing.T) {
+	harnessConfig := simpleHarnessConfig
+	harness := &RepoHarness{}
+	defer harness.Teardown()
+	assert.NilError(t, harness.Initialize(&harnessConfig))
+
+	project := harness.manifest.Projects[0]
+
+	projectPath := harness.getRemotePath(project)
+	remoteRef := git.RemoteRef{
+		Remote: project.RemoteName,
+		Ref:    "foo1",
+	}
+	file := File{Name: "docs/README", Contents: []byte("foo1")}
+	_, err := harness.AddFile(project, remoteRef.Ref, file)
+	assert.NilError(t, err)
+
+	// Check that file was added to remote.
+	tmpDir, err := ioutil.TempDir(harness.harnessRoot, "tmp-clone-dir")
+
+	assert.NilError(t, git.Init(tmpDir, false))
+	assert.NilError(t, git.AddRemote(tmpDir, project.RemoteName, projectPath))
+	assert.NilError(t, git.CreateTrackingBranch(tmpDir, "tmp", remoteRef))
+
+	// Check that file exists.
+	filePath := filepath.Join(tmpDir, file.Name)
+	_, err = os.Stat(filePath)
+	assert.NilError(t, err)
+	// Check file contents.
+	fileContents, err := ioutil.ReadFile(filePath)
+	assert.NilError(t, err)
+	assert.Assert(t, reflect.DeepEqual(file.Contents, fileContents))
+}
+
+func TestReadFile(t *testing.T) {
+	harnessConfig := simpleHarnessConfig
+	harness := &RepoHarness{}
+	//defer harness.Teardown()
+	assert.NilError(t, harness.Initialize(&harnessConfig))
+
+	fmt.Printf("%s\n", harness.harnessRoot)
+
+	project := harness.manifest.Projects[0]
+
+	remoteRef := git.RemoteRef{
+		Remote: project.RemoteName,
+		Ref:    "foo1",
+	}
+	file := File{Name: "docs/README", Contents: []byte("foo1")}
+	_, err := harness.AddFile(project, remoteRef.Ref, file)
+	assert.NilError(t, err)
+
+	// Testing ReadFile by assuming correctness of Initialize and AddFile is
+	// obviously not ideal, but there's not really a better way to do it
+	// without essentially reimplementing AddFile inline.
+	contents, err := harness.ReadFile(project, remoteRef.Ref, "docs/README")
+	assert.NilError(t, err)
+	assert.Equal(t, string(contents), "foo1")
+
+	_, err = harness.ReadFile(project, remoteRef.Ref, "docs/MISSING")
+	assert.Assert(t, err != nil)
+}
+
+func TestAddFile_missingBranch(t *testing.T) {
+	harnessConfig := simpleHarnessConfig
+	harness := &RepoHarness{}
+	defer harness.Teardown()
+	assert.NilError(t, harness.Initialize(&harnessConfig))
+
+	project := harness.manifest.Projects[0]
+
+	remoteRef := git.RemoteRef{
+		Remote: project.RemoteName,
+		Ref:    "bogus",
+	}
+	file := File{Name: "docs/README", Contents: []byte("foo1")}
+	_, err := harness.AddFile(project, remoteRef.Ref, file)
+	assert.ErrorContains(t, err, "could not fetch")
 }
 
 func TestTeardown(t *testing.T) {
@@ -400,7 +464,7 @@ func TestAssertProjectBranchEqual(t *testing.T) {
 	assert.NilError(t, err)
 	// Clone remote so that we have two identical repos.
 	assert.NilError(t, git.Clone(remote, local))
-	fmt.Printf("%s %s\n", remote, local)
+
 	assert.NilError(t, harness.AssertProjectBranchEqual(project, "master", remote))
 	// Now, make commit to local.
 	assert.NilError(t, ioutil.WriteFile(filepath.Join(local, "bar"), []byte("bar"), 0644))
@@ -433,7 +497,7 @@ func TestAssertProjectBranchHasAncestor(t *testing.T) {
 	assert.NilError(t, err)
 	// Clone remote so that we have two identical repos.
 	assert.NilError(t, git.Clone(remote, local))
-	fmt.Printf("%s %s\n", remote, local)
+
 	assert.NilError(t, harness.AssertProjectBranchHasAncestor(project, "master", remote))
 
 	// Now, make commit to local. We should still be good.

@@ -25,9 +25,7 @@ var (
 	CommandRunnerImpl cmd.CommandRunner = cmd.RealCommandRunner{}
 )
 
-// A ProjectFile struct describes a file to be placed in a particular project.
 type File struct {
-	Project  string
 	Name     string
 	Contents []byte
 	Perm     os.FileMode
@@ -244,66 +242,95 @@ func (r *RepoHarness) CreateRemoteRef(project repo.Project, ref, commit string) 
 	return nil
 }
 
-// This is needed for projects with multiple checkouts.
+// AddFile adds a file to the specified branch in the specified remote project.
 // Returns the sha1 of the commit that adds the file.
-func (r *RepoHarness) AddFile(file File) (string, error) {
+func (r *RepoHarness) AddFile(project repo.Project, branch string, file File) (string, error) {
+	return r.AddFiles(project, branch, []File{file})
+}
+
+// AddFiles adds files to the specified branch in the specified remote project.
+// Returns a map with the sha1's of the commits.
+func (r *RepoHarness) AddFiles(project repo.Project, branch string, files []File) (string, error) {
 	if err := r.assertInitialized(); err != nil {
 		return "", err
 	}
 
-	project, err := r.manifest.GetProjectByPath(file.Project)
-	if err != nil {
-		return "", err
-	}
 	projectLabel := fmt.Sprintf("%s", project.Path)
 
 	// Populate project in specified remote with files. Because the remote repository is bare,
 	// we need to write/commit the files locally and then push them to the remote.
 	// We do this using a temp checkout of the appropriate remote.
-	tmpRepo := filepath.Join(r.harnessRoot, "tmp-repo")
-	filePath := filepath.Join(tmpRepo, file.Name)
-	if file.Perm == 0 {
-		file.Perm = 0644
-	}
+	tmpRepo, err := ioutil.TempDir(r.harnessRoot, "tmp-repo")
+	defer os.RemoveAll(tmpRepo)
 
+	projectPath := r.getRemotePath(project)
 	remoteRef := git.RemoteRef{
-		Remote: "origin",
-		Ref:    "master",
+		Remote: project.RemoteName,
+		Ref:    branch,
 	}
 
 	errs := []error{
-		os.Mkdir(tmpRepo, dirPerms),
-		git.Clone(r.getRemotePath(*project), tmpRepo),
-		ioutil.WriteFile(filePath, file.Contents, file.Perm),
-	}
-	commit, err := git.PushChanges(tmpRepo, "master", "initial commit", false, remoteRef)
-	errs = append(errs,
 		err,
-		os.RemoveAll(tmpRepo),
-	)
+		git.Init(tmpRepo, false),
+		git.AddRemote(tmpRepo, project.RemoteName, projectPath),
+		git.CreateTrackingBranch(tmpRepo, "tmp", remoteRef),
+	}
+
+	for _, file := range files {
+		filePath := filepath.Join(tmpRepo, file.Name)
+		// Set file perms to default value if not specified.
+		if file.Perm == 0 {
+			file.Perm = readWritePerms
+		}
+
+		errs = append(errs,
+			os.MkdirAll(filepath.Dir(filePath), dirPerms),
+			ioutil.WriteFile(filePath, file.Contents, file.Perm))
+	}
+
+	commit, err := git.PushChanges(tmpRepo, "tmp", "add files", false, remoteRef)
+	errs = append(errs, err)
+
 	for _, err = range errs {
 		if err != nil {
-			return "", errors.Annotate(err, "failed to add file %s to %s", file.Name, projectLabel).Err()
+			return "", errors.Annotate(err, "failed to add files to %s", projectLabel).Err()
 		}
 	}
 
 	return commit, nil
 }
 
-// TODO(@jackneus): rewrite so that only one commit is made to each project.
-// Return a map with the sha1's of the commits.
-func (r *RepoHarness) AddFiles(files []File) error {
+// ReadFile reads a file from a remote.
+func (r *RepoHarness) ReadFile(project repo.Project, branch, filePath string) ([]byte, error) {
 	if err := r.assertInitialized(); err != nil {
-		return err
+		return []byte{}, err
 	}
-	for _, file := range files {
-		_, err := r.AddFile(file)
+	tmpRepo, err := ioutil.TempDir(r.harnessRoot, "tmp-repo")
+	defer os.RemoveAll(tmpRepo)
+
+	remotePath := r.getRemotePath(project)
+	remoteRef := git.RemoteRef{
+		Remote: "remote",
+		Ref:    branch,
+	}
+	remoteBranch := fmt.Sprintf("%s/%s", remoteRef.Remote, git.StripRefs(remoteRef.Ref))
+	// Checkout just the file we need.
+	errs := []error{
+		git.Init(tmpRepo, false),
+		git.AddRemote(tmpRepo, remoteRef.Remote, remotePath),
+		git.RunGitIgnoreOutput(tmpRepo, []string{"fetch", remoteRef.Remote}),
+		git.RunGitIgnoreOutput(tmpRepo, []string{"checkout", remoteBranch, "--", filePath}),
+	}
+	contents, err := ioutil.ReadFile(filepath.Join(tmpRepo, filePath))
+	errs = append(errs, err)
+
+	for _, err = range errs {
 		if err != nil {
-			return err
+			return []byte{}, errors.Annotate(err, "failed to read file %s from %s/%s", filePath, project.RemoteName, branch).Err()
 		}
 	}
 
-	return nil
+	return contents, nil
 }
 
 // Snapshot recursively copies a directory's contents to a temp dir.
@@ -373,6 +400,7 @@ func (r *RepoHarness) AssertProjectBranchHasAncestor(project repo.Project, branc
 	if err != nil {
 		return err
 	}
+
 	ok, err := git.IsReachable(r.getRemotePath(project), ancestor, descendent)
 	if err != nil {
 		return err

@@ -39,6 +39,13 @@ func RunGit(gitRepo string, cmd []string) (CommandOutput, error) {
 	return cmdOutput, err
 }
 
+// RunGitIgnore the specified git command in the specified repo and returns
+// only an error, not the command output.
+func RunGitIgnoreOutput(gitRepo string, cmd []string) error {
+	_, err := RunGit(gitRepo, cmd)
+	return err
+}
+
 // GetCurrentBranch returns current branch of a repo, and an empty string
 // if repo is on detached HEAD.
 func GetCurrentBranch(cwd string) string {

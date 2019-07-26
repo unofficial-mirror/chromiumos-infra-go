@@ -36,6 +36,19 @@ const (
 	dirPerms       = 0777
 )
 
+// Identifies a remote project.
+type RemoteProject struct {
+	RemoteName  string
+	ProjectName string
+}
+
+func GetRemoteProject(project repo.Project) RemoteProject {
+	return RemoteProject{
+		RemoteName:  project.RemoteName,
+		ProjectName: project.Name,
+	}
+}
+
 type RepoHarnessConfig struct {
 	// Initialize() will create a test harness with
 	// the appropriate remote repos and a local repo.
@@ -123,7 +136,7 @@ func (r *RepoHarness) Initialize(config *RepoHarnessConfig) error {
 			}
 
 			// Make an initial commit so that the "master" branch is not unborn.
-			if err = r.CreateRemoteRef(project, "master", ""); err != nil {
+			if err = r.CreateRemoteRef(GetRemoteProject(project), "master", ""); err != nil {
 				return errors.Annotate(err, "failed to init git repo for %s", projectLabel).Err()
 			}
 		}
@@ -134,7 +147,7 @@ func (r *RepoHarness) Initialize(config *RepoHarnessConfig) error {
 
 		revision := git.StripRefs(project.Revision)
 		if revision != "" && revision != "master" {
-			if err = r.CreateRemoteRef(project, revision, ""); err != nil {
+			if err = r.CreateRemoteRef(GetRemoteProject(project), revision, ""); err != nil {
 				return errors.Annotate(err, "failed to init git repo for %s", projectLabel).Err()
 			}
 		}
@@ -194,8 +207,8 @@ func (r *RepoHarness) Teardown() error {
 // CreateRemoteRef creates a remote ref for a specific project.
 // Otherwise, a temporary local checkout will be created and an empty commit
 // will be used to create the remote ref.
-func (r *RepoHarness) CreateRemoteRef(project repo.Project, ref, commit string) error {
-	projectLabel := fmt.Sprintf("%s/%s", project.RemoteName, project.Name)
+func (r *RepoHarness) CreateRemoteRef(project RemoteProject, ref string, commit string) error {
+	projectLabel := fmt.Sprintf("%s/%s", project.RemoteName, project.ProjectName)
 	remoteProjectPath := r.getRemotePath(project)
 
 	var repoPath string
@@ -244,18 +257,18 @@ func (r *RepoHarness) CreateRemoteRef(project repo.Project, ref, commit string) 
 
 // AddFile adds a file to the specified branch in the specified remote project.
 // Returns the sha1 of the commit that adds the file.
-func (r *RepoHarness) AddFile(project repo.Project, branch string, file File) (string, error) {
+func (r *RepoHarness) AddFile(project RemoteProject, branch string, file File) (string, error) {
 	return r.AddFiles(project, branch, []File{file})
 }
 
 // AddFiles adds files to the specified branch in the specified remote project.
 // Returns a map with the sha1's of the commits.
-func (r *RepoHarness) AddFiles(project repo.Project, branch string, files []File) (string, error) {
+func (r *RepoHarness) AddFiles(project RemoteProject, branch string, files []File) (string, error) {
 	if err := r.assertInitialized(); err != nil {
 		return "", err
 	}
 
-	projectLabel := fmt.Sprintf("%s", project.Path)
+	projectLabel := fmt.Sprintf("%s", project.ProjectName)
 
 	// Populate project in specified remote with files. Because the remote repository is bare,
 	// we need to write/commit the files locally and then push them to the remote.
@@ -301,7 +314,7 @@ func (r *RepoHarness) AddFiles(project repo.Project, branch string, files []File
 }
 
 // ReadFile reads a file from a remote.
-func (r *RepoHarness) ReadFile(project repo.Project, branch, filePath string) ([]byte, error) {
+func (r *RepoHarness) ReadFile(project RemoteProject, branch, filePath string) ([]byte, error) {
 	if err := r.assertInitialized(); err != nil {
 		return []byte{}, err
 	}
@@ -347,12 +360,12 @@ func (r *RepoHarness) Snapshot(path string) (string, error) {
 }
 
 // getRemotePath gets the path to the remote project repo.
-func (r *RepoHarness) getRemotePath(project repo.Project) string {
-	return filepath.Join(r.harnessRoot, project.RemoteName, project.Name)
+func (r *RepoHarness) getRemotePath(project RemoteProject) string {
+	return filepath.Join(r.harnessRoot, project.RemoteName, project.ProjectName)
 }
 
 // AssertProjectBranches asserts that the remote project has the correct branches.
-func (r *RepoHarness) AssertProjectBranches(project repo.Project, branches []string) error {
+func (r *RepoHarness) AssertProjectBranches(project RemoteProject, branches []string) error {
 	if err := r.assertInitialized(); err != nil {
 		return err
 	}
@@ -361,7 +374,7 @@ func (r *RepoHarness) AssertProjectBranches(project repo.Project, branches []str
 }
 
 // AssertProjectBranchesExact asserts that the remote project has only the correct branches.
-func (r *RepoHarness) AssertProjectBranchesExact(project repo.Project, branches []string) error {
+func (r *RepoHarness) AssertProjectBranchesExact(project RemoteProject, branches []string) error {
 	if err := r.assertInitialized(); err != nil {
 		return err
 	}
@@ -371,7 +384,7 @@ func (r *RepoHarness) AssertProjectBranchesExact(project repo.Project, branches 
 
 // AssertProjectBranchEqual asserts that the specified branch in the project matches
 // the corresponding branch in the given snapshot.
-func (r *RepoHarness) AssertProjectBranchEqual(project repo.Project, branch, snapshotPath string) error {
+func (r *RepoHarness) AssertProjectBranchEqual(project RemoteProject, branch, snapshotPath string) error {
 	if err := r.assertInitialized(); err != nil {
 		return err
 	}
@@ -391,8 +404,8 @@ func (r *RepoHarness) AssertProjectBranchEqual(project repo.Project, branch, sna
 
 // AssertProjectBranchHasAncestor asserts that the specified branch in the project descends
 // from the given snapshot.
-func (r *RepoHarness) AssertProjectBranchHasAncestor(project repo.Project, branch, snapshotPath string) error {
-	ancestor, err := git.GetGitRepoRevision(snapshotPath, project.Revision)
+func (r *RepoHarness) AssertProjectBranchHasAncestor(project RemoteProject, branch, snapshotPath, snapshotBranch string) error {
+	ancestor, err := git.GetGitRepoRevision(snapshotPath, snapshotBranch)
 	if err != nil {
 		return err
 	}

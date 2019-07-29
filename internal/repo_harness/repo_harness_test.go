@@ -144,6 +144,36 @@ func TestInitialize_badRevision(t *testing.T) {
 	assert.ErrorContains(t, harness.Initialize(&harnessConfig), "refs/heads")
 }
 
+func TestInitializeNoRemotes(t *testing.T) {
+	config := &RepoHarnessConfig{
+		Manifest: repo.Manifest{
+			Projects: []repo.Project{
+				{Name: "foo", Path: "foo/"},
+			},
+		},
+	}
+	harness := &RepoHarness{}
+	defer harness.Teardown()
+	err := harness.Initialize(config)
+	assert.ErrorContains(t, err, "remotes")
+}
+
+func TestInitializeDefaultDefault(t *testing.T) {
+	config := &RepoHarnessConfig{
+		Manifest: repo.Manifest{
+			Remotes: []repo.Remote{
+				{Name: "cros"},
+			},
+		},
+	}
+	r := &RepoHarness{}
+	defer r.Teardown()
+	err := r.Initialize(config)
+	assert.NilError(t, err)
+	assert.Equal(t, r.Manifest().Default.RemoteName, "cros")
+	assert.Equal(t, r.Manifest().Default.Revision, "refs/heads/master")
+}
+
 func TestCreateRemoteRef(t *testing.T) {
 	root, err := ioutil.TempDir("", "create_remote_ref_test")
 	defer os.RemoveAll(root)
@@ -270,9 +300,6 @@ func TestReadFile(t *testing.T) {
 	harness := &RepoHarness{}
 	//defer harness.Teardown()
 	assert.NilError(t, harness.Initialize(&harnessConfig))
-
-	fmt.Printf("%s\n", harness.harnessRoot)
-
 	project := harness.manifest.Projects[0]
 
 	remoteRef := git.RemoteRef{

@@ -66,6 +66,14 @@ type RepoHarness struct {
 	LocalRepo string
 }
 
+func (r *RepoHarness) Manifest() repo.Manifest {
+	return r.manifest
+}
+
+func (r *RepoHarness) HarnessRoot() string {
+	return r.harnessRoot
+}
+
 func (r *RepoHarness) runCommand(cmd []string, cwd string) error {
 	if cwd == "" {
 		cwd = r.harnessRoot
@@ -81,6 +89,19 @@ func (r *RepoHarness) runCommand(cmd []string, cwd string) error {
 }
 
 func (r *RepoHarness) Initialize(config *RepoHarnessConfig) error {
+	// Protect client, because we really don't want repo to try and hit chromium.googlesource.com.
+	// Unless client has explicitly messed with the manifest to make it work, this won't work
+	// and will fail fairly slowly.
+	if len(config.Manifest.Remotes) == 0 {
+		return fmt.Errorf("no remotes specified in config manifest")
+	}
+	if config.Manifest.Default.RemoteName == "" {
+		config.Manifest.Default.RemoteName = config.Manifest.Remotes[0].Name
+	}
+	if config.Manifest.Default.Revision == "" {
+		config.Manifest.Default.Revision = "refs/heads/master"
+	}
+
 	var err error
 	// Set up root directory for harness instance.
 	r.harnessRoot, err = ioutil.TempDir("", "repo_harness")
@@ -147,6 +168,10 @@ func (r *RepoHarness) Initialize(config *RepoHarnessConfig) error {
 
 		revision := git.StripRefs(project.Revision)
 		if revision != "" && revision != "master" {
+			// Creating the revision ref from a fresh repo/commit and not from refs/heads/master is
+			// kind of nice because it removes some false positives from AssertCrosBranchFromManifest
+			// -- if a multicheckout branch is created from refs/heads/master instead of its set
+			// revision, the assert would still pass if the revision itself descends from refs/heads/master.
 			if err = r.CreateRemoteRef(GetRemoteProject(project), revision, ""); err != nil {
 				return errors.Annotate(err, "failed to init git repo for %s", projectLabel).Err()
 			}

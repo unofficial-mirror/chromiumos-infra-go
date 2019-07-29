@@ -86,6 +86,17 @@ func (m *Manifest) GetRemoteByName(name string) *Remote {
 	return &Remote{}
 }
 
+// GetProjectByName returns a pointer to the remote with
+// the given path in the given manifest.
+func (m *Manifest) GetProjectByName(name string) (*Project, error) {
+	for _, project := range m.Projects {
+		if project.Name == name {
+			return &project, nil
+		}
+	}
+	return &Project{}, fmt.Errorf("project %s does not exist in manifest", name)
+}
+
 // GetProjectByPath returns a pointer to the remote with
 // the given path in the given manifest.
 func (m *Manifest) GetProjectByPath(name string) (*Project, error) {

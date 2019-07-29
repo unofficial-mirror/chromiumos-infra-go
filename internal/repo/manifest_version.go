@@ -28,8 +28,8 @@ const (
 
 // This is a var and not a const for testing purposes.
 var (
-	VersionFilePath string = "src/third_party/chromiumos-overlay/" +
-		"chromeos/config/chromeos_version.sh"
+	VersionFileProjectPath string = "chromeos/config/chromeos_version.sh"
+	VersionFilePath        string = filepath.Join("src/third_party/chromiumos-overlay/", VersionFileProjectPath)
 )
 
 const (
@@ -52,19 +52,38 @@ type VersionInfo struct {
 	VersionFile       string
 }
 
-func GetVersionInfoFromRepo(sourceRepo string) (VersionInfo, error) {
-	var v VersionInfo
-	v.VersionFile = filepath.Join(sourceRepo, VersionFilePath)
+// VersionsEqual returns true if the two versions are equal, and false otherwise.
+func VersionsEqual(a, b VersionInfo) bool {
+	return (a.ChromeBranch == b.ChromeBranch &&
+		a.BuildNumber == b.BuildNumber &&
+		a.BranchBuildNumber == b.BranchBuildNumber &&
+		a.PatchNumber == b.PatchNumber)
+}
 
-	fileData, err := ioutil.ReadFile(v.VersionFile)
+// GetVersionInfoFromRepo reads version info from a fixed location in the specified repository.
+func GetVersionInfoFromRepo(sourceRepo string) (VersionInfo, error) {
+	versionFile := filepath.Join(sourceRepo, VersionFilePath)
+
+	fileData, err := ioutil.ReadFile(versionFile)
 	if err != nil {
-		return VersionInfo{}, fmt.Errorf("could not read version file %s", v.VersionFile)
+		return VersionInfo{}, fmt.Errorf("could not read version file %s", versionFile)
 	}
 
+	v, err := ParseVersionInfo(fileData)
+	v.VersionFile = versionFile
+	return v, err
+}
+
+// ParseVersionInfo parses file contents for version info.
+func ParseVersionInfo(fileData []byte) (VersionInfo, error) {
+	var v VersionInfo
+	fieldsFound := make(map[VersionComponent]bool)
 	for field, pattern := range chromeosVersionMapping {
 		if match := findValue(pattern, string(fileData)); match != "" {
 			num, err := strconv.Atoi(match)
 			if err != nil {
+				// log.Fatal here because the regex only matches on integers -- there's no way
+				// this should be able to happen.
 				log.Fatal(fmt.Sprintf("%s value %s could not be converted to integer.", field, match))
 			}
 			switch field {
@@ -80,10 +99,16 @@ func GetVersionInfoFromRepo(sourceRepo string) (VersionInfo, error) {
 				// This should never happen.
 				log.Fatal("Invalid version component.")
 			}
+			fieldsFound[field] = true
 			continue
 		}
 	}
-
+	for _, field := range []VersionComponent{ChromeBranch, Build, Branch, Patch} {
+		_, ok := fieldsFound[field]
+		if !ok {
+			return v, fmt.Errorf("did not find field %s", string(field))
+		}
+	}
 	return v, nil
 }
 

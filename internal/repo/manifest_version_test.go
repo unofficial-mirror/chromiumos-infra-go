@@ -15,6 +15,19 @@ import (
 	"gotest.tools/assert"
 )
 
+func TestVersionsEqual(t *testing.T) {
+	a := VersionInfo{
+		ChromeBranch:      1,
+		BuildNumber:       2,
+		BranchBuildNumber: 3,
+		PatchNumber:       4,
+	}
+	b := a
+	b.BranchBuildNumber = 5
+	assert.Assert(t, VersionsEqual(a, a))
+	assert.Assert(t, !VersionsEqual(a, b))
+}
+
 func assertVersionEqual(t *testing.T, v VersionInfo, expected []int) {
 	assert.Equal(t, v.ChromeBranch, expected[0])
 	assert.Equal(t, v.BuildNumber, expected[1])
@@ -27,6 +40,54 @@ func TestGetVersionInfoFromRepo_success(t *testing.T) {
 	versionInfo, err := GetVersionInfoFromRepo("test_data")
 	assert.NilError(t, err)
 	assertVersionEqual(t, versionInfo, []int{77, 12302, 1, 0})
+}
+
+const versionFileContents string = `
+if [ -z "${FLAGS_version}" ]; then
+  # Release Build number.
+  # Increment by 1 for every release build.
+  CHROMEOS_BUILD=12302
+
+  # Release Branch number.
+  # Increment by 1 for every release build on a branch.
+  # Reset to 0 when increasing release build number.
+  CHROMEOS_BRANCH=1
+
+  # Patch number.
+  # Increment by 1 in case a non-scheduled branch release build is necessary.
+  # Reset to 0 when increasing branch number.
+  CHROMEOS_PATCH=0
+
+  # Official builds must set CHROMEOS_OFFICIAL=1.
+  if [ ${CHROMEOS_OFFICIAL:-0} -ne 1 ]; then
+    # For developer builds, overwrite CHROMEOS_PATCH with a date string
+    # for use by auto-updater.
+    CHROMEOS_PATCH=$(date +%Y_%m_%d_%H%M)
+  fi
+
+  # Version string. Not indentied to appease bash.
+  CHROMEOS_VERSION_STRING=\
+"${CHROMEOS_BUILD}.${CHROMEOS_BRANCH}.${CHROMEOS_PATCH}"
+else
+  CHROMEOS_BUILD=$(echo "${FLAGS_version}" | cut -f 1 -d ".")
+  CHROMEOS_BRANCH=$(echo "${FLAGS_version}" | cut -f 2 -d ".")
+  CHROMEOS_PATCH=$(echo "${FLAGS_version}" | cut -f 3 -d ".")
+  CHROMEOS_VERSION_STRING="${FLAGS_version}"
+fi
+
+# Major version for Chrome.
+CHROME_BRANCH=77
+`
+
+func TestParseVersionInfo_success(t *testing.T) {
+	versionInfo, err := ParseVersionInfo([]byte(versionFileContents))
+	assert.NilError(t, err)
+	assertVersionEqual(t, versionInfo, []int{77, 12302, 1, 0})
+}
+
+func TestParseVersionInfo_error(t *testing.T) {
+	_, err := ParseVersionInfo([]byte("foo"))
+	assert.ErrorContains(t, err, "did not find field")
 }
 
 func TestIncrementVersion_ChromeBranch(t *testing.T) {

@@ -163,6 +163,25 @@ func TestIsReachable_false(t *testing.T) {
 	assert.Assert(t, !ok)
 }
 
+func TestIsReachable_self(t *testing.T) {
+	CommandRunnerImpl = cmd.RealCommandRunner{}
+
+	tmpDir := "gittest_tmp_dir"
+	tmpDir, err := ioutil.TempDir("", tmpDir)
+	defer os.RemoveAll(tmpDir)
+
+	assert.NilError(t, err)
+	// Create repo.
+	assert.NilError(t, Init(tmpDir, false))
+	// Make commit.
+	commit, err := CommitEmpty(tmpDir, "empty commit")
+	assert.NilError(t, err)
+	// Check that a SHA is reachable from itself.
+	ok, err := IsReachable(tmpDir, commit, commit)
+	assert.NilError(t, err)
+	assert.Assert(t, ok)
+}
+
 func TestCreateBranch(t *testing.T) {
 	fakeGitRepo := "top-secret-project"
 	branchName := "project z"

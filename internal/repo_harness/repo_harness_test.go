@@ -395,15 +395,23 @@ func TestTeardown(t *testing.T) {
 }
 
 func TestGetRemotePath(t *testing.T) {
-	harnessConfig := simpleHarnessConfig
-	harness := &RepoHarness{}
-	defer harness.Teardown()
-	err := harness.Initialize(&harnessConfig)
-	assert.NilError(t, err)
+	harness := &RepoHarness{
+		harnessRoot: "foo/",
+	}
 
-	project := harness.manifest.Projects[0]
+	project := simpleHarnessConfig.Manifest.Projects[0]
 	expectedPath := filepath.Join(harness.harnessRoot, project.RemoteName, project.Name)
 	assert.Equal(t, harness.GetRemotePath(GetRemoteProject(project)), expectedPath)
+}
+
+func TestGetLocalPath(t *testing.T) {
+	harness := &RepoHarness{
+		LocalRepo: "foo/",
+	}
+
+	project := simpleHarnessConfig.Manifest.Projects[0]
+	expectedPath := filepath.Join(harness.LocalRepo, project.Path)
+	assert.Equal(t, harness.GetLocalPath(project), expectedPath)
 }
 
 func TestAssertProjectBranches(t *testing.T) {

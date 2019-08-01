@@ -408,9 +408,14 @@ func (r *RepoHarness) Snapshot(path string) (string, error) {
 	return snapshotDir, nil
 }
 
-// GetRemotePath gets the path to the remote project repo.
+// GetRemotePath returns the path to the remote project repo.
 func (r *RepoHarness) GetRemotePath(project RemoteProject) string {
 	return filepath.Join(r.harnessRoot, project.RemoteName, project.ProjectName)
+}
+
+// GetLocalPath returns the path to the local project repo.
+func (r *RepoHarness) GetLocalPath(project repo.Project) string {
+	return filepath.Join(r.LocalRepo, project.Path)
 }
 
 // AssertProjectBranches asserts that the remote project has the correct branches.

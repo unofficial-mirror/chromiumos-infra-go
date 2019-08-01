@@ -274,7 +274,7 @@ func TestAddFiles_simple(t *testing.T) {
 		assert.NilError(t, err)
 		tmpDir, err := ioutil.TempDir(harness.harnessRoot, "tmp-clone-dir")
 
-		err = git.Clone(harness.getRemotePath(GetRemoteProject(*project)), tmpDir)
+		err = git.Clone(harness.GetRemotePath(GetRemoteProject(*project)), tmpDir)
 		assert.NilError(t, err)
 
 		for _, file := range files {
@@ -302,7 +302,7 @@ func TestAddFile(t *testing.T) {
 
 	project := harness.manifest.Projects[0]
 
-	projectPath := harness.getRemotePath(GetRemoteProject(project))
+	projectPath := harness.GetRemotePath(GetRemoteProject(project))
 	remoteRef := git.RemoteRef{
 		Remote: project.RemoteName,
 		Ref:    "foo1",
@@ -400,7 +400,7 @@ func TestGetRemotePath(t *testing.T) {
 
 	project := harness.manifest.Projects[0]
 	expectedPath := filepath.Join(harness.harnessRoot, project.RemoteName, project.Name)
-	assert.Equal(t, harness.getRemotePath(GetRemoteProject(project)), expectedPath)
+	assert.Equal(t, harness.GetRemotePath(GetRemoteProject(project)), expectedPath)
 }
 
 func TestAssertProjectBranches(t *testing.T) {

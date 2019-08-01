@@ -251,7 +251,7 @@ func (r *RepoHarness) SyncLocalCheckout() error {
 // will be used to create the remote ref.
 func (r *RepoHarness) CreateRemoteRef(project RemoteProject, ref string, commit string) error {
 	projectLabel := fmt.Sprintf("%s/%s", project.RemoteName, project.ProjectName)
-	remoteProjectPath := r.getRemotePath(project)
+	remoteProjectPath := r.GetRemotePath(project)
 
 	var repoPath string
 	var err error
@@ -318,7 +318,7 @@ func (r *RepoHarness) AddFiles(project RemoteProject, branch string, files []Fil
 	tmpRepo, err := ioutil.TempDir(r.harnessRoot, "tmp-repo")
 	defer os.RemoveAll(tmpRepo)
 
-	projectPath := r.getRemotePath(project)
+	projectPath := r.GetRemotePath(project)
 	remoteRef := git.RemoteRef{
 		Remote: project.RemoteName,
 		Ref:    branch,
@@ -363,7 +363,7 @@ func (r *RepoHarness) ReadFile(project RemoteProject, branch, filePath string) (
 	tmpRepo, err := ioutil.TempDir(r.harnessRoot, "tmp-repo")
 	defer os.RemoveAll(tmpRepo)
 
-	remotePath := r.getRemotePath(project)
+	remotePath := r.GetRemotePath(project)
 	remoteRef := git.RemoteRef{
 		Remote: "remote",
 		Ref:    branch,
@@ -401,8 +401,8 @@ func (r *RepoHarness) Snapshot(path string) (string, error) {
 	return snapshotDir, nil
 }
 
-// getRemotePath gets the path to the remote project repo.
-func (r *RepoHarness) getRemotePath(project RemoteProject) string {
+// GetRemotePath gets the path to the remote project repo.
+func (r *RepoHarness) GetRemotePath(project RemoteProject) string {
 	return filepath.Join(r.harnessRoot, project.RemoteName, project.ProjectName)
 }
 
@@ -411,7 +411,7 @@ func (r *RepoHarness) AssertProjectBranches(project RemoteProject, branches []st
 	if err := r.assertInitialized(); err != nil {
 		return err
 	}
-	gitRepo := r.getRemotePath(project)
+	gitRepo := r.GetRemotePath(project)
 	return test_util.AssertGitBranches(gitRepo, branches)
 }
 
@@ -420,7 +420,7 @@ func (r *RepoHarness) AssertProjectBranchesExact(project RemoteProject, branches
 	if err := r.assertInitialized(); err != nil {
 		return err
 	}
-	gitRepo := r.getRemotePath(project)
+	gitRepo := r.GetRemotePath(project)
 	return test_util.AssertGitBranchesExact(gitRepo, branches)
 }
 
@@ -434,7 +434,7 @@ func (r *RepoHarness) AssertProjectBranchEqual(project RemoteProject, branch, sn
 	if err != nil {
 		return err
 	}
-	actual, err := git.GetGitRepoRevision(r.getRemotePath(project), branch)
+	actual, err := git.GetGitRepoRevision(r.GetRemotePath(project), branch)
 	if err != nil {
 		return err
 	}
@@ -451,12 +451,12 @@ func (r *RepoHarness) AssertProjectBranchHasAncestor(project RemoteProject, bran
 	if err != nil {
 		return err
 	}
-	descendent, err := git.GetGitRepoRevision(r.getRemotePath(project), branch)
+	descendent, err := git.GetGitRepoRevision(r.GetRemotePath(project), branch)
 	if err != nil {
 		return err
 	}
 
-	ok, err := git.IsReachable(r.getRemotePath(project), ancestor, descendent)
+	ok, err := git.IsReachable(r.GetRemotePath(project), ancestor, descendent)
 	if err != nil {
 		return err
 	}

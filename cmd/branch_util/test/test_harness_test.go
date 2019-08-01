@@ -4,6 +4,7 @@
 package test
 
 import (
+	"encoding/xml"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -271,4 +272,121 @@ func TestAssertCrosVersion(t *testing.T) {
 	// Wrong branch.
 	version.ChromeBranch = 5
 	assert.Assert(t, r.AssertCrosVersion("branch", version) != nil)
+}
+
+func TestAssertNoDefaultRevisions(t *testing.T) {
+	manifest := repo.Manifest{
+		Default: repo.Default{},
+		Remotes: []repo.Remote{
+			{Name: "remote"},
+		},
+	}
+	assert.NilError(t, AssertNoDefaultRevisions(manifest))
+
+	manifest = repo.Manifest{
+		Default: repo.Default{
+			Revision: "foo",
+		},
+		Remotes: []repo.Remote{
+			{Name: "remote"},
+		},
+	}
+	assert.ErrorContains(t, AssertNoDefaultRevisions(manifest), "<default>")
+
+	manifest = repo.Manifest{
+		Default: repo.Default{},
+		Remotes: []repo.Remote{
+			{Name: "remote", Revision: "foo"},
+		},
+	}
+	assert.ErrorContains(t, AssertNoDefaultRevisions(manifest), "<remote>")
+}
+
+func TestAssertProjectRevisionsMatchBranch(t *testing.T) {
+	config := CrosRepoHarnessConfig{
+		Manifest:       testManifest,
+		VersionProject: "chromiumos/version",
+	}
+	r := &CrosRepoHarness{}
+	defer r.Teardown()
+	err := r.Initialize(&config)
+	assert.NilError(t, err)
+
+	manifest := r.Harness.Manifest()
+	// Deep copy projects so that we can change manifest without changing r.Harness.manifest
+	manifest.Projects = append([]repo.Project(nil), manifest.Projects...)
+
+	// To avoid all the work of actually branching, just switch the revisions on
+	// pinned projects to be SHA-1's instead of 'refs/heads/master'.
+	for _, project := range manifest.GetPinnedProjects() {
+		repoPath := r.Harness.GetRemotePath(rh.GetRemoteProject(*project))
+		masterSha, err := git.GetGitRepoRevision(repoPath, project.Revision)
+		assert.NilError(t, err)
+		project.Revision = masterSha
+	}
+	// Also, to pretend that master is a proper CrOS branch, we need to adjust
+	// the multicheckout revisions.
+	for _, project := range manifest.GetMultiCheckoutProjects() {
+		project.Revision = git.NormalizeRef("master-" + git.StripRefs(project.Revision))
+	}
+
+	assert.NilError(t, r.AssertProjectRevisionsMatchBranch(manifest, "master"))
+	assert.Assert(t, r.AssertProjectRevisionsMatchBranch(manifest, "foo") != nil)
+}
+
+func TestAssertManifestProjectRepaired(t *testing.T) {
+	configManifest := testManifest
+	configManifest.Projects = append(configManifest.Projects, DefaultManifestProject)
+	config := CrosRepoHarnessConfig{
+		Manifest:       configManifest,
+		VersionProject: "chromiumos/version",
+	}
+	r := &CrosRepoHarness{}
+	defer r.Teardown()
+	err := r.Initialize(&config)
+	assert.NilError(t, err)
+
+	// Set up new branch. We have to actually do this because of pinned projects.
+	newBranch := "newbranch"
+	manifestProject := rh.GetRemoteProject(DefaultManifestProject)
+	assert.NilError(t, r.Harness.CreateRemoteRef(manifestProject, newBranch, "master"))
+
+	manifest := r.Harness.Manifest()
+	// Deep copy projects so that we can change manifest without changing r.Harness.manifest
+	manifest.Projects = append([]repo.Project(nil), manifest.Projects...)
+
+	// Switch the revisions on pinned projects to be SHA-1's instead of 'refs/heads/master'.
+	for _, project := range manifest.GetPinnedProjects() {
+		pinnedProject := rh.GetRemoteProject(*project)
+		repoPath := r.Harness.GetRemotePath(pinnedProject)
+		assert.NilError(t, r.Harness.CreateRemoteRef(pinnedProject, newBranch, project.Revision))
+		masterSha, err := git.GetGitRepoRevision(repoPath, newBranch)
+		assert.NilError(t, err)
+		project.Revision = masterSha
+	}
+	for _, project := range manifest.GetSingleCheckoutProjects() {
+		project.Revision = git.NormalizeRef(newBranch)
+	}
+	for _, project := range manifest.GetMultiCheckoutProjects() {
+		project.Revision = git.NormalizeRef(newBranch + "-" + git.StripRefs(project.Revision))
+	}
+
+	// Clear default revisions.
+	for i := range manifest.Remotes {
+		manifest.Remotes[i].Revision = ""
+	}
+	manifest.Default.Revision = ""
+
+	// Write manifest to file.
+	manifestData, err := xml.Marshal(manifest)
+	assert.NilError(t, err)
+	manifestFile := rh.File{
+		Name:     "manifest.xml",
+		Contents: []byte(manifestData),
+	}
+	_, err = r.Harness.AddFile(manifestProject, newBranch, manifestFile)
+	assert.NilError(t, err)
+	assert.NilError(t, r.Harness.SyncLocalCheckout())
+
+	assert.NilError(t, r.AssertManifestProjectRepaired(manifestProject, newBranch, []string{"manifest.xml"}))
 }

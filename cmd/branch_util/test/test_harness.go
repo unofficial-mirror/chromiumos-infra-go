@@ -325,3 +325,123 @@ func (r *CrosRepoHarness) AssertCrosVersion(branch string, version repo.VersionI
 
 	return nil
 }
+
+// AssertNoDefaultRevisions asserts that the given manifest has no default revisions.
+func AssertNoDefaultRevisions(manifest repo.Manifest) error {
+	if manifest.Default.Revision != "" {
+		return fmt.Errorf("manifest <default> has revision %s", manifest.Default.Revision)
+	}
+	for _, remote := range manifest.Remotes {
+		if remote.Revision != "" {
+			return fmt.Errorf("<remote> %s has revision %s", remote.Name, remote.Revision)
+		}
+	}
+	return nil
+}
+
+func assertEqual(expected, actual string) error {
+	if expected != actual {
+		return fmt.Errorf("expected: %s got %s", expected, actual)
+	}
+	return nil
+}
+
+func projectInList(project repo.Project, projects []*repo.Project) bool {
+	for _, p := range projects {
+		if project.Path == p.Path {
+			return true
+		}
+	}
+	return false
+}
+
+// AssertProjectRevisionsMatchBranch asserts that the project revisions match the given CrOS branch.
+func (r *CrosRepoHarness) AssertProjectRevisionsMatchBranch(manifest repo.Manifest, branch string) error {
+	originalManifest := r.Harness.Manifest()
+	singleProjects := originalManifest.GetSingleCheckoutProjects()
+	multiProjects := originalManifest.GetMultiCheckoutProjects()
+	pinnedProjects := originalManifest.GetPinnedProjects()
+	totProjects := originalManifest.GetTotProjects()
+
+	for _, project := range manifest.Projects {
+		if projectInList(project, singleProjects) {
+			if err := assertEqual(git.NormalizeRef(branch), project.Revision); err != nil {
+				return errors.Annotate(err, "mismatch for project %s", project.Path).Err()
+			}
+		}
+		if projectInList(project, multiProjects) {
+			originalManifest := r.Harness.Manifest()
+			originalProject, err := originalManifest.GetProjectByPath(project.Path)
+			if err != nil {
+				return errors.Annotate(err, "could not get project %s from harness manifest", project.Path).Err()
+			}
+			expected := git.NormalizeRef(fmt.Sprintf("%s-%s", branch, projectRef(*originalProject)))
+			if err := assertEqual(expected, project.Revision); err != nil {
+				return errors.Annotate(err, "mismatch for project %s", project.Path).Err()
+			}
+		}
+		if projectInList(project, pinnedProjects) {
+			// Get original revision of project. Make sure that it and the current revision (which will be a SHA)
+			// are the same ref.
+			originalProject, err := originalManifest.GetProjectByPath(project.Path)
+			if err != nil {
+				return errors.Annotate(err, "could not get project %s from harness manifest", project.Path).Err()
+			}
+			pinnedBranch := git.StripRefs(originalProject.Revision)
+
+			projectPath := r.Harness.GetRemotePath(rh.GetRemoteProject(project))
+			expected, err := git.GetGitRepoRevision(projectPath, pinnedBranch)
+			if err != nil {
+				return errors.Annotate(err, "failed to fetch git revision for %s:%s", project.Path, pinnedBranch).Err()
+			}
+			if err := assertEqual(expected, project.Revision); err != nil {
+				return errors.Annotate(err, "mismatch for project %s", project.Path).Err()
+			}
+		}
+		if projectInList(project, totProjects) {
+			if err := assertEqual("refs/heads/master", project.Revision); err != nil {
+				return errors.Annotate(err, "mismatch for project %s", project.Path).Err()
+			}
+		}
+	}
+
+	return nil
+}
+
+// AssertManfiestProjectRepaired asserts that the specified manifest XML files in the specified branch
+// of a project were repaired.
+// This function assumes that r.Harness.SyncLocalCheckout() has just been run.
+func (r *CrosRepoHarness) AssertManifestProjectRepaired(
+	project rh.RemoteProject, branch string, manifestFiles []string) error {
+	manifest := r.Harness.Manifest()
+	// We can't read directly from the remote project because it's a bare repo, so make use of the
+	// local checkout.
+	localProject, err := manifest.GetProjectByName(project.ProjectName)
+	if err != nil {
+		return errors.Annotate(err, "project does not exist").Err()
+	}
+	localProjectPath := filepath.Join(r.Harness.LocalRepo, localProject.Path)
+	err = git.Checkout(localProjectPath, branch)
+	// Detach at the end because we would rather a function that does not explicitly specificy a branch
+	// fail loudly rather than silently use a seemingly-arbitrary branch.
+	defer git.RunGitIgnoreOutput(localProjectPath, []string{"checkout", "--detach"})
+
+	if err != nil {
+		return errors.Annotate(err, "failed to checkout branch %s in project %s", branch, localProject.Path).Err()
+	}
+
+	for _, file := range manifestFiles {
+		filePath := filepath.Join(localProjectPath, file)
+		manifest, err := repo.LoadManifestFromFile(filePath)
+		if err != nil {
+			return errors.Annotate(err, "failed to load manifest file %s", file).Err()
+		}
+		if err = AssertNoDefaultRevisions(manifest); err != nil {
+			return errors.Annotate(err, "manifest %s has error", file).Err()
+		}
+		if err = r.AssertProjectRevisionsMatchBranch(manifest, branch); err != nil {
+			return errors.Annotate(err, "manifest %s has error", file).Err()
+		}
+	}
+	return nil
+}

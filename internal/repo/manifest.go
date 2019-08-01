@@ -77,6 +77,7 @@ func (r *Remote) GitName() string {
 
 // GetRemoteByName returns a pointer to the remote with
 // the given name/alias in the given manifest.
+// TODO(@jackneus): throw an error if DNE instead of returning empty Remote
 func (m *Manifest) GetRemoteByName(name string) *Remote {
 	for i, remote := range m.Remotes {
 		if remote.Name == name {

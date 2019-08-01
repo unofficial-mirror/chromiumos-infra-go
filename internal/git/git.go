@@ -109,6 +109,8 @@ func MatchBranchNameWithNamespace(gitRepo string, pattern, namespace *regexp.Reg
 func GetGitRepoRevision(cwd, branch string) (string, error) {
 	if branch == "" {
 		branch = "HEAD"
+	} else {
+		branch = NormalizeRef(branch)
 	}
 	output, err := RunGit(cwd, []string{"rev-parse", branch})
 	return strings.TrimSpace(output.Stdout), err

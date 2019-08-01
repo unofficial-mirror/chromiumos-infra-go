@@ -29,27 +29,27 @@ var (
 		{Name: RemoteCros},
 		{Name: RemoteCrosInternal},
 	}
-	defaultVersionProject = repo.Project{
+	DefaultVersionProject = repo.Project{
 		Name:       "chromiumos-overlay/overlays/chromiumos-overlay",
 		Path:       "src/third_party/chromiumos-overlay",
 		RemoteName: RemoteCros,
 	}
-	defaultManifestProject = repo.Project{
+	DefaultManifestProject = repo.Project{
 		Name:       "chromiumos/" + ProjectManifest,
 		Path:       ProjectManifest,
 		RemoteName: RemoteCros,
 	}
-	defaultManifestInternalProject = repo.Project{
+	DefaultManifestInternalProject = repo.Project{
 		Name:       "chromiumos/" + ProjectManifestInternal,
 		Path:       ProjectManifestInternal,
 		RemoteName: RemoteCrosInternal,
 	}
 	DefaultProjects = []repo.Project{
 		// Version file project.
-		defaultVersionProject,
+		DefaultVersionProject,
 		// Manifest projects.
-		defaultManifestProject,
-		defaultManifestInternalProject,
+		DefaultManifestProject,
+		DefaultManifestInternalProject,
 	}
 
 	// Default config for a CrOS repo harness.
@@ -62,12 +62,12 @@ var (
 				Revision:   "refs/heads/master",
 			},
 		},
-		VersionProject: defaultVersionProject.Name,
+		VersionProject: DefaultVersionProject.Name,
 	}
 )
 
 type CrosRepoHarness struct {
-	harness rh.RepoHarness
+	Harness rh.RepoHarness
 	// Version info project information.
 	versionProject *repo.Project
 
@@ -102,7 +102,7 @@ func (r *CrosRepoHarness) Initialize(config *CrosRepoHarnessConfig) error {
 		return fmt.Errorf("version project %v does not exist in specified manifest", config.VersionProject)
 	}
 
-	err := r.harness.Initialize(&rh.RepoHarnessConfig{
+	err := r.Harness.Initialize(&rh.RepoHarnessConfig{
 		Manifest: config.Manifest,
 	})
 	if err != nil {
@@ -113,11 +113,11 @@ func (r *CrosRepoHarness) Initialize(config *CrosRepoHarnessConfig) error {
 }
 
 func (r *CrosRepoHarness) Teardown() error {
-	return r.harness.Teardown()
+	return r.Harness.Teardown()
 }
 
 func (r *CrosRepoHarness) assertInitialized() error {
-	if r.harness.HarnessRoot() == "" {
+	if r.Harness.HarnessRoot() == "" {
 		return fmt.Errorf("harness needs to be initialized")
 	}
 	return nil
@@ -156,7 +156,7 @@ func (r *CrosRepoHarness) SetVersion(branch string, version repo.VersionInfo) er
 	if branch == "" {
 		branch = git.StripRefs(r.versionProject.Revision)
 	}
-	_, err := r.harness.AddFile(rh.GetRemoteProject(*r.versionProject), branch, versionFile)
+	_, err := r.Harness.AddFile(rh.GetRemoteProject(*r.versionProject), branch, versionFile)
 	if err != nil {
 		return errors.Annotate(err, "failed to add version file").Err()
 	}
@@ -168,10 +168,10 @@ func (r *CrosRepoHarness) SetVersion(branch string, version repo.VersionInfo) er
 func (r *CrosRepoHarness) TakeSnapshot() error {
 	// Take snapshot of each project in its current state.
 	r.recentRemoteSnapshots = make(map[string]string)
-	for _, remote := range r.harness.Manifest().Remotes {
-		remotePath := filepath.Join(r.harness.HarnessRoot(), remote.Name)
+	for _, remote := range r.Harness.Manifest().Remotes {
+		remotePath := filepath.Join(r.Harness.HarnessRoot(), remote.Name)
 		var err error
-		r.recentRemoteSnapshots[remote.Name], err = r.harness.Snapshot(remotePath)
+		r.recentRemoteSnapshots[remote.Name], err = r.Harness.Snapshot(remotePath)
 		if err != nil {
 			return errors.Annotate(err, "error taking snapshot of remote %s", remote.Name).Err()
 		}
@@ -182,10 +182,10 @@ func (r *CrosRepoHarness) TakeSnapshot() error {
 
 // AssertCrosBranches asserts that remote projects have the expected chromiumos branches.
 func (r *CrosRepoHarness) AssertCrosBranches(branches []string) error {
-	manifest := r.harness.Manifest()
+	manifest := r.Harness.Manifest()
 	singleProjects := manifest.GetSingleCheckoutProjects()
 	for _, project := range singleProjects {
-		if err := r.harness.AssertProjectBranches(rh.GetRemoteProject(project), append(branches, "master")); err != nil {
+		if err := r.Harness.AssertProjectBranches(rh.GetRemoteProject(project), append(branches, "master")); err != nil {
 			return err
 		}
 	}
@@ -197,14 +197,14 @@ func (r *CrosRepoHarness) AssertCrosBranches(branches []string) error {
 		for _, branch := range branches {
 			projectBranches = append(projectBranches, fmt.Sprintf("%s-%s", branch, pid))
 		}
-		if err := r.harness.AssertProjectBranches(rh.GetRemoteProject(project), projectBranches); err != nil {
+		if err := r.Harness.AssertProjectBranches(rh.GetRemoteProject(project), projectBranches); err != nil {
 			return err
 		}
 	}
 
 	pinnedProjects := manifest.GetPinnedProjects()
 	for _, project := range pinnedProjects {
-		if err := r.harness.AssertProjectBranches(
+		if err := r.Harness.AssertProjectBranches(
 			rh.GetRemoteProject(project), []string{"master", projectRef(project)}); err != nil {
 			return err
 		}
@@ -212,7 +212,7 @@ func (r *CrosRepoHarness) AssertCrosBranches(branches []string) error {
 
 	totProjects := manifest.GetTotProjects()
 	for _, project := range totProjects {
-		if err := r.harness.AssertProjectBranches(rh.GetRemoteProject(project), []string{"master"}); err != nil {
+		if err := r.Harness.AssertProjectBranches(rh.GetRemoteProject(project), []string{"master"}); err != nil {
 			return err
 		}
 	}
@@ -244,7 +244,7 @@ func (r *CrosRepoHarness) AssertCrosBranchFromManifest(branch string, manifest r
 	singleProjects := manifest.GetSingleCheckoutProjects()
 	for _, project := range singleProjects {
 		projectSnapshot := projectSnapshots[project.Name]
-		err := r.harness.AssertProjectBranchHasAncestor(
+		err := r.Harness.AssertProjectBranchHasAncestor(
 			rh.GetRemoteProject(project),
 			branch,
 			projectSnapshot,
@@ -258,7 +258,7 @@ func (r *CrosRepoHarness) AssertCrosBranchFromManifest(branch string, manifest r
 	for _, project := range multiProjects {
 		pid := projectRef(project)
 		projectSnapshot := projectSnapshots[project.Name]
-		err := r.harness.AssertProjectBranchHasAncestor(
+		err := r.Harness.AssertProjectBranchHasAncestor(
 			rh.GetRemoteProject(project),
 			fmt.Sprintf("%s-%s", branch, pid),
 			projectSnapshot, project.Revision)
@@ -272,8 +272,8 @@ func (r *CrosRepoHarness) AssertCrosBranchFromManifest(branch string, manifest r
 	for _, project := range pinnedProjects {
 		projectSnapshot := projectSnapshots[project.Name]
 		errs := []error{
-			r.harness.AssertProjectBranchEqual(rh.GetRemoteProject(project), "master", projectSnapshot),
-			r.harness.AssertProjectBranchEqual(rh.GetRemoteProject(project), projectRef(project), projectSnapshot),
+			r.Harness.AssertProjectBranchEqual(rh.GetRemoteProject(project), "master", projectSnapshot),
+			r.Harness.AssertProjectBranchEqual(rh.GetRemoteProject(project), projectRef(project), projectSnapshot),
 		}
 		for _, err = range errs {
 			if err != nil {
@@ -285,7 +285,7 @@ func (r *CrosRepoHarness) AssertCrosBranchFromManifest(branch string, manifest r
 	totProjects := manifest.GetTotProjects()
 	for _, project := range totProjects {
 		projectSnapshot := projectSnapshots[project.Name]
-		if err = r.harness.AssertProjectBranchEqual(rh.GetRemoteProject(project), "master", projectSnapshot); err != nil {
+		if err = r.Harness.AssertProjectBranchEqual(rh.GetRemoteProject(project), "master", projectSnapshot); err != nil {
 			return err
 		}
 	}
@@ -302,12 +302,12 @@ func (r *CrosRepoHarness) AssertCrosVersion(branch string, version repo.VersionI
 		log.Printf("null version file, using default %s", repo.VersionFileProjectPath)
 		version.VersionFile = repo.VersionFileProjectPath
 	}
-	manifest := r.harness.Manifest()
+	manifest := r.Harness.Manifest()
 	project, err := manifest.GetProjectByName(r.versionProject.Name)
 	if err != nil {
 		return errors.Annotate(err, "error getting chromeos version project %s", project.Name).Err()
 	}
-	versionFileContents, err := r.harness.ReadFile(rh.GetRemoteProject(*project), branch, version.VersionFile)
+	versionFileContents, err := r.Harness.ReadFile(rh.GetRemoteProject(*project), branch, version.VersionFile)
 	if err != nil {
 		return errors.Annotate(err, "could not read version file %s", version.VersionFile).Err()
 	}

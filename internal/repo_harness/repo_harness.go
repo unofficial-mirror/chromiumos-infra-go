@@ -64,6 +64,8 @@ type RepoHarness struct {
 	harnessRoot string
 	// Local checkout.
 	LocalRepo string
+	// Git repo that manifest (from config) is stored in.
+	manifestRepo string
 }
 
 func (r *RepoHarness) Manifest() repo.Manifest {
@@ -179,25 +181,21 @@ func (r *RepoHarness) Initialize(config *RepoHarnessConfig) error {
 	}
 
 	// Create local checkout of the project at r.LocalRepo, in case the client would like one.
-	// Specifically, we create temporary git repo with the manifest and sync using
+	// Specifically, we create a git repo with the manifest and sync using
 	// `repo sync`.
-	// TOOD(@jackneus): Will syncing from (and then deleting) a temp repo make subsequent
-	// `repo sync`s fail?
-	// Answer: yes
-	manifestRepo, err := ioutil.TempDir(r.harnessRoot, "manifest-repo")
-	defer os.RemoveAll(manifestRepo)
-	if err != nil {
-		return errors.Annotate(err, "error initializing temp git repo for manifest").Err()
+	r.manifestRepo = filepath.Join(r.harnessRoot, "manifest-repo")
+	if err = os.Mkdir(r.manifestRepo, dirPerms); err != nil {
+		return errors.Annotate(err, "error initializing git repo for manifest").Err()
 	}
-	manifestPath := filepath.Join(manifestRepo, "default.xml")
+	manifestPath := filepath.Join(r.manifestRepo, "default.xml")
 	errs := []error{
-		git.Init(manifestRepo, false),
+		git.Init(r.manifestRepo, false),
 		r.manifest.Write(manifestPath),
 	}
-	_, err = git.CommitAll(manifestRepo, "commit manifest")
+	_, err = git.CommitAll(r.manifestRepo, "commit manifest")
 	errs = append(errs,
 		err,
-		r.runCommand([]string{"repo", "init", "--manifest-url", manifestRepo}, r.LocalRepo),
+		r.runCommand([]string{"repo", "init", "--manifest-url", r.manifestRepo}, r.LocalRepo),
 	)
 
 	for _, err := range errs {
@@ -205,12 +203,16 @@ func (r *RepoHarness) Initialize(config *RepoHarnessConfig) error {
 			return errors.Annotate(err, "failed to initialize local checkout").Err()
 		}
 	}
-	err = r.runCommand([]string{"repo", "sync"}, r.LocalRepo)
+	err = r.SyncLocalCheckout()
 	if err != nil {
-		return errors.Annotate(err, "failed to sync local checkout").Err()
+		return err
 	}
 
-	return nil
+	// Certain tools can't read from a project unless refs/heads/master exists
+	// ex: repo init --manifest-url
+	err = r.runCommand([]string{"repo", "start", "master", "--all"}, r.LocalRepo)
+
+	return err
 }
 
 func (r *RepoHarness) assertInitialized() error {
@@ -227,6 +229,21 @@ func (r *RepoHarness) Teardown() error {
 		return os.RemoveAll(root)
 	}
 	return fmt.Errorf("harness was never initialized")
+}
+
+// SyncLocalCheckout syncs the harness' local checkout to the manifest
+// specified at initialization.
+func (r *RepoHarness) SyncLocalCheckout() error {
+	if err := r.assertInitialized(); err != nil {
+		return err
+	}
+
+	err := r.runCommand([]string{"repo", "sync"}, r.LocalRepo)
+	if err != nil {
+		return errors.Annotate(err, "failed to sync local checkout").Err()
+	}
+
+	return nil
 }
 
 // CreateRemoteRef creates a remote ref for a specific project.

@@ -174,6 +174,39 @@ func TestInitializeDefaultDefault(t *testing.T) {
 	assert.Equal(t, r.Manifest().Default.Revision, "refs/heads/master")
 }
 
+func TestSyncLocalCheckout_success(t *testing.T) {
+	r := &RepoHarness{
+		harnessRoot: "fake-initialized",
+		LocalRepo:   "foo",
+	}
+
+	CommandRunnerImpl = cmd.FakeCommandRunner{
+		ExpectedCmd: []string{"repo", "sync"},
+		ExpectedDir: r.LocalRepo,
+	}
+	assert.NilError(t, r.SyncLocalCheckout())
+
+	// Reset CommandRunnerImpl to the real one.
+	CommandRunnerImpl = cmd.RealCommandRunner{}
+}
+
+func TestSyncLocalCheckout_error(t *testing.T) {
+	r := &RepoHarness{
+		harnessRoot: "fake-initialized",
+		LocalRepo:   "foo",
+	}
+
+	CommandRunnerImpl = cmd.FakeCommandRunner{
+		ExpectedCmd: []string{"repo", "sync"},
+		ExpectedDir: r.LocalRepo,
+		FailCommand: true,
+	}
+	assert.ErrorContains(t, r.SyncLocalCheckout(), "failed to sync")
+
+	// Reset CommandRunnerImpl to the real one.
+	CommandRunnerImpl = cmd.RealCommandRunner{}
+}
+
 func TestCreateRemoteRef(t *testing.T) {
 	root, err := ioutil.TempDir("", "create_remote_ref_test")
 	defer os.RemoveAll(root)
@@ -298,7 +331,7 @@ func TestAddFile(t *testing.T) {
 func TestReadFile(t *testing.T) {
 	harnessConfig := simpleHarnessConfig
 	harness := &RepoHarness{}
-	//defer harness.Teardown()
+	defer harness.Teardown()
 	assert.NilError(t, harness.Initialize(&harnessConfig))
 	project := harness.manifest.Projects[0]
 

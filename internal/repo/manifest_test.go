@@ -211,6 +211,14 @@ func TestGetProjectByPath(t *testing.T) {
 	assert.Assert(t, err != nil)
 }
 
+func deref(projects []*Project) []Project {
+	res := []Project{}
+	for _, project := range projects {
+		res = append(res, *project)
+	}
+	return res
+}
+
 func TestGetProjects(t *testing.T) {
 	m := Manifest{
 		Projects: []Project{
@@ -229,13 +237,13 @@ func TestGetProjects(t *testing.T) {
 		},
 	}
 	m = *m.ResolveImplicitLinks()
-	singleProjects := m.GetSingleCheckoutProjects()
+	singleProjects := deref(m.GetSingleCheckoutProjects())
 	assert.Assert(t, reflect.DeepEqual(singleProjects, m.Projects[4:6]))
-	multiProjects := m.GetMultiCheckoutProjects()
+	multiProjects := deref(m.GetMultiCheckoutProjects())
 	assert.Assert(t, reflect.DeepEqual(multiProjects, m.Projects[:2]))
-	pinnedProjects := m.GetPinnedProjects()
+	pinnedProjects := deref(m.GetPinnedProjects())
 	assert.Assert(t, reflect.DeepEqual(pinnedProjects, m.Projects[1:3]))
-	totProjects := m.GetTotProjects()
+	totProjects := deref(m.GetTotProjects())
 	assert.Assert(t, reflect.DeepEqual(totProjects, m.Projects[3:4]))
 }
 

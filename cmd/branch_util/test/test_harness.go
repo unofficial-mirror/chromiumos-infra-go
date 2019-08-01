@@ -185,7 +185,7 @@ func (r *CrosRepoHarness) AssertCrosBranches(branches []string) error {
 	manifest := r.Harness.Manifest()
 	singleProjects := manifest.GetSingleCheckoutProjects()
 	for _, project := range singleProjects {
-		if err := r.Harness.AssertProjectBranches(rh.GetRemoteProject(project), append(branches, "master")); err != nil {
+		if err := r.Harness.AssertProjectBranches(rh.GetRemoteProject(*project), append(branches, "master")); err != nil {
 			return err
 		}
 	}
@@ -193,11 +193,11 @@ func (r *CrosRepoHarness) AssertCrosBranches(branches []string) error {
 	multiProjects := manifest.GetMultiCheckoutProjects()
 	for _, project := range multiProjects {
 		projectBranches := []string{"master"}
-		pid := projectRef(project)
+		pid := projectRef(*project)
 		for _, branch := range branches {
 			projectBranches = append(projectBranches, fmt.Sprintf("%s-%s", branch, pid))
 		}
-		if err := r.Harness.AssertProjectBranches(rh.GetRemoteProject(project), projectBranches); err != nil {
+		if err := r.Harness.AssertProjectBranches(rh.GetRemoteProject(*project), projectBranches); err != nil {
 			return err
 		}
 	}
@@ -205,14 +205,14 @@ func (r *CrosRepoHarness) AssertCrosBranches(branches []string) error {
 	pinnedProjects := manifest.GetPinnedProjects()
 	for _, project := range pinnedProjects {
 		if err := r.Harness.AssertProjectBranches(
-			rh.GetRemoteProject(project), []string{"master", projectRef(project)}); err != nil {
+			rh.GetRemoteProject(*project), []string{"master", projectRef(*project)}); err != nil {
 			return err
 		}
 	}
 
 	totProjects := manifest.GetTotProjects()
 	for _, project := range totProjects {
-		if err := r.Harness.AssertProjectBranches(rh.GetRemoteProject(project), []string{"master"}); err != nil {
+		if err := r.Harness.AssertProjectBranches(rh.GetRemoteProject(*project), []string{"master"}); err != nil {
 			return err
 		}
 	}
@@ -245,7 +245,7 @@ func (r *CrosRepoHarness) AssertCrosBranchFromManifest(branch string, manifest r
 	for _, project := range singleProjects {
 		projectSnapshot := projectSnapshots[project.Name]
 		err := r.Harness.AssertProjectBranchHasAncestor(
-			rh.GetRemoteProject(project),
+			rh.GetRemoteProject(*project),
 			branch,
 			projectSnapshot,
 			project.Revision)
@@ -256,10 +256,10 @@ func (r *CrosRepoHarness) AssertCrosBranchFromManifest(branch string, manifest r
 
 	multiProjects := manifest.GetMultiCheckoutProjects()
 	for _, project := range multiProjects {
-		pid := projectRef(project)
+		pid := projectRef(*project)
 		projectSnapshot := projectSnapshots[project.Name]
 		err := r.Harness.AssertProjectBranchHasAncestor(
-			rh.GetRemoteProject(project),
+			rh.GetRemoteProject(*project),
 			fmt.Sprintf("%s-%s", branch, pid),
 			projectSnapshot, project.Revision)
 		if err != nil {
@@ -272,8 +272,8 @@ func (r *CrosRepoHarness) AssertCrosBranchFromManifest(branch string, manifest r
 	for _, project := range pinnedProjects {
 		projectSnapshot := projectSnapshots[project.Name]
 		errs := []error{
-			r.Harness.AssertProjectBranchEqual(rh.GetRemoteProject(project), "master", projectSnapshot),
-			r.Harness.AssertProjectBranchEqual(rh.GetRemoteProject(project), projectRef(project), projectSnapshot),
+			r.Harness.AssertProjectBranchEqual(rh.GetRemoteProject(*project), "master", projectSnapshot),
+			r.Harness.AssertProjectBranchEqual(rh.GetRemoteProject(*project), projectRef(*project), projectSnapshot),
 		}
 		for _, err = range errs {
 			if err != nil {
@@ -285,7 +285,7 @@ func (r *CrosRepoHarness) AssertCrosBranchFromManifest(branch string, manifest r
 	totProjects := manifest.GetTotProjects()
 	for _, project := range totProjects {
 		projectSnapshot := projectSnapshots[project.Name]
-		if err = r.Harness.AssertProjectBranchEqual(rh.GetRemoteProject(project), "master", projectSnapshot); err != nil {
+		if err = r.Harness.AssertProjectBranchEqual(rh.GetRemoteProject(*project), "master", projectSnapshot); err != nil {
 			return err
 		}
 	}

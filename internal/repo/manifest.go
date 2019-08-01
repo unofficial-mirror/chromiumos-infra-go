@@ -78,9 +78,9 @@ func (r *Remote) GitName() string {
 // GetRemoteByName returns a pointer to the remote with
 // the given name/alias in the given manifest.
 func (m *Manifest) GetRemoteByName(name string) *Remote {
-	for _, remote := range m.Remotes {
+	for i, remote := range m.Remotes {
 		if remote.Name == name {
-			return &remote
+			return &m.Remotes[i]
 		}
 	}
 	return &Remote{}
@@ -89,9 +89,9 @@ func (m *Manifest) GetRemoteByName(name string) *Remote {
 // GetProjectByName returns a pointer to the remote with
 // the given path in the given manifest.
 func (m *Manifest) GetProjectByName(name string) (*Project, error) {
-	for _, project := range m.Projects {
+	for i, project := range m.Projects {
 		if project.Name == name {
-			return &project, nil
+			return &m.Projects[i], nil
 		}
 	}
 	return &Project{}, fmt.Errorf("project %s does not exist in manifest", name)
@@ -99,13 +99,13 @@ func (m *Manifest) GetProjectByName(name string) (*Project, error) {
 
 // GetProjectByPath returns a pointer to the remote with
 // the given path in the given manifest.
-func (m *Manifest) GetProjectByPath(name string) (*Project, error) {
-	for _, project := range m.Projects {
-		if project.Path == name {
-			return &project, nil
+func (m *Manifest) GetProjectByPath(path string) (*Project, error) {
+	for i, project := range m.Projects {
+		if project.Path == path {
+			return &m.Projects[i], nil
 		}
 	}
-	return &Project{}, fmt.Errorf("project %s does not exist in manifest", name)
+	return &Project{}, fmt.Errorf("project %s does not exist in manifest", path)
 }
 
 type projectType string
@@ -117,15 +117,15 @@ const (
 	tot            projectType = "tot"
 )
 
-func (m *Manifest) getProjects(ptype projectType) []Project {
+func (m *Manifest) getProjects(ptype projectType) []*Project {
 	projectCount := make(map[string]int)
 
 	for _, project := range m.Projects {
 		projectCount[project.Name] += 1
 	}
 
-	projects := []Project{}
-	for _, project := range m.Projects {
+	projects := []*Project{}
+	for i, project := range m.Projects {
 		includeProject := false
 		projectMode := m.ProjectBranchMode(project)
 		if projectMode == Pinned {
@@ -142,7 +142,7 @@ func (m *Manifest) getProjects(ptype projectType) []Project {
 			includeProject = includeProject || ptype == multiCheckout
 		}
 		if includeProject {
-			projects = append(projects, project)
+			projects = append(projects, &m.Projects[i])
 		}
 	}
 	return projects
@@ -150,25 +150,25 @@ func (m *Manifest) getProjects(ptype projectType) []Project {
 
 // GetSingleCheckoutProjects returns all projects in the manifest that have a
 // single checkout and are not pinned/tot.
-func (m *Manifest) GetSingleCheckoutProjects() []Project {
+func (m *Manifest) GetSingleCheckoutProjects() []*Project {
 	return m.getProjects(singleCheckout)
 }
 
 // GetMultiCheckoutProjects returns all projects in the manifest that have a
 // multiple checkouts and are not pinned/tot.
-func (m *Manifest) GetMultiCheckoutProjects() []Project {
+func (m *Manifest) GetMultiCheckoutProjects() []*Project {
 	return m.getProjects(multiCheckout)
 }
 
 // GetPinnedProjects returns all projects in the manifest that are
 // pinned.
-func (m *Manifest) GetPinnedProjects() []Project {
+func (m *Manifest) GetPinnedProjects() []*Project {
 	return m.getProjects(pinned)
 }
 
 // GetTotProjects returns all projects in the manifest that are
 // tot.
-func (m *Manifest) GetTotProjects() []Project {
+func (m *Manifest) GetTotProjects() []*Project {
 	return m.getProjects(tot)
 }
 

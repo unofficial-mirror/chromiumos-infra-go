@@ -105,7 +105,6 @@ type getTestPlanRun struct {
 
 func (c *getTestPlanRun) readInputJson() (*testplans.GenerateTestPlanRequest, error) {
 	inputBytes, err := ioutil.ReadFile(c.inputJson)
-	log.Printf("Request is:\n%s", string(inputBytes))
 	if err != nil {
 		return nil, fmt.Errorf("Failed reading input_json\n%v", err)
 	}
@@ -219,7 +218,6 @@ func (c *getTestPlanRun) writeOutputJson(tp *testplans.GenerateTestPlanResponse)
 	if err = ioutil.WriteFile(c.outputJson, []byte(jsonOutput), 0644); err != nil {
 		return fmt.Errorf("Failed to write output JSON!\n%v", err)
 	}
-	log.Printf("Full test plan =\n%s", proto.MarshalTextString(tp))
 	log.Printf("Wrote output to %s", c.outputJson)
 	return nil
 }

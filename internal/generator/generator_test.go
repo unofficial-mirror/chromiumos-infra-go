@@ -116,9 +116,6 @@ func TestCreateCombinedTestPlan_oneUnitSuccess(t *testing.T) {
 }
 
 func TestCreateCombinedTestPlan_manyUnitSuccess(t *testing.T) {
-	reefGceTestCfg := &testplans.GceTestCfg{GceTest: []*testplans.GceTestCfg_GceTest{
-		{TestType: "GCE reef", Common: &testplans.TestSuiteCommon{Critical: &wrappers.BoolValue{Value: true}}},
-	}}
 	reefMoblabVmTestCfg := &testplans.MoblabVmTestCfg{MoblabTest: []*testplans.MoblabVmTestCfg_MoblabTest{
 		{TestType: "Moblab reef", Common: &testplans.TestSuiteCommon{Critical: &wrappers.BoolValue{Value: true}}},
 	}}
@@ -138,7 +135,6 @@ func TestCreateCombinedTestPlan_manyUnitSuccess(t *testing.T) {
 		PerTargetTestRequirements: []*testplans.PerTargetTestRequirements{
 			{TargetCriteria: &testplans.TargetCriteria{
 				TargetType: &testplans.TargetCriteria_BuildTarget{BuildTarget: "reef"}},
-				GceTestCfg:      reefGceTestCfg,
 				MoblabVmTestCfg: reefMoblabVmTestCfg},
 			{TargetCriteria: &testplans.TargetCriteria{
 				TargetType: &testplans.TargetCriteria_BuildTarget{BuildTarget: "kevin"}},
@@ -179,16 +175,6 @@ func TestCreateCombinedTestPlan_manyUnitSuccess(t *testing.T) {
 	}
 
 	expectedTestPlan := &testplans.GenerateTestPlanResponse{
-		GceTestUnits: []*testplans.GceTestUnit{
-			{Common: &testplans.TestUnitCommon{
-				BuildPayload: &testplans.BuildPayload{
-					ArtifactsGsBucket: GS_BUCKET,
-					ArtifactsGsPath:   GS_PATH_PREFIX + "reef",
-					FilesByArtifact:   &simpleFilesByArtifact,
-				},
-				BuildTarget: &chromiumos.BuildTarget{Name: "reef"}},
-				GceTestCfg: reefGceTestCfg},
-		},
 		MoblabVmTestUnits: []*testplans.MoblabVmTestUnit{
 			{Common: &testplans.TestUnitCommon{
 				BuildPayload: &testplans.BuildPayload{
@@ -238,8 +224,8 @@ func TestCreateCombinedTestPlan_successDespiteOneFailedBuilder(t *testing.T) {
 	// In this test, the kevin builder failed, so the output test plan will not contain a test unit
 	// for kevin.
 
-	reefGceTestCfg := &testplans.GceTestCfg{GceTest: []*testplans.GceTestCfg_GceTest{
-		{TestType: "GCE reef"},
+	reefHwTestCfg := &testplans.HwTestCfg{HwTest: []*testplans.HwTestCfg_HwTest{
+		{SkylabBoard: "some reef"},
 	}}
 	kevinVMTestCfg := &testplans.VmTestCfg{VmTest: []*testplans.VmTestCfg_VmTest{
 		{TestType: "VM kevin"},
@@ -248,7 +234,7 @@ func TestCreateCombinedTestPlan_successDespiteOneFailedBuilder(t *testing.T) {
 		PerTargetTestRequirements: []*testplans.PerTargetTestRequirements{
 			{TargetCriteria: &testplans.TargetCriteria{
 				TargetType: &testplans.TargetCriteria_BuildTarget{BuildTarget: "reef"}},
-				GceTestCfg: reefGceTestCfg},
+				HwTestCfg: reefHwTestCfg},
 			{TargetCriteria: &testplans.TargetCriteria{
 				TargetType: &testplans.TargetCriteria_BuildTarget{BuildTarget: "kevin"}},
 				VmTestCfg: kevinVMTestCfg},
@@ -286,7 +272,7 @@ func TestCreateCombinedTestPlan_successDespiteOneFailedBuilder(t *testing.T) {
 	}
 
 	expectedTestPlan := &testplans.GenerateTestPlanResponse{
-		GceTestUnits: []*testplans.GceTestUnit{
+		HwTestUnits: []*testplans.HwTestUnit{
 			{Common: &testplans.TestUnitCommon{
 				BuildPayload: &testplans.BuildPayload{
 					ArtifactsGsBucket: GS_BUCKET,
@@ -294,7 +280,7 @@ func TestCreateCombinedTestPlan_successDespiteOneFailedBuilder(t *testing.T) {
 					FilesByArtifact:   &simpleFilesByArtifact,
 				},
 				BuildTarget: &chromiumos.BuildTarget{Name: "reef"}},
-				GceTestCfg: reefGceTestCfg},
+				HwTestCfg: reefHwTestCfg},
 		}}
 
 	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, cmpopts.EquateEmpty()); diff != "" {
@@ -510,14 +496,14 @@ func TestCreateTestPlan_succeedsOnNoBuildTarget(t *testing.T) {
 func TestCreateCombinedTestPlan_skipsNonCritical(t *testing.T) {
 	// In this test, the build is not critical, so no test unit will be produced.
 
-	reefGceTestCfg := &testplans.GceTestCfg{GceTest: []*testplans.GceTestCfg_GceTest{
-		{TestType: "GCE reef"},
+	reefHwTestCfg := &testplans.HwTestCfg{HwTest: []*testplans.HwTestCfg_HwTest{
+		{SkylabBoard: "my reef"},
 	}}
 	testReqs := &testplans.TargetTestRequirementsCfg{
 		PerTargetTestRequirements: []*testplans.PerTargetTestRequirements{
 			{TargetCriteria: &testplans.TargetCriteria{
 				TargetType: &testplans.TargetCriteria_BuildTarget{BuildTarget: "reef"}},
-				GceTestCfg: reefGceTestCfg},
+				HwTestCfg: reefHwTestCfg},
 		},
 	}
 	sourceTreeTestCfg := &testplans.SourceTreeTestCfg{
@@ -549,7 +535,7 @@ func TestCreateCombinedTestPlan_skipsNonCritical(t *testing.T) {
 	}
 
 	expectedTestPlan := &testplans.GenerateTestPlanResponse{
-		GceTestUnits: []*testplans.GceTestUnit{}}
+		HwTestUnits: []*testplans.HwTestUnit{}}
 
 	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, cmpopts.EquateEmpty()); diff != "" {
 		t.Errorf("CreateCombinedTestPlan bad result (-want/+got)\n%s", diff)

@@ -166,14 +166,6 @@ targetLoop:
 			continue targetLoop
 		}
 		critical := &wrappers.BoolValue{Value: isCritical}
-		if pttr.GceTestCfg != nil {
-			for _, gce := range pttr.GceTestCfg.GceTest {
-				gce.Common = withCritical(gce.Common, critical)
-			}
-			resp.GceTestUnits = append(resp.GceTestUnits, &testplans.GceTestUnit{
-				Common:     tuc,
-				GceTestCfg: pttr.GceTestCfg})
-		}
 		if pttr.HwTestCfg != nil {
 			if pruneResult.disableHWTests {
 				log.Printf("No HW testing needed for %s", tbr.buildTarget)

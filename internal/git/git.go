@@ -12,6 +12,8 @@ import (
 	"strings"
 
 	"go.chromium.org/chromiumos/infra/go/internal/cmd"
+	"go.chromium.org/chromiumos/infra/go/internal/test_util"
+	"go.chromium.org/luci/common/errors"
 )
 
 var (
@@ -109,11 +111,11 @@ func MatchBranchNameWithNamespace(gitRepo string, pattern, namespace *regexp.Reg
 func GetGitRepoRevision(cwd, branch string) (string, error) {
 	if branch == "" {
 		branch = "HEAD"
-	} else {
+	} else if branch != "HEAD" {
 		branch = NormalizeRef(branch)
 	}
 	output, err := RunGit(cwd, []string{"rev-parse", branch})
-	return strings.TrimSpace(output.Stdout), err
+	return strings.TrimSpace(output.Stdout), errors.Annotate(err, output.Stderr).Err()
 }
 
 // IsReachable determines whether one commit ref is reachable from another.
@@ -298,6 +300,74 @@ func Clone(remote, dir string) error {
 	output, err := RunGit(filepath.Dir(dir), []string{"clone", remote, filepath.Base(dir)})
 	if err != nil {
 		return fmt.Errorf(output.Stderr)
+	}
+	return nil
+}
+
+// RemoteBranches returns a list of branches on the specified remote.
+func RemoteBranches(gitRepo, remote string) ([]string, error) {
+	output, err := RunGit(gitRepo, []string{"ls-remote", remote})
+	if err != nil {
+		if strings.Contains(output.Stderr, "not appear to be a git repository") {
+			return []string{}, fmt.Errorf("%s is not a valid remote", remote)
+		}
+		return []string{}, err
+	}
+	remotes := []string{}
+	for _, line := range strings.Split(strings.TrimSpace(output.Stdout), "\n") {
+		if line == "" {
+			continue
+		}
+		remotes = append(remotes, StripRefs(strings.Fields(line)[1]))
+	}
+	return remotes, nil
+}
+
+// RemoteHasBranch checks whether or not a branch exists on a remote.
+func RemoteHasBranch(gitRepo, remote, branch string) (bool, error) {
+	branches, err := RemoteBranches(gitRepo, remote)
+	if err != nil {
+		return false, err
+	}
+	branch = StripRefs(branch)
+	for _, remoteBranch := range branches {
+		if branch == remoteBranch {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// AssertGitBranches asserts that the git repo has the given branches (it may have others, too).
+func AssertGitBranches(gitRepo string, branches []string) error {
+	actual, err := MatchBranchNameWithNamespace(gitRepo, regexp.MustCompile(".*"), regexp.MustCompile("refs/heads/"))
+	if err != nil {
+		return errors.Annotate(err, "error getting branches").Err()
+	}
+	if !test_util.UnorderedContains(actual, branches) {
+		return fmt.Errorf("project branch mismatch. expected: %v got %v", branches, actual)
+	}
+	return nil
+}
+
+// AssertGitBranches asserts that the git repo has only the correct branches.
+func AssertGitBranchesExact(gitRepo string, branches []string) error {
+	actual, err := MatchBranchNameWithNamespace(gitRepo, regexp.MustCompile(".*"), regexp.MustCompile("refs/heads/"))
+	if err != nil {
+		return errors.Annotate(err, "error getting branches").Err()
+	}
+	// Remove duplicates from branches. This is OK because branch names are unique identifiers
+	// and so having a branch name twice in branches doesn't mean anything special.
+	branchMap := make(map[string]bool)
+	for _, branch := range branches {
+		branchMap[branch] = true
+	}
+	branches = []string{}
+	for branch := range branchMap {
+		branches = append(branches, branch)
+	}
+	if !test_util.UnorderedEqual(actual, branches) {
+		return fmt.Errorf("project branch mismatch. expected: %v got %v", branches, actual)
 	}
 	return nil
 }

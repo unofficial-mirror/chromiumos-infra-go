@@ -17,7 +17,6 @@ import (
 	"go.chromium.org/chromiumos/infra/go/internal/cmd"
 	"go.chromium.org/chromiumos/infra/go/internal/git"
 	"go.chromium.org/chromiumos/infra/go/internal/repo"
-	"go.chromium.org/chromiumos/infra/go/internal/test_util"
 	"go.chromium.org/luci/common/errors"
 )
 
@@ -412,7 +411,7 @@ func (r *RepoHarness) AssertProjectBranches(project RemoteProject, branches []st
 		return err
 	}
 	gitRepo := r.GetRemotePath(project)
-	return test_util.AssertGitBranches(gitRepo, branches)
+	return git.AssertGitBranches(gitRepo, branches)
 }
 
 // AssertProjectBranchesExact asserts that the remote project has only the correct branches.
@@ -421,7 +420,7 @@ func (r *RepoHarness) AssertProjectBranchesExact(project RemoteProject, branches
 		return err
 	}
 	gitRepo := r.GetRemotePath(project)
-	return test_util.AssertGitBranchesExact(gitRepo, branches)
+	return git.AssertGitBranchesExact(gitRepo, branches)
 }
 
 // AssertProjectBranchEqual asserts that the specified branch in the project matches

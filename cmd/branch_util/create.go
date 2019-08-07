@@ -247,9 +247,26 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 		fmt.Fprintf(a.GetErr(), err.Error())
 		return 1
 	}
+	// Increment branch/build number for source 'master' branch.
+	// crbug.com/965164
+	// TODO(@jackneus): refactor
 	if c.release {
 		commitMsg = fmt.Sprintf("Bump milestone after creating release branch %s.", branchName)
 		if err = checkout.BumpVersion(repo.ChromeBranch, "master", commitMsg, !c.Push, true); err != nil {
+			fmt.Fprintf(a.GetErr(), err.Error())
+			return 1
+		}
+	} else {
+		var sourceComponentToBump repo.VersionComponent
+		if componentToBump == repo.Patch {
+			sourceComponentToBump = repo.Branch
+		} else {
+			sourceComponentToBump = repo.Build
+		}
+		commitMsg = fmt.Sprintf("Bump %s number for source branch after creating branch %s.",
+			sourceComponentToBump, branchName)
+		err = checkout.BumpVersion(sourceComponentToBump, manifest.Default.Revision, commitMsg, !c.Push, true)
+		if err != nil {
 			fmt.Fprintf(a.GetErr(), err.Error())
 			return 1
 		}

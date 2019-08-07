@@ -250,6 +250,9 @@ func TestCreateRemoteRef(t *testing.T) {
 		refs = append(refs, strings.Fields(line)[1])
 	}
 	assert.Assert(t, test_util.UnorderedContains(refs, []string{"refs/heads/ref1", "refs/heads/ref2"}))
+
+	// Test that an error is thrown if we try to create a remote that already exists.
+	assert.ErrorContains(t, harness.CreateRemoteRef(GetRemoteProject(project), "ref2", ""), "already exists")
 }
 
 func TestAddFiles_simple(t *testing.T) {

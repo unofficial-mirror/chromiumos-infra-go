@@ -290,6 +290,14 @@ func (r *RepoHarness) CreateRemoteRef(project RemoteProject, ref string, commit 
 		remoteRef.Remote = remoteProjectPath
 	}
 
+	remoteExists, err := git.RemoteHasBranch(repoPath, remoteRef.Remote, remoteRef.Ref)
+	if err != nil {
+		return errors.Annotate(err, "failed to ls-remote remote %s", remoteRef.Remote).Err()
+	}
+	if remoteExists {
+		return fmt.Errorf("remote ref %s already exists", ref)
+	}
+
 	if err := git.PushRef(repoPath, commit, false, remoteRef); err != nil {
 		return errors.Annotate(err, "failed to add remote ref %s %s:%s", projectLabel, commit, remoteRef.Ref).Err()
 	}

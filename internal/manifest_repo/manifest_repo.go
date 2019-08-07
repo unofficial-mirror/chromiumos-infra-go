@@ -4,6 +4,9 @@
 package manifest_repo
 
 import (
+	"log"
+	"strings"
+
 	checkoutp "go.chromium.org/chromiumos/infra/go/internal/checkout"
 	"go.chromium.org/chromiumos/infra/go/internal/git"
 	"go.chromium.org/chromiumos/infra/go/internal/repo"
@@ -32,7 +35,7 @@ var loadManifestTree = repo.LoadManifestTree
 func (m *ManifestRepo) RepairManifest(path string, branchesByPath map[string]string) (repo.Manifest, error) {
 	manifest, err := loadManifestFromFile(path)
 	if err != nil {
-		return repo.Manifest{}, errors.Annotate(err, "error repairing manifest").Err()
+		return repo.Manifest{}, errors.Annotate(err, "error loading manifest").Err()
 	}
 
 	// Delete the default revision.
@@ -82,7 +85,13 @@ func (m *ManifestRepo) listManifests(rootPaths []string) ([]string, error) {
 		path = m.Checkout.AbsoluteProjectPath(m.Project, path)
 		manifestMap, err := loadManifestTree(path)
 		if err != nil {
-			return []string{}, err
+			// It is only correct to continue when a file does not exist,
+			// not because of other errors (like invalid XML).
+			if strings.Contains(err.Error(), "failed to open") {
+				continue
+			} else {
+				return []string{}, err
+			}
 		}
 		for k := range manifestMap {
 			manifestPaths[k] = true
@@ -98,6 +107,7 @@ func (m *ManifestRepo) listManifests(rootPaths []string) ([]string, error) {
 // RepairManifestsOnDisk repairs the revision and upstream attributes of
 // manifest elements on disk for the given projects.
 func (m *ManifestRepo) RepairManifestsOnDisk(branchesByPath map[string]string) error {
+	log.Printf("Repairing manifest project %s.", m.Project.Name)
 	manifestPaths, err := m.listManifests([]string{defaultManifest, officialManifest})
 	if err != nil {
 		return errors.Annotate(err, "failed to listManifests").Err()

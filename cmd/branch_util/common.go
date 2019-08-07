@@ -48,7 +48,7 @@ func (c *CommonFlags) Init() {
 			"exist, this tool will create it. If the root is not initialized, "+
 			"this tool will initialize it. If --root is not specificed, this "+
 			"tool will branch a fresh checkout in a temporary directory.")
-	c.Flags.StringVar(&c.ManifestUrl, "manifest_url",
+	c.Flags.StringVar(&c.ManifestUrl, "manifest-url",
 		"https://chrome-internal.googlesource.com/chromeos/manifest-internal.git",
 		"URL of the manifest to be checked out. Defaults to googlesource URL "+
 			"for manifest-internal.")

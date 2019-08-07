@@ -220,10 +220,19 @@ func (r *CrosRepoHarness) AssertCrosBranches(branches []string) error {
 	return nil
 }
 
-func (r *CrosRepoHarness) getInitialProjectSnapshot(project rh.RemoteProject) (string, error) {
-	remoteSnapshot, ok := r.recentRemoteSnapshots[project.RemoteName]
+// GetRecentRemoteSnapshot returns the path of the most recent snapshot for a particular remote.
+func (r *CrosRepoHarness) GetRecentRemoteSnapshot(remote string) (string, error) {
+	remoteSnapshot, ok := r.recentRemoteSnapshots[remote]
 	if !ok {
-		return "", fmt.Errorf("snapshot does not exist for remote %s", project.RemoteName)
+		return "", fmt.Errorf("snapshot does not exist for remote %s", remote)
+	}
+	return remoteSnapshot, nil
+}
+
+func (r *CrosRepoHarness) getRecentProjectSnapshot(project rh.RemoteProject) (string, error) {
+	remoteSnapshot, err := r.GetRecentRemoteSnapshot(project.RemoteName)
+	if err != nil {
+		return "", err
 	}
 	return filepath.Join(remoteSnapshot, project.ProjectName), nil
 }
@@ -234,7 +243,7 @@ func (r *CrosRepoHarness) AssertCrosBranchFromManifest(branch string, manifest r
 	projectSnapshots := make(map[string]string)
 	var err error
 	for _, project := range manifest.Projects {
-		if projectSnapshots[project.Name], err = r.getInitialProjectSnapshot(rh.GetRemoteProject(project)); err != nil {
+		if projectSnapshots[project.Name], err = r.getRecentProjectSnapshot(rh.GetRemoteProject(project)); err != nil {
 			return err
 		}
 	}

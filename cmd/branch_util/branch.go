@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	MANIFEST_PROJECTS = []string{"chromiumos/manifest", "chromiumos/manifest-internal"}
+	MANIFEST_PROJECTS = []string{"chromiumos/manifest", "chromeos/manifest-internal"}
 )
 
 type ProjectBranch struct {
@@ -119,9 +119,11 @@ func repairManifestRepositories(branches []ProjectBranch, dryRun, force bool) er
 			Checkout: checkout,
 			Project:  manifestProject,
 		}
-		manifestRepo.RepairManifestsOnDisk(getBranchesByPath(branches))
+		if err := manifestRepo.RepairManifestsOnDisk(getBranchesByPath(branches)); err != nil {
+			return errors.Annotate(err, "failed to repair manifest project %s", projectName).Err()
+		}
 		if _, err := git.RunGit(checkout.AbsoluteProjectPath(manifestProject),
-			[]string{"commit", "-a", "-m"}); err != nil {
+			[]string{"commit", "-a", "-m", "commit repaired manifests"}); err != nil {
 			return errors.Annotate(err, "error committing repaired manifests").Err()
 		}
 	}

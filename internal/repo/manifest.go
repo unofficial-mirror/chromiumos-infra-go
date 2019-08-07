@@ -412,6 +412,9 @@ func (m *Manifest) GetUniqueProject(name string) (Project, error) {
 			project = p
 		}
 	}
+	if matchingProjects == 0 {
+		return Project{}, fmt.Errorf("no project named %s", name)
+	}
 	return project, nil
 }
 

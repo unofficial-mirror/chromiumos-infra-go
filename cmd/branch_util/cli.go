@@ -1,8 +1,10 @@
+// Copyright 2019 The Chromium OS Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 package main
 
 import (
 	"context"
-	"flag"
 	"io/ioutil"
 	"log"
 	"os"
@@ -31,7 +33,6 @@ type branchApplication struct {
 }
 
 func main() {
-	flag.StringVar(&RepoToolPath, "repo_path", "repo", "Path of repo tool. Optional if repo is on your PATH.")
 	s := &branchApplication{application, log.New(ioutil.Discard, "", log.LstdFlags|log.Lmicroseconds)}
 	os.Exit(subcommands.Run(s, nil))
 }

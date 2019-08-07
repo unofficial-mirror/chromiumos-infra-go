@@ -209,6 +209,7 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 	if branchExists && !c.Force {
 		fmt.Fprintf(a.GetErr(), "Already branched %s. Please rerun with --force if you "+
 			"would like to proceed.", vinfo.VersionString())
+		return 1
 	}
 
 	// Generate branch name.

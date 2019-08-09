@@ -5,10 +5,12 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"regexp"
 	"strings"
 
 	"github.com/maruel/subcommands"
+	checkoutp "go.chromium.org/chromiumos/infra/go/internal/checkout"
 	"go.chromium.org/chromiumos/infra/go/internal/repo"
 	"go.chromium.org/luci/common/errors"
 )
@@ -170,8 +172,22 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 		return ret
 	}
 
+	// Create local checkout.
+	var err error
+	root := c.getRoot()
+	if root == "" {
+		root, err = ioutil.TempDir("", "cros-branch")
+		defer os.RemoveAll(root)
+		if err != nil {
+			fmt.Fprintf(a.GetErr(), errors.Annotate(err, "tmp root could not be created").Err().Error()+"\n")
+			return 1
+		}
+	}
+	checkout = &checkoutp.CrosCheckout{}
+	checkout.Initialize(root, c.getManifestUrl())
+
 	// Sync repo to manifest at provided path.
-	err := checkout.SyncToManifest(c.file)
+	err = checkout.SyncToManifest(c.file)
 	if err != nil {
 		fmt.Fprintf(a.GetErr(), "%s: %s\n", a.GetName(), err.Error())
 		return 1

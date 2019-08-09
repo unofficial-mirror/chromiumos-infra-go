@@ -5,12 +5,10 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 
 	"github.com/maruel/subcommands"
 	checkoutp "go.chromium.org/chromiumos/infra/go/internal/checkout"
 	"go.chromium.org/chromiumos/infra/go/internal/repo"
-	"go.chromium.org/luci/common/errors"
 )
 
 type branchCommand interface {
@@ -27,6 +25,10 @@ type CommonFlags struct {
 	Root        string
 	ManifestUrl string
 }
+
+const (
+	defaultManifestUrl = "https://chrome-internal.googlesource.com/chromeos/manifest-internal"
+)
 
 var (
 	RepoToolPath    string
@@ -50,8 +52,7 @@ func (c *CommonFlags) Init() {
 			"exist, this tool will create it. If the root is not initialized, "+
 			"this tool will initialize it. If --root is not specificed, this "+
 			"tool will branch a fresh checkout in a temporary directory.")
-	c.Flags.StringVar(&c.ManifestUrl, "manifest-url",
-		"https://chrome-internal.googlesource.com/chromeos/manifest-internal.git",
+	c.Flags.StringVar(&c.ManifestUrl, "manifest-url", defaultManifestUrl,
 		"URL of the manifest to be checked out. Defaults to googlesource URL "+
 			"for manifest-internal.")
 }
@@ -64,19 +65,5 @@ func Run(c branchCommand, a subcommands.Application, args []string,
 		fmt.Fprintf(a.GetErr(), errMsg+"\n")
 		return 1
 	}
-
-	var err error
-	root := c.getRoot()
-	if root == "" {
-		root, err = ioutil.TempDir("", "cros-branch-")
-		// TODO(jackneus): Delete tmp dir at end.
-		if err != nil {
-			fmt.Fprintf(a.GetErr(), errors.Annotate(err, "tmp root could not be created").Err().Error()+"\n")
-			return 1
-		}
-	}
-	checkout = &checkoutp.CrosCheckout{}
-	checkout.Initialize(root, c.getManifestUrl())
-
 	return 0
 }

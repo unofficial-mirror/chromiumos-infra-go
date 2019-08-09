@@ -63,6 +63,7 @@ func projectBranchName(branch string, project repo.Project, original string) str
 
 // projectBranches returns a list of ProjectBranch structs:
 // one for each branchable project.
+// The original parameter is the CrOS branch from which the current checkout stems.
 func projectBranches(branch, original string) []ProjectBranch {
 	var projectBranches []ProjectBranch
 	for _, project := range workingManifest.Projects {

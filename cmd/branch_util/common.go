@@ -9,6 +9,7 @@ import (
 
 	"github.com/maruel/subcommands"
 	checkoutp "go.chromium.org/chromiumos/infra/go/internal/checkout"
+	"go.chromium.org/chromiumos/infra/go/internal/repo"
 	"go.chromium.org/luci/common/errors"
 )
 
@@ -28,8 +29,9 @@ type CommonFlags struct {
 }
 
 var (
-	RepoToolPath string
-	checkout     checkoutp.Checkout
+	RepoToolPath    string
+	checkout        checkoutp.Checkout
+	workingManifest repo.Manifest
 )
 
 func (c *CommonFlags) Init() {

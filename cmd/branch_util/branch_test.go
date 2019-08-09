@@ -48,13 +48,8 @@ func TestProjectBranchName(t *testing.T) {
 	ctl := gomock.NewController(t)
 	defer ctl.Finish()
 
-	m := mock_checkout.NewMockCheckout(ctl)
-	checkout = m
 	manifest := branchNameTestManifest
-	m.EXPECT().
-		Manifest().
-		Return(manifest).
-		AnyTimes()
+	workingManifest = manifest
 	assert.Equal(t, projectBranchName("mybranch", manifest.Projects[0], ""), "mybranch")
 	assert.Equal(t, projectBranchName("mybranch", manifest.Projects[1], ""), "mybranch-factory-100")
 	assert.Equal(t, projectBranchName("mybranch", manifest.Projects[2], ""), "mybranch-101")
@@ -64,13 +59,8 @@ func TestProjectBranchName_withOriginal(t *testing.T) {
 	ctl := gomock.NewController(t)
 	defer ctl.Finish()
 
-	m := mock_checkout.NewMockCheckout(ctl)
-	checkout = m
 	manifest := branchNameTestManifest
-	m.EXPECT().
-		Manifest().
-		Return(manifest).
-		AnyTimes()
+	workingManifest = manifest
 	assert.Equal(t, projectBranchName("mybranch", manifest.Projects[3], "oldbranch"), "mybranch-factory-100")
 	assert.Equal(t, projectBranchName("mybranch", manifest.Projects[4], "oldbranch"), "mybranch-factory-101")
 }
@@ -106,14 +96,8 @@ func TestProjectBranches(t *testing.T) {
 	ctl := gomock.NewController(t)
 	defer ctl.Finish()
 
-	m := mock_checkout.NewMockCheckout(ctl)
-	checkout = m
 	manifest := branchesTestManifest
-	m.EXPECT().
-		Manifest().
-		Return(manifest).
-		AnyTimes()
-
+	workingManifest = manifest
 	expected := []ProjectBranch{
 		{project: manifest.Projects[0], branchName: "mybranch"},
 		{project: manifest.Projects[1], branchName: "mybranch-factory-100"},

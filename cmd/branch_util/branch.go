@@ -32,8 +32,7 @@ func canBranchProject(manifest repo.Manifest, project repo.Project) bool {
 func projectBranchName(branch string, project repo.Project, original string) string {
 	// If the project has only one checkout, then the base branch name is fine.
 	var checkouts []string
-	manifest := checkout.Manifest()
-	for _, proj := range manifest.Projects {
+	for _, proj := range workingManifest.Projects {
 		if proj.Name == project.Name {
 			checkouts = append(checkouts, proj.Name)
 		}
@@ -66,9 +65,8 @@ func projectBranchName(branch string, project repo.Project, original string) str
 // one for each branchable project.
 func projectBranches(branch, original string) []ProjectBranch {
 	var projectBranches []ProjectBranch
-	manifest := checkout.Manifest()
-	for _, project := range manifest.Projects {
-		if canBranchProject(manifest, project) {
+	for _, project := range workingManifest.Projects {
+		if canBranchProject(workingManifest, project) {
 			projectBranches = append(projectBranches,
 				ProjectBranch{
 					project:    project,
@@ -109,9 +107,8 @@ func getBranchesByPath(branches []ProjectBranch) map[string]string {
 // on the current branch and commits the changes. It then pushes the state of
 // the local git branches to remote.
 func repairManifestRepositories(branches []ProjectBranch, dryRun, force bool) error {
-	manifest := checkout.Manifest()
 	for _, projectName := range MANIFEST_PROJECTS {
-		manifestProject, err := manifest.GetUniqueProject(projectName)
+		manifestProject, err := workingManifest.GetUniqueProject(projectName)
 		if err != nil {
 			return err
 		}
@@ -133,7 +130,7 @@ func repairManifestRepositories(branches []ProjectBranch, dryRun, force bool) er
 
 		// The refspec should look like 'HEAD:refs/heads/branchName'.
 		refspec := fmt.Sprintf("HEAD:%s", branchName)
-		remote := manifest.GetRemoteByName(projectBranch.project.RemoteName).GitName()
+		remote := workingManifest.GetRemoteByName(projectBranch.project.RemoteName).GitName()
 
 		cmd := []string{"push", remote, refspec}
 		if dryRun {

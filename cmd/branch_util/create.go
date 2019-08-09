@@ -176,6 +176,7 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 		fmt.Fprintf(a.GetErr(), "%s: %s\n", a.GetName(), err.Error())
 		return 1
 	}
+	workingManifest = checkout.Manifest()
 
 	// Validate the version.
 	// Double check that the checkout has a zero patch number. Otherwise,
@@ -193,8 +194,7 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 
 	// Check that we did not already branch from this version.
 	// manifest-internal serves as the sentinel project.
-	manifest := checkout.Manifest()
-	manifestInternal, err := manifest.GetUniqueProject("chromeos/manifest-internal")
+	manifestInternal, err := workingManifest.GetUniqueProject("chromeos/manifest-internal")
 	if err != nil {
 		fmt.Fprintf(a.GetErr(),
 			errors.Annotate(err, "Could not get chromeos/manifest-internal project.").Err().Error())
@@ -266,7 +266,7 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 		}
 		commitMsg = fmt.Sprintf("Bump %s number for source branch after creating branch %s.",
 			sourceComponentToBump, branchName)
-		err = checkout.BumpVersion(sourceComponentToBump, manifest.Default.Revision, commitMsg, !c.Push, true)
+		err = checkout.BumpVersion(sourceComponentToBump, workingManifest.Default.Revision, commitMsg, !c.Push, true)
 		if err != nil {
 			fmt.Fprintf(a.GetErr(), err.Error())
 			return 1

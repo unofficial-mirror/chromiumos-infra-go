@@ -7,14 +7,15 @@ import (
 	"context"
 	"encoding/xml"
 	"fmt"
-	"go.chromium.org/chromiumos/infra/go/internal/gerrit"
-	"go.chromium.org/luci/common/errors"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"go.chromium.org/chromiumos/infra/go/internal/gerrit"
+	"go.chromium.org/luci/common/errors"
 )
 
 var (
@@ -429,4 +430,61 @@ func (m *Manifest) Write(path string) error {
 		return errors.Annotate(err, "failed to write manifest").Err()
 	}
 	return nil
+}
+
+func projectInArr(project Project, projects []Project) bool {
+	for _, proj := range projects {
+		// Path is a unniue identifier for projects.
+		if project.Path == proj.Path {
+			return true
+		}
+	}
+	return false
+}
+
+func remoteInArr(remote Remote, remotes []Remote) bool {
+	for _, rem := range remotes {
+		if remote.Name == rem.Name {
+			return true
+		}
+	}
+	return false
+}
+
+// MergeManifests will merge the given manifests based on includes, taking
+// manifests[path] to be the top-level manifest.
+// manifests maps manifest filenames to the Manifest structs themselves.
+// This basically re-implements `repo manifest` but is necessary because we can't run
+// `repo manifest` on a singular git repository.
+func MergeManifests(root string, manifests *map[string]*Manifest) (*Manifest, error) {
+	baseManifest, ok := (*manifests)[root]
+	if !ok {
+		return nil, fmt.Errorf("manifest %s does not exist", root)
+	}
+
+	// Merge each included manifest. Then merge into baseManifest.
+	for _, includedManifest := range baseManifest.Includes {
+		mergedManifest, err := MergeManifests(includedManifest.Name, manifests)
+		if err != nil {
+			return nil, err
+		}
+		// Merge projects.
+		for _, project := range mergedManifest.Projects {
+			if !projectInArr(project, baseManifest.Projects) {
+				baseManifest.Projects = append(baseManifest.Projects, project)
+			}
+		}
+		// Merge remotes.
+		for _, remote := range mergedManifest.Remotes {
+			if !remoteInArr(remote, baseManifest.Remotes) {
+				baseManifest.Remotes = append(baseManifest.Remotes, remote)
+			}
+		}
+		// Keep the base manifest's default.
+	}
+
+	// Clear includes.
+	baseManifest.Includes = []Include{}
+	baseManifest = baseManifest.ResolveImplicitLinks()
+	return baseManifest, nil
 }

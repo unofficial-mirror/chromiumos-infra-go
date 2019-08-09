@@ -316,3 +316,102 @@ func TestProjectBranchMode_remote(t *testing.T) {
 	// project is not branchable.
 	assert.Equal(t, manifest.ProjectBranchMode(manifest.Projects[3]), Pinned)
 }
+
+func TestMergeManifests(t *testing.T) {
+	// Manifest inheritance is as follows:
+	// a --> b --> c
+	//  \
+	//   \--> d
+	a := Manifest{
+		Default: Default{
+			RemoteName: "cros",
+			Revision:   "refs/heads/master",
+		},
+		Remotes: []Remote{
+			{Name: "cros"},
+			{Name: "cros-internal"},
+		},
+		Projects: []Project{
+			{Path: "project1/", Name: "project1"},
+			{Path: "project2/", Name: "project2"},
+			{Path: "project3/", Name: "project3", RemoteName: "cros-internal"},
+		},
+		Includes: []Include{
+			{Name: "b.xml"},
+			{Name: "d.xml"},
+		},
+	}
+	b := Manifest{
+		Default: Default{
+			RemoteName: "cros-internal",
+			Revision:   "refs/heads/internal",
+		},
+		Remotes: []Remote{
+			{Name: "cros"},
+			{Name: "cros-internal"},
+		},
+		Projects: []Project{
+			{Path: "project3-v2/", Name: "project3"},
+			{Path: "project4/", Name: "project4"},
+		},
+		Includes: []Include{
+			{Name: "c.xml"},
+		},
+	}
+	c := Manifest{
+		Default: Default{
+			RemoteName: "cros-special",
+			Revision:   "refs/heads/special",
+		},
+		Remotes: []Remote{
+			{Name: "cros-special", Revision: "refs/heads/unique"},
+		},
+		Projects: []Project{
+			{Path: "project5/", Name: "project5"},
+		},
+	}
+	d := Manifest{
+		Default: Default{
+			RemoteName: "cros",
+			Revision:   "refs/heads/develop",
+		},
+		Remotes: []Remote{
+			{Name: "cros"},
+		},
+		Projects: []Project{
+			{Path: "project6/", Name: "project6"},
+			{Path: "project7/", Name: "project7"},
+		},
+	}
+	manifestDict := map[string]*Manifest{
+		"a.xml": &a,
+		"b.xml": &b,
+		"c.xml": &c,
+		"d.xml": &d,
+	}
+	expected := Manifest{
+		Default: Default{
+			RemoteName: "cros",
+			Revision:   "refs/heads/master",
+		},
+		Remotes: []Remote{
+			{Name: "cros"},
+			{Name: "cros-internal"},
+			{Name: "cros-special", Revision: "refs/heads/unique"},
+		},
+		Projects: []Project{
+			{Path: "project1/", Name: "project1", RemoteName: "cros", Revision: "refs/heads/master"},
+			{Path: "project2/", Name: "project2", RemoteName: "cros", Revision: "refs/heads/master"},
+			{Path: "project3/", Name: "project3", RemoteName: "cros-internal", Revision: "refs/heads/master"},
+			{Path: "project3-v2/", Name: "project3", RemoteName: "cros-internal", Revision: "refs/heads/internal"},
+			{Path: "project4/", Name: "project4", RemoteName: "cros-internal", Revision: "refs/heads/internal"},
+			{Path: "project5/", Name: "project5", RemoteName: "cros-special", Revision: "refs/heads/unique"},
+			{Path: "project6/", Name: "project6", RemoteName: "cros", Revision: "refs/heads/develop"},
+			{Path: "project7/", Name: "project7", RemoteName: "cros", Revision: "refs/heads/develop"},
+		},
+		Includes: []Include{},
+	}
+	mergedManifest, err := MergeManifests("a.xml", &manifestDict)
+	assert.NilError(t, err)
+	assert.Assert(t, reflect.DeepEqual(expected, *mergedManifest))
+}

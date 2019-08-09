@@ -10,31 +10,17 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 
+	"go.chromium.org/chromiumos/infra/go/internal/cmd"
 	"go.chromium.org/chromiumos/infra/go/internal/osutils"
 	"go.chromium.org/chromiumos/infra/go/internal/repo"
 	"go.chromium.org/luci/common/errors"
 )
 
 var (
-	commandRunnerImpl commandRunner = realCommandRunner{}
+	commandRunnerImpl cmd.CommandRunner = cmd.RealCommandRunner{}
 )
-
-type commandRunner interface {
-	runCommand(ctx context.Context, stdoutBuf, stderrBuf *bytes.Buffer, dir, name string, args ...string) error
-}
-
-type realCommandRunner struct{}
-
-func (c realCommandRunner) runCommand(ctx context.Context, stdoutBuf, stderrBuf *bytes.Buffer, dir, name string, args ...string) error {
-	cmd := exec.CommandContext(ctx, name, args...)
-	cmd.Stdout = stdoutBuf
-	cmd.Stderr = stderrBuf
-	cmd.Dir = dir
-	return cmd.Run()
-}
 
 type Repository struct {
 	Root string
@@ -48,12 +34,17 @@ func Initialize(root, manifestUrl, repoToolPath string) (Repository, error) {
 	if FindRepoCheckoutRoot(root) != "" {
 		return Repository{}, fmt.Errorf("Cannot init in existing repo %s.", root)
 	}
+
+	if manifestUrl == "" {
+		return Repository{}, fmt.Errorf("Must specify manifest url.")
+	}
 	cmdArgs := []string{"init", "--manifest-url", manifestUrl}
+
 	repoDir := filepath.Join(root, ".repo")
 
 	ctx := context.Background()
 	var stdoutBuf, stderrBuf bytes.Buffer
-	if err := commandRunnerImpl.runCommand(ctx, &stdoutBuf, &stderrBuf, root, repoToolPath, cmdArgs...); err != nil {
+	if err := commandRunnerImpl.RunCommand(ctx, &stdoutBuf, &stderrBuf, root, repoToolPath, cmdArgs...); err != nil {
 		// On failure, delete the .repo directory.
 		os.RemoveAll(repoDir)
 		log.Printf("Error from repo.\nstdout =\n%s\n\nstderr=\n%s", stdoutBuf.String(), stderrBuf.String())
@@ -77,7 +68,7 @@ func (r *Repository) SyncToFile(manifestPath, repoToolPath string) error {
 	ctx := context.Background()
 
 	var stdoutBuf, stderrBuf bytes.Buffer
-	if err := commandRunnerImpl.runCommand(ctx, &stdoutBuf, &stderrBuf, r.Root, repoToolPath, cmdArgs...); err != nil {
+	if err := commandRunnerImpl.RunCommand(ctx, &stdoutBuf, &stderrBuf, r.Root, repoToolPath, cmdArgs...); err != nil {
 		log.Printf("Error from repo.\nstdout =\n%s\n\nstderr=\n%s", stdoutBuf.String(), stderrBuf.String())
 		return err
 	}
@@ -105,7 +96,7 @@ func (r *Repository) Manifest(repoToolPath string) (repo.Manifest, error) {
 	ctx := context.Background()
 
 	var stdoutBuf, stderrBuf bytes.Buffer
-	if err := commandRunnerImpl.runCommand(ctx, &stdoutBuf, &stderrBuf, r.Root, repoToolPath, cmdArgs...); err != nil {
+	if err := commandRunnerImpl.RunCommand(ctx, &stdoutBuf, &stderrBuf, r.Root, repoToolPath, cmdArgs...); err != nil {
 		log.Printf("Error from repo.\nstdout =\n%s\n\nstderr=\n%s", stdoutBuf.String(), stderrBuf.String())
 		return repo.Manifest{}, err
 	}

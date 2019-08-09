@@ -4,61 +4,15 @@
 package repo_util
 
 import (
-	"bytes"
-	"context"
-	"fmt"
 	"gotest.tools/assert"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strings"
 	"testing"
 
+	"go.chromium.org/chromiumos/infra/go/internal/cmd"
 	"go.chromium.org/chromiumos/infra/go/internal/repo"
 )
-
-type fakeCommandRunner struct {
-	stdout      string
-	stderr      string
-	expectedCmd []string
-	expectedDir string
-	failCommand bool
-}
-
-func equal(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
-}
-
-func (c fakeCommandRunner) runCommand(ctx context.Context, stdoutBuf, stderrBuf *bytes.Buffer, dir, name string, args ...string) error {
-	stdoutBuf.WriteString(c.stdout)
-	stderrBuf.WriteString(c.stderr)
-	cmd := append([]string{name}, args...)
-	if len(c.expectedCmd) > 0 {
-		if !equal(cmd, c.expectedCmd) {
-			expectedCmd := strings.Join(c.expectedCmd, " ")
-			actualCmd := strings.Join(cmd, " ")
-			return fmt.Errorf("wrong cmd; expected %s got %s", expectedCmd, actualCmd)
-		}
-	}
-	if c.expectedDir != "" {
-		if dir != c.expectedDir {
-			return fmt.Errorf("wrong cmd dir; expected %s got %s", c.expectedDir, dir)
-		}
-	}
-	if c.failCommand {
-		return &exec.ExitError{}
-	}
-	return nil
-}
 
 func TestInitialize_success(t *testing.T) {
 	tmpDir := "repotest_tmp_dir"
@@ -67,14 +21,12 @@ func TestInitialize_success(t *testing.T) {
 	assert.NilError(t, err)
 
 	manifestUrl := "https://chromium.googlesource.com/chromiumos/manifest/foo.xml"
-	commandRunnerImpl = fakeCommandRunner{
-		expectedCmd: []string{"repo", "init", "--manifest-url", manifestUrl},
-		expectedDir: tmpDir,
+	commandRunnerImpl = cmd.FakeCommandRunner{
+		ExpectedCmd: []string{"repo", "init", "--manifest-url", manifestUrl},
+		ExpectedDir: tmpDir,
 	}
 	repo, err := Initialize(tmpDir, manifestUrl, "repo")
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NilError(t, err)
 	assert.Equal(t, repo.Root, tmpDir)
 }
 
@@ -92,18 +44,32 @@ func TestInitialize_repoexists(t *testing.T) {
 	assert.ErrorContains(t, err, "existing")
 }
 
-func TestInitialize_failure(t *testing.T) {
+func TestInitialize_repo_failure(t *testing.T) {
 	tmpDir := "repotest_tmp_dir"
 	tmpDir, err := ioutil.TempDir("", tmpDir)
 	defer os.RemoveAll(tmpDir)
 	assert.NilError(t, err)
 
 	manifestUrl := "https://chromium.googlesource.com/chromiumos/manifest/foo.xml"
-	commandRunnerImpl = fakeCommandRunner{
-		failCommand: true,
+	commandRunnerImpl = cmd.FakeCommandRunner{
+		FailCommand: true,
 	}
 	_, err = Initialize(tmpDir, manifestUrl, "repo")
 	assert.ErrorContains(t, err, "")
+}
+
+func TestInitialize_missingManifestUrl(t *testing.T) {
+	tmpDir := "repotest_tmp_dir"
+	tmpDir, err := ioutil.TempDir("", tmpDir)
+	defer os.RemoveAll(tmpDir)
+	assert.NilError(t, err)
+
+	manifestUrl := ""
+	commandRunnerImpl = cmd.FakeCommandRunner{
+		FailCommand: true,
+	}
+	_, err = Initialize(tmpDir, manifestUrl, "repo")
+	assert.ErrorContains(t, err, "url")
 }
 
 func TestSyncToFile_success(t *testing.T) {
@@ -119,8 +85,8 @@ func TestSyncToFile_success(t *testing.T) {
 	assert.NilError(t, err)
 
 	manifestFile := file.Name()
-	commandRunnerImpl = fakeCommandRunner{
-		expectedCmd: []string{"repo", "sync", "--manifest-name", manifestFile},
+	commandRunnerImpl = cmd.FakeCommandRunner{
+		ExpectedCmd: []string{"repo", "sync", "--manifest-name", manifestFile},
 	}
 	testRepo := &Repository{tmpDir}
 	err = testRepo.SyncToFile(manifestFile, "repo")
@@ -136,7 +102,7 @@ func TestSyncToFile_manifest_missing(t *testing.T) {
 	// Create .repo folder
 	assert.NilError(t, os.Mkdir(filepath.Join(tmpDir, ".repo"), 0775))
 
-	commandRunnerImpl = fakeCommandRunner{}
+	commandRunnerImpl = cmd.FakeCommandRunner{}
 	testRepo := &Repository{tmpDir}
 	err = testRepo.SyncToFile("foo", "repo")
 	assert.ErrorContains(t, err, "exist")
@@ -148,7 +114,7 @@ func TestSyncToFile_repo_no_init(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 	assert.NilError(t, err)
 
-	commandRunnerImpl = fakeCommandRunner{}
+	commandRunnerImpl = cmd.FakeCommandRunner{}
 	testRepo := &Repository{tmpDir}
 	err = testRepo.SyncToFile("foo", "repo")
 	assert.ErrorContains(t, err, "init")
@@ -169,9 +135,9 @@ func TestManifest(t *testing.T) {
 	assert.NilError(t, err)
 
 	testRepo := &Repository{tmpDir}
-	commandRunnerImpl = fakeCommandRunner{
-		expectedDir: tmpDir,
-		stdout:      manifestData,
+	commandRunnerImpl = cmd.FakeCommandRunner{
+		ExpectedDir: tmpDir,
+		Stdout:      manifestData,
 	}
 	expectedManifest := repo.Manifest{
 		Projects: []repo.Project{

@@ -7,16 +7,18 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"github.com/golang/mock/gomock"
-	"go.chromium.org/chromiumos/infra/go/internal/gerrit"
-	gitilespb "go.chromium.org/luci/common/proto/gitiles"
-	"gotest.tools/assert"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
+
+	"github.com/golang/mock/gomock"
+	"go.chromium.org/chromiumos/infra/go/internal/gerrit"
+	"go.chromium.org/chromiumos/infra/go/internal/test_util"
+	gitilespb "go.chromium.org/luci/common/proto/gitiles"
+	"gotest.tools/assert"
 )
 
 func TestFetchFilesFromGitiles_success(t *testing.T) {
@@ -90,7 +92,7 @@ func ManifestMapEq(expected, actual map[string]*Manifest) error {
 
 func TestLoadManifestTree_success(t *testing.T) {
 	expected_results := make(map[string]*Manifest)
-	expected_results["test_data/foo.xml"] = &Manifest{
+	expected_results["foo.xml"] = &Manifest{
 		Projects: []Project{
 			{Path: "baz/", Name: "baz", Revision: "123", RemoteName: "chromium"},
 			{Path: "fiz/", Name: "fiz", Revision: "124", RemoteName: "chromeos"},
@@ -101,12 +103,13 @@ func TestLoadManifestTree_success(t *testing.T) {
 			},
 		},
 		Includes: []Include{
-			{"bar.xml"},
+			{"sub/bar.xml"},
 		},
 	}
-	expected_results["test_data/bar.xml"] = &Manifest{
+	expected_results["sub/bar.xml"] = &Manifest{
 		Projects: []Project{
 			{Path: "baz/", Name: "baz"},
+			{Path: "project/", Name: "project"},
 		},
 	}
 
@@ -165,7 +168,7 @@ func TestWrite(t *testing.T) {
 	// Make sure manifest was marshalled and written correctly.
 	manifestMap, err := LoadManifestTree(tmpPath)
 	assert.NilError(t, err)
-	assert.Assert(t, reflect.DeepEqual(manifest, manifestMap[tmpPath]))
+	assert.Assert(t, reflect.DeepEqual(manifest, manifestMap["foo.xml"]))
 }
 
 func TestGitName(t *testing.T) {
@@ -414,4 +417,17 @@ func TestMergeManifests(t *testing.T) {
 	mergedManifest, err := MergeManifests("a.xml", &manifestDict)
 	assert.NilError(t, err)
 	assert.Assert(t, reflect.DeepEqual(expected, *mergedManifest))
+}
+
+func TestLoadManifestFromFileWithIncludes(t *testing.T) {
+	expectedProjectNames := []string{"baz", "fiz", "buz", "project"}
+
+	res, err := LoadManifestFromFileWithIncludes("test_data/foo.xml")
+	assert.NilError(t, err)
+
+	projectNames := make([]string, len(res.Projects))
+	for i, project := range res.Projects {
+		projectNames[i] = project.Name
+	}
+	assert.Assert(t, test_util.UnorderedEqual(expectedProjectNames, projectNames))
 }

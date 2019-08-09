@@ -269,18 +269,29 @@ func (p *Project) GetAnnotation(name string) (string, bool) {
 	return "", false
 }
 
-// LoadManifestFromFile ile loads the manifest at the given file into a
-// Manfiest struct.
+// LoadManifestFromFile loads the manifest at the given file into a
+// Manifest struct.
 func LoadManifestFromFile(file string) (Manifest, error) {
 	manifestMap, err := LoadManifestTree(file)
 	if err != nil {
 		return Manifest{}, err
 	}
-	manifest, exists := manifestMap[file]
+	manifest, exists := manifestMap[filepath.Base(file)]
 	if !exists {
 		return Manifest{}, fmt.Errorf("failed to read %s", file)
 	}
 	return *manifest, nil
+}
+
+// LoadManifestFromFileWithIncludes loads the manifest at the given files but also
+// calls MergeManifests to resolve includes.
+func LoadManifestFromFileWithIncludes(file string) (*Manifest, error) {
+	manifestMap, err := LoadManifestTree(file)
+	if err != nil {
+		return nil, err
+	}
+	manifest, err := MergeManifests(filepath.Base(file), &manifestMap)
+	return manifest, err
 }
 
 // ResolveImplicitLinks explicitly sets remote/revision information
@@ -322,7 +333,7 @@ func LoadManifestTree(file string) (map[string]*Manifest, error) {
 	}
 	manifest.XMLName = xml.Name{}
 	manifest = manifest.ResolveImplicitLinks()
-	results[file] = manifest
+	results[filepath.Base(file)] = manifest
 
 	// Recursively fetch manifests listed in "include" elements.
 	for _, incl := range manifest.Includes {
@@ -333,7 +344,7 @@ func LoadManifestTree(file string) (map[string]*Manifest, error) {
 			return nil, err
 		}
 		for k, v := range subResults {
-			results[k] = v
+			results[filepath.Join(filepath.Dir(incl.Name), k)] = v
 		}
 	}
 	return results, nil

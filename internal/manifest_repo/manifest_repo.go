@@ -5,6 +5,7 @@ package manifest_repo
 
 import (
 	"log"
+	"path/filepath"
 	"strings"
 
 	checkoutp "go.chromium.org/chromiumos/infra/go/internal/checkout"
@@ -94,7 +95,7 @@ func (m *ManifestRepo) listManifests(rootPaths []string) ([]string, error) {
 			}
 		}
 		for k := range manifestMap {
-			manifestPaths[k] = true
+			manifestPaths[filepath.Join(filepath.Dir(path), k)] = true
 		}
 	}
 	manifests := []string{}

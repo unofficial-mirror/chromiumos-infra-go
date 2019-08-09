@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <manifest>
-  <include name="bar.xml" />
+  <include name="sub/bar.xml" />
   <default remote="chromeos" revision="123"/>
   <remote fetch="https://chromium.org/remote" name="chromium" alias="chromeos"/>
   <remote fetch="https://google.com/remote" name="google" revision="125"/>

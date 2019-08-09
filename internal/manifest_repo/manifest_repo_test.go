@@ -157,17 +157,18 @@ func TestRepairManifestsOnDisk(t *testing.T) {
 		Return(nil)
 
 	err = manifestRepo.RepairManifestsOnDisk(branchMap)
+	assert.NilError(t, err)
 
 	// Read repaired manifests from disk, check expectations.
 	defaultManifestMap, err := repo.LoadManifestTree(manifestPath["default.xml"])
 	assert.NilError(t, err)
 	assert.Assert(t,
-		reflect.DeepEqual(expectedFullManifest, *defaultManifestMap[manifestPath["full.xml"]]))
+		reflect.DeepEqual(expectedFullManifest, *defaultManifestMap["full.xml"]))
 	assert.Assert(t,
-		reflect.DeepEqual(defaultManifest, *defaultManifestMap[manifestPath["default.xml"]]))
+		reflect.DeepEqual(defaultManifest, *defaultManifestMap["default.xml"]))
 
 	officialManifestMap, err := repo.LoadManifestTree(manifestPath["official.xml"])
 	assert.NilError(t, err)
 	assert.Assert(t,
-		reflect.DeepEqual(officialManifest, *officialManifestMap[manifestPath["official.xml"]]))
+		reflect.DeepEqual(officialManifest, *officialManifestMap["official.xml"]))
 }

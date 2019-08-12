@@ -15,7 +15,6 @@ import (
 	"go.chromium.org/chromiumos/infra/go/internal/repo"
 	"go.chromium.org/chromiumos/infra/go/internal/repo_util"
 	"go.chromium.org/chromiumos/infra/go/internal/shared"
-	"go.chromium.org/luci/common/errors"
 )
 
 // Used for development purposes. Assumes that there is a properly synced
@@ -31,14 +30,12 @@ type Checkout interface {
 	Manifest() repo.Manifest
 	SetRepoToolPath(path string)
 	SyncToManifest(path string) error
-	ReadVersion() (repo.VersionInfo, error)
 	AbsolutePath(args ...string) string
 	AbsoluteProjectPath(project repo.Project, args ...string) string
 	BranchExists(project repo.Project, pattern *regexp.Regexp) (bool, error)
 	EnsureProject(project repo.Project) error
 	GitRevision(project repo.Project) (string, error)
 	RunGit(project repo.Project, cmd []string) (git.CommandOutput, error)
-	BumpVersion(component repo.VersionComponent, branch, commitMsg string, dryRun, fetch bool) error
 }
 
 type CrosCheckout struct {
@@ -94,14 +91,6 @@ func (c *CrosCheckout) SyncToManifest(path string) error {
 	var err error
 	c.manifest, err = repository.Manifest(RepoToolPath)
 	return err
-}
-
-func (c *CrosCheckout) ReadVersion() (repo.VersionInfo, error) {
-	vinfo, err := repo.GetVersionInfoFromRepo(c.root)
-	if err != nil {
-		return repo.VersionInfo{}, err
-	}
-	return vinfo, nil
 }
 
 // AbsolutePath joins the path components with the repo root.
@@ -160,40 +149,4 @@ func (c *CrosCheckout) RunGit(project repo.Project, cmd []string) (git.CommandOu
 	}
 	output := <-ch
 	return *output, err
-}
-
-// BumpVersion increments the appropriate component of the version in
-// chromeos_version.sh and commits it.
-// If fetch is set, will fetch and checkout to the given branch.
-func (c *CrosCheckout) BumpVersion(
-	component repo.VersionComponent, branch, commitMsg string, dryRun, fetch bool) error {
-
-	chromiumosOverlay, err := c.manifest.GetUniqueProject("chromiumos/overlays/chromiumos-overlay")
-	if err != nil {
-		return errors.Annotate(err, "could not get chromiumos-overlay project").Err()
-	}
-	remote := c.manifest.GetRemoteByName(chromiumosOverlay.RemoteName).GitName()
-	ref := git.NormalizeRef(branch)
-
-	if fetch {
-		if _, err := c.RunGit(chromiumosOverlay, []string{"fetch", remote, ref}); err != nil {
-			return err
-		}
-		if _, err := c.RunGit(chromiumosOverlay, []string{"checkout", "-B", branch, "FETCH_HEAD"}); err != nil {
-			return err
-		}
-	}
-
-	newVersion, err := c.ReadVersion()
-	if err != nil {
-		return err
-	}
-	newVersion.IncrementVersion(component)
-	remoteRef := git.RemoteRef{
-		Remote: remote,
-		Ref:    ref,
-	}
-
-	err = newVersion.UpdateVersionFile(commitMsg, dryRun, remoteRef)
-	return err
 }

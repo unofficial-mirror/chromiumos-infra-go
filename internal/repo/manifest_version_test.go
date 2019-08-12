@@ -4,7 +4,6 @@
 package repo
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -36,7 +35,7 @@ func assertVersionEqual(t *testing.T, v VersionInfo, expected []int) {
 }
 
 func TestGetVersionInfoFromRepo_success(t *testing.T) {
-	VersionFilePath = "chromeos_version.sh"
+	VersionFileProjectPath = "chromeos_version.sh"
 	versionInfo, err := GetVersionInfoFromRepo("test_data")
 	assert.NilError(t, err)
 	assertVersionEqual(t, versionInfo, []int{77, 12302, 1, 0})
@@ -91,7 +90,7 @@ func TestParseVersionInfo_error(t *testing.T) {
 }
 
 func TestIncrementVersion_ChromeBranch(t *testing.T) {
-	VersionFilePath = "chromeos_version.sh"
+	VersionFileProjectPath = "chromeos_version.sh"
 	versionInfo, err := GetVersionInfoFromRepo("test_data")
 	versionInfo.IncrementVersion(ChromeBranch)
 	assert.NilError(t, err)
@@ -99,7 +98,7 @@ func TestIncrementVersion_ChromeBranch(t *testing.T) {
 }
 
 func TestIncrementVersion_Build(t *testing.T) {
-	VersionFilePath = "chromeos_version.sh"
+	VersionFileProjectPath = "chromeos_version.sh"
 	versionInfo, err := GetVersionInfoFromRepo("test_data")
 	versionInfo.IncrementVersion(Build)
 	assert.NilError(t, err)
@@ -107,7 +106,7 @@ func TestIncrementVersion_Build(t *testing.T) {
 }
 
 func TestIncrementVersion_Branch(t *testing.T) {
-	VersionFilePath = "chromeos_version.sh"
+	VersionFileProjectPath = "chromeos_version.sh"
 	versionInfo, err := GetVersionInfoFromRepo("test_data")
 	versionInfo.IncrementVersion(Branch)
 	assert.NilError(t, err)
@@ -115,7 +114,7 @@ func TestIncrementVersion_Branch(t *testing.T) {
 }
 
 func TestIncrementVersion_Branch_nonzero(t *testing.T) {
-	VersionFilePath = "chromeos_version.sh"
+	VersionFileProjectPath = "chromeos_version.sh"
 	versionInfo, err := GetVersionInfoFromRepo("test_data")
 	versionInfo.PatchNumber = 1
 	versionInfo.IncrementVersion(Branch)
@@ -124,7 +123,7 @@ func TestIncrementVersion_Branch_nonzero(t *testing.T) {
 }
 
 func TestIncrementVersion_Patch(t *testing.T) {
-	VersionFilePath = "chromeos_version.sh"
+	VersionFileProjectPath = "chromeos_version.sh"
 	versionInfo, err := GetVersionInfoFromRepo("test_data")
 	versionInfo.IncrementVersion(Patch)
 	assert.NilError(t, err)
@@ -158,7 +157,7 @@ func TestStrippedVersionString(t *testing.T) {
 
 func TestUpdateVersionFile_noVersionFile(t *testing.T) {
 	var v VersionInfo
-	err := v.UpdateVersionFile("", false, git.RemoteRef{})
+	err := v.UpdateVersionFile()
 	assert.ErrorContains(t, err, "associated version file")
 }
 
@@ -175,37 +174,10 @@ func TestUpdateVersionFile_success(t *testing.T) {
 	err = ioutil.WriteFile(tmpPath, fileContents, 0644)
 	assert.NilError(t, err)
 
-	commitMsg := "commit"
-	remoteRef := git.RemoteRef{
-		Remote: "remote",
-		Ref:    "ref",
-	}
-
 	// Set git mock expectations.
-	pushRefs := fmt.Sprintf("%s:%s", pushBranch, remoteRef.Ref)
-	git.CommandRunnerImpl = &cmd.FakeCommandRunnerMulti{
-		CommandRunners: []cmd.FakeCommandRunner{
-			{
-				ExpectedDir: tmpDir,
-				ExpectedCmd: []string{"git", "checkout", "-B", pushBranch},
-			},
-			{
-				ExpectedDir: tmpDir,
-				ExpectedCmd: []string{"git", "add", "-A"},
-			},
-			{
-				ExpectedDir: tmpDir,
-				ExpectedCmd: []string{"git", "commit", "-m", commitMsg},
-			},
-			{
-				ExpectedDir: tmpDir,
-				ExpectedCmd: []string{"git", "rev-parse", "HEAD"},
-			},
-			{
-				ExpectedDir: tmpDir,
-				ExpectedCmd: []string{"git", "push", remoteRef.Remote, pushRefs, "--dry-run"},
-			},
-		},
+	git.CommandRunnerImpl = &cmd.FakeCommandRunner{
+		ExpectedDir: tmpDir,
+		ExpectedCmd: []string{"git", "checkout", "-B", pushBranch},
 	}
 
 	// Call UpdateVersionFile.
@@ -215,7 +187,7 @@ func TestUpdateVersionFile_success(t *testing.T) {
 	v.BranchBuildNumber = 0xbeef
 	v.PatchNumber = 0
 	v.VersionFile = tmpPath
-	err = v.UpdateVersionFile(commitMsg, true, remoteRef)
+	err = v.UpdateVersionFile()
 	assert.NilError(t, err)
 
 	// Read version info back in from file, make sure it's correct.

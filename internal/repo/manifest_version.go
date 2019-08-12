@@ -29,7 +29,6 @@ const (
 // This is a var and not a const for testing purposes.
 var (
 	VersionFileProjectPath string = "chromeos/config/chromeos_version.sh"
-	VersionFilePath        string = filepath.Join("src/third_party/chromiumos-overlay/", VersionFileProjectPath)
 )
 
 const (
@@ -62,7 +61,7 @@ func VersionsEqual(a, b VersionInfo) bool {
 
 // GetVersionInfoFromRepo reads version info from a fixed location in the specified repository.
 func GetVersionInfoFromRepo(sourceRepo string) (VersionInfo, error) {
-	versionFile := filepath.Join(sourceRepo, VersionFilePath)
+	versionFile := filepath.Join(sourceRepo, VersionFileProjectPath)
 
 	fileData, err := ioutil.ReadFile(versionFile)
 	if err != nil {
@@ -173,7 +172,7 @@ func (v *VersionInfo) StrippedVersionString() string {
 }
 
 // UpdateVersionFile updates the version file with our current version.
-func (v *VersionInfo) UpdateVersionFile(commitMsg string, dryRun bool, pushTo git.RemoteRef) error {
+func (v *VersionInfo) UpdateVersionFile() error {
 	if v.VersionFile == "" {
 		return fmt.Errorf("cannot call UpdateVersionFile without an associated version file (field VersionFile)")
 	}
@@ -213,11 +212,6 @@ func (v *VersionInfo) UpdateVersionFile(commitMsg string, dryRun bool, pushTo gi
 	// Update version file.
 	if err = ioutil.WriteFile(v.VersionFile, []byte(fileData), 0644); err != nil {
 		return errors.Annotate(err, "could not write version file %s", v.VersionFile).Err()
-	}
-	// Push changes to remote.
-	if _, err = git.PushChanges(repoDir, pushBranch, commitMsg, dryRun, pushTo); err != nil {
-		return errors.Annotate(err, "failed to push version file changes to remote %s:%s",
-			pushTo.Remote, pushTo.Ref).Err()
 	}
 
 	return nil

@@ -5,10 +5,16 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
+	"net/url"
+	"path"
+	"path/filepath"
 
 	"github.com/maruel/subcommands"
 	checkoutp "go.chromium.org/chromiumos/infra/go/internal/checkout"
+	"go.chromium.org/chromiumos/infra/go/internal/git"
 	"go.chromium.org/chromiumos/infra/go/internal/repo"
+	"go.chromium.org/luci/common/errors"
 )
 
 type branchCommand interface {
@@ -55,6 +61,34 @@ func (c *CommonFlags) Init() {
 	c.Flags.StringVar(&c.ManifestUrl, "manifest-url", defaultManifestUrl,
 		"URL of the manifest to be checked out. Defaults to googlesource URL "+
 			"for manifest-internal.")
+}
+
+// Get a local checkout of a particular project.
+func getProjectCheckout(projectPath string) (string, error) {
+	project, err := workingManifest.GetProjectByPath(projectPath)
+	if err != nil {
+		return "", err
+	}
+
+	checkoutDir, err := ioutil.TempDir("", "cros-branch-")
+	if err != nil {
+		return "", errors.Annotate(err, "tmp dir could not be created").Err()
+	}
+
+	remote := workingManifest.GetRemoteByName(project.RemoteName)
+	projectUrl, err := url.Parse(remote.Fetch)
+	if err != nil {
+		return "", errors.Annotate(err, "failed to parse fetch location for remote %s", remote.Name).Err()
+	}
+	projectUrl.Path = path.Join(projectUrl.Path, project.Name)
+
+	_, err = git.RunGit(filepath.Dir(checkoutDir),
+		[]string{"clone", projectUrl.String(), checkoutDir})
+	if err != nil {
+		return "", errors.Annotate(err, "failed to clone %s", projectUrl).Err()
+	}
+
+	return checkoutDir, nil
 }
 
 func Run(c branchCommand, a subcommands.Application, args []string,

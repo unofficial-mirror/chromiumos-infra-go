@@ -92,21 +92,6 @@ func (mr *MockCheckoutMockRecorder) SyncToManifest(path interface{}) *gomock.Cal
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SyncToManifest", reflect.TypeOf((*MockCheckout)(nil).SyncToManifest), path)
 }
 
-// ReadVersion mocks base method
-func (m *MockCheckout) ReadVersion() (repo.VersionInfo, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ReadVersion")
-	ret0, _ := ret[0].(repo.VersionInfo)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// ReadVersion indicates an expected call of ReadVersion
-func (mr *MockCheckoutMockRecorder) ReadVersion() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadVersion", reflect.TypeOf((*MockCheckout)(nil).ReadVersion))
-}
-
 // AbsolutePath mocks base method
 func (m *MockCheckout) AbsolutePath(args ...string) string {
 	m.ctrl.T.Helper()
@@ -201,18 +186,4 @@ func (m *MockCheckout) RunGit(project repo.Project, cmd []string) (git.CommandOu
 func (mr *MockCheckoutMockRecorder) RunGit(project, cmd interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RunGit", reflect.TypeOf((*MockCheckout)(nil).RunGit), project, cmd)
-}
-
-// BumpVersion mocks base method
-func (m *MockCheckout) BumpVersion(component repo.VersionComponent, branch, commitMsg string, dryRun, fetch bool) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "BumpVersion", component, branch, commitMsg, dryRun, fetch)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// BumpVersion indicates an expected call of BumpVersion
-func (mr *MockCheckoutMockRecorder) BumpVersion(component, branch, commitMsg, dryRun, fetch interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BumpVersion", reflect.TypeOf((*MockCheckout)(nil).BumpVersion), component, branch, commitMsg, dryRun, fetch)
 }

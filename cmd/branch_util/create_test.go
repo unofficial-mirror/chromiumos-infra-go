@@ -15,7 +15,7 @@ func TestNewBranchName_Custom(t *testing.T) {
 	c := &createBranchRun{
 		custom: "custom-name",
 	}
-	assert.Equal(t, c.newBranchName(), "custom-name")
+	assert.Equal(t, c.newBranchName(repo.VersionInfo{}), "custom-name")
 }
 
 var vinfo = repo.VersionInfo{
@@ -34,10 +34,8 @@ func TestNewBranchName_Release(t *testing.T) {
 	c := &createBranchRun{
 		release: true,
 	}
-	m.EXPECT().
-		ReadVersion().
-		Return(vinfo, nil)
-	assert.Equal(t, c.newBranchName(), "release-R77-123.1.B")
+
+	assert.Equal(t, c.newBranchName(vinfo), "release-R77-123.1.B")
 }
 
 func TestNewBranchName_Factory(t *testing.T) {
@@ -46,14 +44,12 @@ func TestNewBranchName_Factory(t *testing.T) {
 
 	m := mock_checkout.NewMockCheckout(ctl)
 	checkout = m
+
 	c := &createBranchRun{
 		factory:    true,
 		descriptor: "foo",
 	}
-	m.EXPECT().
-		ReadVersion().
-		Return(vinfo, nil)
-	assert.Equal(t, c.newBranchName(), "factory-foo-123.1.B")
+	assert.Equal(t, c.newBranchName(vinfo), "factory-foo-123.1.B")
 }
 
 func TestNewBranchName_Firmware(t *testing.T) {
@@ -62,13 +58,11 @@ func TestNewBranchName_Firmware(t *testing.T) {
 
 	m := mock_checkout.NewMockCheckout(ctl)
 	checkout = m
+
 	c := &createBranchRun{
 		firmware: true,
 	}
-	m.EXPECT().
-		ReadVersion().
-		Return(vinfo, nil)
-	assert.Equal(t, c.newBranchName(), "firmware-123.1.B")
+	assert.Equal(t, c.newBranchName(vinfo), "firmware-123.1.B")
 }
 
 func TestNewBranchName_Stabilize(t *testing.T) {
@@ -81,8 +75,5 @@ func TestNewBranchName_Stabilize(t *testing.T) {
 	c := &createBranchRun{
 		stabilize: true,
 	}
-	m.EXPECT().
-		ReadVersion().
-		Return(vinfo, nil)
-	assert.Equal(t, c.newBranchName(), "stabilize-123.1.B")
+	assert.Equal(t, c.newBranchName(vinfo), "stabilize-123.1.B")
 }

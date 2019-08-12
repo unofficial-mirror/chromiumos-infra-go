@@ -6,17 +6,23 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
 	"regexp"
 	"strings"
 
 	"github.com/maruel/subcommands"
 	checkoutp "go.chromium.org/chromiumos/infra/go/internal/checkout"
+	"go.chromium.org/chromiumos/infra/go/internal/git"
 	"go.chromium.org/chromiumos/infra/go/internal/repo"
 	"go.chromium.org/luci/common/errors"
 )
 
 var (
 	skipSync bool
+)
+
+const (
+	versionProjectPath = "src/third_party/chromiumos-overlay"
 )
 
 var cmdCreateBranch = &subcommands.Command{
@@ -147,11 +153,10 @@ func (c *createBranchRun) getManifestUrl() string {
 //
 // Release branches have a slightly different naming scheme. They include
 //  the milestone from which they were created. Example: release-R12-1.2.B
-func (c *createBranchRun) newBranchName() string {
+func (c *createBranchRun) newBranchName(vinfo repo.VersionInfo) string {
 	if c.custom != "" {
 		return c.custom
 	}
-	vinfo, _ := checkout.ReadVersion()
 	branchType, _ := c.getBranchType()
 	branchNameParts := []string{branchType}
 	if branchType == "release" {
@@ -162,6 +167,53 @@ func (c *createBranchRun) newBranchName() string {
 	}
 	branchNameParts = append(branchNameParts, vinfo.StrippedVersionString()+".B")
 	return strings.Join(branchNameParts, "-")
+}
+
+func (c *createBranchRun) bumpVersion(
+	component repo.VersionComponent,
+	branch, commitMsg string,
+	dryRun bool) error {
+	// Get checkout of versionProjectPath, which has chromeos_version.sh.
+	versionProjectCheckout, err := getProjectCheckout(versionProjectPath)
+	defer os.RemoveAll(versionProjectCheckout)
+	if err != nil {
+		return errors.Annotate(err, "local checkout of version project failed").Err()
+	}
+
+	// Branch won't exist if running tool with --dry-run.
+	if !dryRun {
+		if err := git.Checkout(versionProjectCheckout, branch); err != nil {
+			return errors.Annotate(err, "failed to checkout branch %s", branch).Err()
+		}
+	}
+
+	version, err := repo.GetVersionInfoFromRepo(versionProjectCheckout)
+	if err != nil {
+		return errors.Annotate(err, "failed to read version file").Err()
+	}
+
+	version.IncrementVersion(component)
+	// We are cloning from a remote, so the remote name will be origin.
+	remoteRef := git.RemoteRef{
+		Remote: "origin",
+		Ref:    git.NormalizeRef(branch),
+	}
+
+	if err := version.UpdateVersionFile(); err != nil {
+		return errors.Annotate(err, "failed to update version file").Err()
+	}
+
+	_, err = git.CommitAll(versionProjectCheckout, commitMsg)
+	errs := []error{
+		err,
+		git.PushRef(versionProjectCheckout, "HEAD", dryRun, remoteRef),
+	}
+	for _, err := range errs {
+		if err != nil {
+			return errors.Annotate(err, "failed to push version changes to remote").Err()
+		}
+	}
+	return nil
 }
 
 func (c *createBranchRun) Run(a subcommands.Application, args []string,
@@ -197,7 +249,15 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 	// Validate the version.
 	// Double check that the checkout has a zero patch number. Otherwise,
 	// we cannot branch from it.
-	vinfo, err := checkout.ReadVersion()
+	versionProjectCheckout, err := getProjectCheckout(versionProjectPath)
+	defer os.RemoveAll(versionProjectCheckout)
+	if err != nil {
+		err = errors.Annotate(err, "local checkout of version project failed").Err()
+		fmt.Fprintf(a.GetErr(), "%s\n", err.Error())
+		return 1
+	}
+
+	vinfo, err := repo.GetVersionInfoFromRepo(versionProjectCheckout)
 	if err != nil {
 		fmt.Fprintf(a.GetErr(), errors.Annotate(err, "error reading version").Err().Error())
 		return 1
@@ -229,13 +289,13 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 	}
 
 	// Generate branch name.
-	branchName := c.newBranchName()
+	branchName := c.newBranchName(vinfo)
 
 	// TODO(@jackneus): double check name with user via boolean CLI prompt
 
 	// Create branch.
 
-	componentToBump, err := whichVersionShouldBump()
+	componentToBump, err := whichVersionShouldBump(vinfo)
 	if err != nil {
 		fmt.Fprintf(a.GetErr(), err.Error())
 		return 1
@@ -260,7 +320,7 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 
 	// Bump version.
 	commitMsg := fmt.Sprintf("Bump %s number after creating branch %s.", componentToBump, branchName)
-	if err = checkout.BumpVersion(componentToBump, branchName, commitMsg, !c.Push, false); err != nil {
+	if err = c.bumpVersion(componentToBump, branchName, commitMsg, !c.Push); err != nil {
 		fmt.Fprintf(a.GetErr(), err.Error())
 		return 1
 	}
@@ -269,7 +329,7 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 	// TODO(@jackneus): refactor
 	if c.release {
 		commitMsg = fmt.Sprintf("Bump milestone after creating release branch %s.", branchName)
-		if err = checkout.BumpVersion(repo.ChromeBranch, "master", commitMsg, !c.Push, true); err != nil {
+		if err = c.bumpVersion(repo.ChromeBranch, "master", commitMsg, !c.Push); err != nil {
 			fmt.Fprintf(a.GetErr(), err.Error())
 			return 1
 		}
@@ -282,7 +342,7 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 		}
 		commitMsg = fmt.Sprintf("Bump %s number for source branch after creating branch %s.",
 			sourceComponentToBump, branchName)
-		err = checkout.BumpVersion(sourceComponentToBump, workingManifest.Default.Revision, commitMsg, !c.Push, true)
+		err = c.bumpVersion(sourceComponentToBump, workingManifest.Default.Revision, commitMsg, !c.Push)
 		if err != nil {
 			fmt.Fprintf(a.GetErr(), err.Error())
 			return 1

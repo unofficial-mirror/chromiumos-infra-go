@@ -150,11 +150,7 @@ func repairManifestRepositories(branches []ProjectBranch, dryRun, force bool) er
 }
 
 // whichVersionShouldBump returns which version is incremented by builds on a new branch.
-func whichVersionShouldBump() (repo.VersionComponent, error) {
-	vinfo, err := checkout.ReadVersion()
-	if err != nil {
-		return repo.Unspecified, err
-	}
+func whichVersionShouldBump(vinfo repo.VersionInfo) (repo.VersionComponent, error) {
 	if vinfo.PatchNumber != 0 {
 		return repo.Unspecified, fmt.Errorf("cannot bump version with nonzero patch number")
 	}

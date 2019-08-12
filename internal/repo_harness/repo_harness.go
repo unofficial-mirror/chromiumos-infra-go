@@ -436,6 +436,19 @@ func (r *RepoHarness) AssertProjectBranchesExact(project RemoteProject, branches
 	return git.AssertGitBranchesExact(gitRepo, branches)
 }
 
+// AssertProjectBranchesMissing asserts that the remote project does not have the specified branches.
+func (r *RepoHarness) AssertProjectBranchesMissing(project RemoteProject, branches []string) error {
+	if err := r.assertInitialized(); err != nil {
+		return err
+	}
+	gitRepo := r.GetRemotePath(project)
+	assert := git.AssertGitBranchesExact(gitRepo, branches)
+	if assert != nil && strings.Contains(assert.Error(), "mismatch") {
+		return nil
+	}
+	return fmt.Errorf("project branch mismatch. some of %v existed.", branches)
+}
+
 // AssertProjectBranchEqual asserts that the specified branch in the project matches
 // the corresponding branch in the given snapshot.
 func (r *RepoHarness) AssertProjectBranchEqual(project RemoteProject, branch, snapshotPath string) error {

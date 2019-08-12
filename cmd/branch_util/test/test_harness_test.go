@@ -169,6 +169,10 @@ func TestAssertCrosBranches_true(t *testing.T) {
 	assert.NilError(t, r.Harness.CreateRemoteRef(rh.GetRemoteProject(manifest.Projects[4]), crosBranchName+"-multicheckout-b", ""))
 
 	assert.NilError(t, r.AssertCrosBranches([]string{crosBranchName}))
+
+	// Also test AssertCrosBranchesMissing
+	assert.NilError(t, r.AssertCrosBranchesMissing([]string{"bad"}))
+	assert.ErrorContains(t, r.AssertCrosBranchesMissing([]string{crosBranchName}), "mismatch")
 }
 
 func TestAssertCrosBranches_false(t *testing.T) {

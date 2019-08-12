@@ -438,6 +438,9 @@ func TestAssertProjectBranches(t *testing.T) {
 
 	assert.NilError(t, harness.AssertProjectBranches(GetRemoteProject(project), branches))
 	assert.ErrorContains(t, harness.AssertProjectBranches(GetRemoteProject(project), []string{"bad"}), "mismatch")
+	// Also test AssertProjectBranchesMissing
+	assert.ErrorContains(t, harness.AssertProjectBranchesMissing(GetRemoteProject(project), branches), "mismatch")
+	assert.NilError(t, harness.AssertProjectBranchesMissing(GetRemoteProject(project), []string{"bad1", "bad2"}))
 
 	// Set command runner back to the real one. Most tests in this package do not mock git.
 	git.CommandRunnerImpl = cmd.RealCommandRunner{}

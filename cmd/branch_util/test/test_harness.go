@@ -220,6 +220,36 @@ func (r *CrosRepoHarness) AssertCrosBranches(branches []string) error {
 	return nil
 }
 
+// AssertCrosBranchesMissing asserts that the specified chromium branch does not exist
+// in any projects.
+func (r *CrosRepoHarness) AssertCrosBranchesMissing(branches []string) error {
+	branchAssertFn := r.Harness.AssertProjectBranchesMissing
+
+	manifest := r.Harness.Manifest()
+	singleProjects := manifest.GetSingleCheckoutProjects()
+	for _, project := range singleProjects {
+		if err := branchAssertFn(rh.GetRemoteProject(*project), append(branches, "master")); err != nil {
+			return err
+		}
+	}
+
+	multiProjects := manifest.GetMultiCheckoutProjects()
+	for _, project := range multiProjects {
+		projectBranches := []string{"master"}
+		pid := projectRef(*project)
+		for _, branch := range branches {
+			projectBranches = append(projectBranches, fmt.Sprintf("%s-%s", branch, pid))
+		}
+		if err := branchAssertFn(rh.GetRemoteProject(*project), projectBranches); err != nil {
+			return err
+		}
+	}
+
+	// Don't care about pinned/ToT -- nothing would have been created for a particular branch.
+
+	return nil
+}
+
 // GetRecentRemoteSnapshot returns the path of the most recent snapshot for a particular remote.
 func (r *CrosRepoHarness) GetRecentRemoteSnapshot(remote string) (string, error) {
 	remoteSnapshot, ok := r.recentRemoteSnapshots[remote]

@@ -584,3 +584,47 @@ func TestCreateOverwriteMissingForce(t *testing.T) {
 		assert.NilError(t, test_util.AssertContentsEqual(remoteSnapshot, remotePath))
 	}
 }
+
+// Test create dies when given a version that was already branched.
+func TestCreateExistingVersion(t *testing.T) {
+	r := setUp(t)
+	defer r.Teardown()
+
+	localRoot, err := ioutil.TempDir("", "test_create")
+	defer os.RemoveAll(localRoot)
+	assert.NilError(t, err)
+
+	// Our set up uses branch 12.3.0.0. A branch created from this version must
+	// end in 12-3.B. We create a branch with that suffix so that the tool
+	// will think 12.3.0.0 has already been branched.
+	// We just need to add a branch to the manifest internal repo because
+	// the tool checks if a branch exists for a version by looking at
+	// branches in the manifest internal repo.
+	assert.NilError(t,
+		r.Harness.CreateRemoteRef(manifestInternalProject, "release-R12-3.B", ""))
+	// Snapshot of manifestInternalProject is stale -- need to update.
+	assert.NilError(t, r.TakeSnapshot())
+
+	manifest := r.Harness.Manifest()
+	manifestDir := r.Harness.GetRemotePath(manifestInternalProject)
+
+	s := &branchApplication{application, log.New(ioutil.Discard, "", log.LstdFlags|log.Lmicroseconds)}
+	ret := subcommands.Run(s, []string{
+		"create", "--push", "--root", localRoot,
+		"--manifest-url", manifestDir,
+		"--file", fullManifestPath(r),
+		"--stabilize",
+	})
+	assert.Assert(t, ret != 0)
+
+	// TODO(@jackneus): fix logging so that we can make this assert.
+	//assert.Assert(t, strings.Contains(stdoutBuf.String(), "already branched 3.0.0"))
+
+	// Check that no remotes change.
+	for _, remote := range manifest.Remotes {
+		remotePath := filepath.Join(r.Harness.HarnessRoot(), remote.Name)
+		remoteSnapshot, err := r.GetRecentRemoteSnapshot(remote.Name)
+		assert.NilError(t, err)
+		assert.NilError(t, test_util.AssertContentsEqual(remoteSnapshot, remotePath))
+	}
+}

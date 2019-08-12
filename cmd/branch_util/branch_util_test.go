@@ -385,6 +385,16 @@ func assertManifestsRepaired(t *testing.T, r *test.CrosRepoHarness, branch strin
 		manifestInternalProject, branch, getKeys(manifestInternalFiles)))
 }
 
+func assertNoRemoteDiff(t *testing.T, r *test.CrosRepoHarness) {
+	manifest := r.Harness.Manifest()
+	for _, remote := range manifest.Remotes {
+		remotePath := filepath.Join(r.Harness.HarnessRoot(), remote.Name)
+		remoteSnapshot, err := r.GetRecentRemoteSnapshot(remote.Name)
+		assert.NilError(t, err)
+		assert.NilError(t, test_util.AssertContentsEqual(remoteSnapshot, remotePath))
+	}
+}
+
 func TestCreate(t *testing.T) {
 	r := setUp(t)
 	defer r.Teardown()
@@ -436,7 +446,6 @@ func TestCreateDryRun(t *testing.T) {
 	defer os.RemoveAll(localRoot)
 	assert.NilError(t, err)
 
-	manifest := r.Harness.Manifest()
 	manifestDir := r.Harness.GetRemotePath(manifestInternalProject)
 
 	branch := "new-branch"
@@ -448,14 +457,7 @@ func TestCreateDryRun(t *testing.T) {
 		"--custom", branch,
 	})
 	assert.Assert(t, ret == 0)
-
-	// Check that no remotes change.
-	for _, remote := range manifest.Remotes {
-		remotePath := filepath.Join(r.Harness.HarnessRoot(), remote.Name)
-		remoteSnapshot, err := r.GetRecentRemoteSnapshot(remote.Name)
-		assert.NilError(t, err)
-		assert.NilError(t, test_util.AssertContentsEqual(remoteSnapshot, remotePath))
-	}
+	assertNoRemoteDiff(t, r)
 }
 
 // Test creating release branch also bumps master Chrome branch.
@@ -605,7 +607,6 @@ func TestCreateExistingVersion(t *testing.T) {
 	// Snapshot of manifestInternalProject is stale -- need to update.
 	assert.NilError(t, r.TakeSnapshot())
 
-	manifest := r.Harness.Manifest()
 	manifestDir := r.Harness.GetRemotePath(manifestInternalProject)
 
 	s := &branchApplication{application, log.New(ioutil.Discard, "", log.LstdFlags|log.Lmicroseconds)}
@@ -616,15 +617,79 @@ func TestCreateExistingVersion(t *testing.T) {
 		"--stabilize",
 	})
 	assert.Assert(t, ret != 0)
-
 	// TODO(@jackneus): fix logging so that we can make this assert.
 	//assert.Assert(t, strings.Contains(stdoutBuf.String(), "already branched 3.0.0"))
+	assertNoRemoteDiff(t, r)
+}
 
-	// Check that no remotes change.
-	for _, remote := range manifest.Remotes {
-		remotePath := filepath.Join(r.Harness.HarnessRoot(), remote.Name)
-		remoteSnapshot, err := r.GetRecentRemoteSnapshot(remote.Name)
-		assert.NilError(t, err)
-		assert.NilError(t, test_util.AssertContentsEqual(remoteSnapshot, remotePath))
-	}
+func TestDelete(t *testing.T) {
+	r := setUp(t)
+	defer r.Teardown()
+
+	localRoot, err := ioutil.TempDir("", "test_delete")
+	defer os.RemoveAll(localRoot)
+	assert.NilError(t, err)
+
+	branchToDelete := "old-branch"
+
+	manifestDir := r.Harness.GetRemotePath(manifestInternalProject)
+	s := &branchApplication{application, log.New(ioutil.Discard, "", log.LstdFlags|log.Lmicroseconds)}
+	ret := subcommands.Run(s, []string{
+		"delete", "--push", "--force",
+		"--root", localRoot,
+		"--manifest-url", manifestDir,
+		branchToDelete,
+	})
+	assert.Assert(t, ret == 0)
+
+	assert.NilError(t, r.AssertCrosBranchesMissing([]string{branchToDelete}))
+}
+
+// Test delete does not modify remote repositories without --push.
+func TestDeleteDryRun(t *testing.T) {
+	r := setUp(t)
+	defer r.Teardown()
+
+	localRoot, err := ioutil.TempDir("", "test_delete")
+	defer os.RemoveAll(localRoot)
+	assert.NilError(t, err)
+
+	branchToDelete := "old-branch"
+
+	manifestDir := r.Harness.GetRemotePath(manifestInternalProject)
+	s := &branchApplication{application, log.New(ioutil.Discard, "", log.LstdFlags|log.Lmicroseconds)}
+	ret := subcommands.Run(s, []string{
+		"delete", "--force",
+		"--root", localRoot,
+		"--manifest-url", manifestDir,
+		branchToDelete,
+	})
+	assert.Assert(t, ret == 0)
+
+	assertNoRemoteDiff(t, r)
+}
+
+// Test delete does not modify remote when --push set without --force.
+func TestDeleteMissingForce(t *testing.T) {
+	r := setUp(t)
+	defer r.Teardown()
+
+	localRoot, err := ioutil.TempDir("", "test_delete")
+	defer os.RemoveAll(localRoot)
+	assert.NilError(t, err)
+
+	branchToDelete := "old-branch"
+
+	manifestDir := r.Harness.GetRemotePath(manifestInternalProject)
+	s := &branchApplication{application, log.New(ioutil.Discard, "", log.LstdFlags|log.Lmicroseconds)}
+	ret := subcommands.Run(s, []string{
+		"delete", "--push",
+		"--root", localRoot,
+		"--manifest-url", manifestDir,
+		branchToDelete,
+	})
+	assert.Assert(t, ret != 0)
+	// TODO(@jackneus): fix logging so that we can make this assert.
+	//assert.Assert(t,strings.Contains(stdoutBuf.String(), "Must set --force to delete remote branches."))
+	assertNoRemoteDiff(t, r)
 }

@@ -71,9 +71,14 @@ func (c *deleteBranchRun) Run(a subcommands.Application, args []string,
 	}
 	defer os.RemoveAll(manifestCheckout)
 
+	// Need to do this for testing, sadly -- don't want to delete real branches.
+	if c.ManifestUrl != defaultManifestUrl {
+		fmt.Fprintf(a.GetOut(), "Warning: --manifest-url should not be used for branch deletion.\n")
+	}
+
 	// Create local checkout of the manifest repo.
 	_, err = git.RunGit(filepath.Dir(manifestCheckout),
-		[]string{"clone", defaultManifestUrl, manifestCheckout, "--single-branch", "--branch", c.branchName})
+		[]string{"clone", c.ManifestUrl, manifestCheckout, "--single-branch", "--branch", c.branchName})
 	if err != nil {
 		fmt.Fprintf(a.GetErr(), "Failed to clone %s of manifest repository.", c.branchName)
 		return 1

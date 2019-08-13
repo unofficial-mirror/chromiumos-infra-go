@@ -317,6 +317,11 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 		fmt.Fprintf(a.GetErr(), err.Error())
 		return 1
 	}
+	// Create git branches for new branch.
+	if err = createRemoteBranches(branches, !c.Push, c.Force); err != nil {
+		fmt.Fprintf(a.GetErr(), err.Error())
+		return 1
+	}
 
 	// Bump version.
 	commitMsg := fmt.Sprintf("Bump %s number after creating branch %s.", componentToBump, branchName)

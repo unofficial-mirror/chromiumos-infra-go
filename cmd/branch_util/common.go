@@ -93,10 +93,11 @@ func getProjectCheckout(projectPath string) (string, error) {
 		return "", errors.Annotate(err, "failed to get project fetch url").Err()
 	}
 
-	_, err = git.RunGit(filepath.Dir(checkoutDir),
+	// TODO(@jackneus): add  "--branch", git.StripRefs(project.Upstream) when appropriate?
+	output, err := git.RunGit(filepath.Dir(checkoutDir),
 		[]string{"clone", projectUrl, checkoutDir})
 	if err != nil {
-		return "", errors.Annotate(err, "failed to clone %s", projectUrl).Err()
+		return "", fmt.Errorf("failed to clone %s: %s", projectUrl, output.Stderr)
 	}
 
 	return checkoutDir, nil

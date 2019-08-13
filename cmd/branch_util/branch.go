@@ -5,6 +5,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"regexp"
 	"strings"
 
@@ -15,7 +16,10 @@ import (
 )
 
 var (
-	MANIFEST_PROJECTS = []string{"chromiumos/manifest", "chromeos/manifest-internal"}
+	MANIFEST_PROJECTS = map[string]bool{
+		"chromiumos/manifest":        true,
+		"chromeos/manifest-internal": true,
+	}
 )
 
 type ProjectBranch struct {
@@ -130,7 +134,7 @@ func getBranchesByPath(branches []ProjectBranch) map[string]string {
 // on the current branch and commits the changes. It then pushes the state of
 // the local git branches to remote.
 func repairManifestRepositories(branches []ProjectBranch, dryRun, force bool) error {
-	for _, projectName := range MANIFEST_PROJECTS {
+	for projectName := range MANIFEST_PROJECTS {
 		manifestProject, err := workingManifest.GetUniqueProject(projectName)
 		if err != nil {
 			return err
@@ -149,6 +153,10 @@ func repairManifestRepositories(branches []ProjectBranch, dryRun, force bool) er
 	}
 	// Push the local git branches to remote.
 	for _, projectBranch := range branches {
+		// temporary hack while refactoring. only push the manifest
+		if _, ok := MANIFEST_PROJECTS[projectBranch.project.Name]; !ok {
+			continue
+		}
 		branchName := git.NormalizeRef(projectBranch.branchName)
 
 		// The refspec should look like 'HEAD:refs/heads/branchName'.
@@ -164,6 +172,46 @@ func repairManifestRepositories(branches []ProjectBranch, dryRun, force bool) er
 		}
 
 		if _, err := checkout.RunGit(projectBranch.project, cmd); err != nil {
+			return errors.Annotate(err, "could not push branches to remote").Err()
+		}
+	}
+
+	return nil
+}
+
+func createRemoteBranches(branches []ProjectBranch, dryRun, force bool) error {
+	// Push the local git branches to remote.
+	for _, projectBranch := range branches {
+		// temporary hack while refactoring. don't push the manifest repos because
+		// that already happened in repairManifestRepositories
+		if _, ok := MANIFEST_PROJECTS[projectBranch.project.Name]; ok {
+			continue
+		}
+		projectCheckout, err := getProjectCheckout(projectBranch.project.Path)
+		defer os.RemoveAll(projectCheckout)
+		if err != nil {
+			return errors.Annotate(err, "could not checkout %s:%s",
+				projectBranch.project.Path, projectBranch.branchName).Err()
+		}
+
+		branchName := git.NormalizeRef(projectBranch.branchName)
+
+		// If the revision is a SHA, let it be. Otherwise we need to strip refs/...
+		revision := projectBranch.project.Revision
+		// i.e. if revision starts with refs/...
+		if git.StripRefs(revision) != revision {
+			revision = "refs/remotes/origin/" + git.StripRefs(revision)
+		}
+		refspec := fmt.Sprintf("%s:%s", revision, branchName)
+
+		cmd := []string{"push", "origin", refspec}
+		if dryRun {
+			cmd = append(cmd, "--dry-run")
+		}
+		if force {
+			cmd = append(cmd, "--force")
+		}
+		if _, err := git.RunGit(projectCheckout, cmd); err != nil {
 			return errors.Annotate(err, "could not push branches to remote").Err()
 		}
 	}

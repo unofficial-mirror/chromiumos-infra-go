@@ -4,9 +4,7 @@
 package main
 
 import (
-	"fmt"
 	"reflect"
-	"regexp"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -105,51 +103,6 @@ func TestProjectBranches(t *testing.T) {
 
 	branchNames := projectBranches("mybranch", "oldbranch")
 	assert.Assert(t, reflect.DeepEqual(expected, branchNames))
-}
-
-func TestAssertBranchesDoNotExist(t *testing.T) {
-	ctl := gomock.NewController(t)
-	defer ctl.Finish()
-
-	m := mock_checkout.NewMockCheckout(ctl)
-	checkout = m
-
-	projectBranches := []ProjectBranch{
-		{
-			project: repo.Project{
-				Name: "myProject",
-			},
-			branchName: "myBranch",
-		},
-	}
-	branchNameRegexp := regexp.MustCompile(projectBranches[0].branchName)
-
-	m.EXPECT().
-		BranchExists(
-			gomock.Eq(projectBranches[0].project),
-			gomock.Eq(branchNameRegexp)).
-		Return(false, nil)
-
-	err := assertBranchesDoNotExist(projectBranches)
-	assert.NilError(t, err)
-
-	m.EXPECT().
-		BranchExists(
-			gomock.Eq(projectBranches[0].project),
-			gomock.Eq(branchNameRegexp)).
-		Return(false, fmt.Errorf("branch exist error"))
-
-	err = assertBranchesDoNotExist(projectBranches)
-	assert.ErrorContains(t, err, "branch exist")
-
-	m.EXPECT().
-		BranchExists(
-			gomock.Eq(projectBranches[0].project),
-			gomock.Eq(branchNameRegexp)).
-		Return(true, nil)
-
-	err = assertBranchesDoNotExist(projectBranches)
-	assert.ErrorContains(t, err, "rerun with --force")
 }
 
 func TestGetBranchesByPath(t *testing.T) {

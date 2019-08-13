@@ -63,16 +63,11 @@ func (c *CommonFlags) Init() {
 			"for manifest-internal.")
 }
 
-// Get a local checkout of a particular project.
-func getProjectCheckout(projectPath string) (string, error) {
+// projectFetchUrl returns the fetch URL for a remote project.
+func projectFetchUrl(projectPath string) (string, error) {
 	project, err := workingManifest.GetProjectByPath(projectPath)
 	if err != nil {
 		return "", err
-	}
-
-	checkoutDir, err := ioutil.TempDir("", "cros-branch-")
-	if err != nil {
-		return "", errors.Annotate(err, "tmp dir could not be created").Err()
 	}
 
 	remote := workingManifest.GetRemoteByName(project.RemoteName)
@@ -82,8 +77,24 @@ func getProjectCheckout(projectPath string) (string, error) {
 	}
 	projectUrl.Path = path.Join(projectUrl.Path, project.Name)
 
+	return projectUrl.String(), nil
+}
+
+// Get a local checkout of a particular project.
+func getProjectCheckout(projectPath string) (string, error) {
+	checkoutDir, err := ioutil.TempDir("", "cros-branch-")
+	if err != nil {
+		return "", errors.Annotate(err, "tmp dir could not be created").Err()
+	}
+
+	projectUrl, err := projectFetchUrl(projectPath)
+
+	if err != nil {
+		return "", errors.Annotate(err, "failed to get project fetch url").Err()
+	}
+
 	_, err = git.RunGit(filepath.Dir(checkoutDir),
-		[]string{"clone", projectUrl.String(), checkoutDir})
+		[]string{"clone", projectUrl, checkoutDir})
 	if err != nil {
 		return "", errors.Annotate(err, "failed to clone %s", projectUrl).Err()
 	}

@@ -277,12 +277,12 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 		return 1
 	}
 	pattern := regexp.MustCompile(fmt.Sprintf(`.*-%s.B$`, vinfo.StrippedVersionString()))
-	branchExists, err := checkout.BranchExists(manifestInternal, pattern)
+	exists, err := branchExists(manifestInternal, pattern)
 	if err != nil {
 		fmt.Fprintf(a.GetErr(), err.Error())
 		return 1
 	}
-	if branchExists && !c.Force {
+	if exists && !c.Force {
 		fmt.Fprintf(a.GetErr(), "Already branched %s. Please rerun with --force if you "+
 			"would like to proceed.", vinfo.VersionString())
 		return 1

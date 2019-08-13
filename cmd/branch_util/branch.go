@@ -78,11 +78,33 @@ func projectBranches(branch, original string) []ProjectBranch {
 	return projectBranches
 }
 
+// branchExists checks that a branch exists in a particular project.
+func branchExists(project repo.Project, branchPattern *regexp.Regexp) (bool, error) {
+	remoteUrl, err := projectFetchUrl(project.Path)
+	if err != nil {
+		return false, errors.Annotate(err, "failed to get remote project url").Err()
+	}
+
+	// If we give a full URL, don't need to run the command in a git repo.
+	remoteBranches, err := git.RemoteBranches("", remoteUrl)
+	if err != nil {
+		return false, errors.Annotate(err, "failed to list remote branches for %s", remoteUrl).Err()
+	}
+
+	for _, branch := range remoteBranches {
+		if branchPattern.Match([]byte(branch)) {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
 // assertBranchesDoNotExist checks that branches do not already exist.
 func assertBranchesDoNotExist(branches []ProjectBranch) error {
 	for _, projectBranch := range branches {
 		pattern := regexp.MustCompile(projectBranch.branchName)
-		exists, err := checkout.BranchExists(projectBranch.project, pattern)
+		exists, err := branchExists(projectBranch.project, pattern)
 		if err != nil {
 			return errors.Annotate(err, "Error checking existence of branch %s in %s.",
 				projectBranch.branchName, projectBranch.project.Name).Err()

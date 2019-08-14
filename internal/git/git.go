@@ -267,7 +267,7 @@ func AddRemote(gitRepo, remote, remoteLocation string) error {
 // Checkout checkouts a branch.
 func Checkout(gitRepo, branch string) error {
 	output, err := RunGit(gitRepo, []string{"checkout", branch})
-	if err != nil && strings.Contains(output.Stderr, "did not match any") {
+	if err != nil {
 		return fmt.Errorf(output.Stderr)
 	}
 	return err

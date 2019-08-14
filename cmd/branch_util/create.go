@@ -5,13 +5,11 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"regexp"
 	"strings"
 
 	"github.com/maruel/subcommands"
-	checkoutp "go.chromium.org/chromiumos/infra/go/internal/checkout"
 	"go.chromium.org/chromiumos/infra/go/internal/git"
 	"go.chromium.org/chromiumos/infra/go/internal/repo"
 	"go.chromium.org/luci/common/errors"
@@ -224,28 +222,6 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 		return ret
 	}
 
-	// Create local checkout.
-	var err error
-	root := c.getRoot()
-	if root == "" {
-		root, err = ioutil.TempDir("", "cros-branch")
-		defer os.RemoveAll(root)
-		if err != nil {
-			fmt.Fprintf(a.GetErr(), errors.Annotate(err, "tmp root could not be created").Err().Error()+"\n")
-			return 1
-		}
-	}
-	checkout = &checkoutp.CrosCheckout{}
-	checkout.Initialize(root, c.getManifestUrl())
-
-	// Sync repo to manifest at provided path.
-	err = checkout.SyncToManifest(c.file)
-	if err != nil {
-		fmt.Fprintf(a.GetErr(), "%s: %s\n", a.GetName(), err.Error())
-		return 1
-	}
-	workingManifest = checkout.Manifest()
-
 	// Validate the version.
 	// Double check that the checkout has a zero patch number. Otherwise,
 	// we cannot branch from it.
@@ -312,13 +288,13 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 		}
 	}
 
-	// Repair manifest repositories.
-	if err = repairManifestRepositories(branches, !c.Push, c.Force); err != nil {
+	// Create git branches for new branch.
+	if err = createRemoteBranches(branches, !c.Push, c.Force); err != nil {
 		fmt.Fprintf(a.GetErr(), err.Error())
 		return 1
 	}
-	// Create git branches for new branch.
-	if err = createRemoteBranches(branches, !c.Push, c.Force); err != nil {
+	// Repair manifest repositories.
+	if err = repairManifestRepositories(branches, !c.Push, c.Force); err != nil {
 		fmt.Fprintf(a.GetErr(), err.Error())
 		return 1
 	}
@@ -347,7 +323,11 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 		}
 		commitMsg = fmt.Sprintf("Bump %s number for source branch after creating branch %s.",
 			sourceComponentToBump, branchName)
-		err = c.bumpVersion(sourceComponentToBump, workingManifest.Default.Revision, commitMsg, !c.Push)
+		revision := workingManifest.Default.Revision
+		if revision == "" {
+			revision = git.NormalizeRef("master")
+		}
+		err = c.bumpVersion(sourceComponentToBump, revision, commitMsg, !c.Push)
 		if err != nil {
 			fmt.Fprintf(a.GetErr(), err.Error())
 			return 1

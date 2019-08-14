@@ -5,14 +5,9 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
-	"os"
-	"path/filepath"
 
 	"github.com/maruel/subcommands"
 	"go.chromium.org/chromiumos/infra/go/internal/git"
-	"go.chromium.org/chromiumos/infra/go/internal/repo"
-	"go.chromium.org/luci/common/errors"
 )
 
 var cmdDeleteBranch = &subcommands.Command{
@@ -63,36 +58,10 @@ func (c *deleteBranchRun) Run(a subcommands.Application, args []string,
 		return 1
 	}
 
-	var err error
-	manifestCheckout, err := ioutil.TempDir("", "cros-branch-")
-	if err != nil {
-		fmt.Fprintf(a.GetErr(), errors.Annotate(err, "tmp dir could not be created").Err().Error()+"\n")
-		return 1
-	}
-	defer os.RemoveAll(manifestCheckout)
-
 	// Need to do this for testing, sadly -- don't want to delete real branches.
 	if c.ManifestUrl != defaultManifestUrl {
 		fmt.Fprintf(a.GetOut(), "Warning: --manifest-url should not be used for branch deletion.\n")
 	}
-
-	// Create local checkout of the manifest repo.
-	_, err = git.RunGit(filepath.Dir(manifestCheckout),
-		[]string{"clone", c.ManifestUrl, manifestCheckout, "--single-branch", "--branch", c.branchName})
-	if err != nil {
-		fmt.Fprintf(a.GetErr(), "Failed to clone %s of manifest repository.", c.branchName)
-		return 1
-	}
-	manifestPath := filepath.Join(manifestCheckout, "default.xml")
-
-	// Read in manifest from file (and resolve includes).
-	manifest, err := repo.LoadManifestFromFileWithIncludes(manifestPath)
-	if err != nil {
-		err = errors.Annotate(err, "failed to load manifests").Err()
-		fmt.Fprintf(a.GetErr(), err.Error())
-		return 1
-	}
-	workingManifest = *manifest
 
 	// Generate git branch names.
 	branches := projectBranches(c.branchName, "")
@@ -102,7 +71,7 @@ func (c *deleteBranchRun) Run(a subcommands.Application, args []string,
 	for _, projectBranch := range branches {
 		project := projectBranch.project
 		branch := git.NormalizeRef(projectBranch.branchName)
-		remote := manifest.GetRemoteByName(project.RemoteName)
+		remote := workingManifest.GetRemoteByName(project.RemoteName)
 		projectRemote := fmt.Sprintf("%s/%s", remote.Fetch, project.Name)
 		cmd := []string{"push", projectRemote, "--delete", branch}
 		if !c.Push {

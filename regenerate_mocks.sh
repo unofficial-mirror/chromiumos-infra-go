@@ -12,7 +12,6 @@ cd "$(dirname "$0")"
 # For example, if you mocked a/b/c.go, it would be placed in a/b/mock/c.go.
 # If the mock/ subdirectory does not exist, it will be created.
 mocks=(
-  internal/checkout/checkout.go
 )
 
 license="// Copyright 2019 The Chromium OS Authors. All rights reserved.

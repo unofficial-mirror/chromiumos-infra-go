@@ -4,8 +4,6 @@
 package main
 
 import (
-	"github.com/golang/mock/gomock"
-	mock_checkout "go.chromium.org/chromiumos/infra/go/internal/checkout/mock"
 	"go.chromium.org/chromiumos/infra/go/internal/repo"
 	"gotest.tools/assert"
 	"testing"
@@ -26,11 +24,6 @@ var vinfo = repo.VersionInfo{
 }
 
 func TestNewBranchName_Release(t *testing.T) {
-	ctl := gomock.NewController(t)
-	defer ctl.Finish()
-
-	m := mock_checkout.NewMockCheckout(ctl)
-	checkout = m
 	c := &createBranchRun{
 		release: true,
 	}
@@ -39,12 +32,6 @@ func TestNewBranchName_Release(t *testing.T) {
 }
 
 func TestNewBranchName_Factory(t *testing.T) {
-	ctl := gomock.NewController(t)
-	defer ctl.Finish()
-
-	m := mock_checkout.NewMockCheckout(ctl)
-	checkout = m
-
 	c := &createBranchRun{
 		factory:    true,
 		descriptor: "foo",
@@ -53,12 +40,6 @@ func TestNewBranchName_Factory(t *testing.T) {
 }
 
 func TestNewBranchName_Firmware(t *testing.T) {
-	ctl := gomock.NewController(t)
-	defer ctl.Finish()
-
-	m := mock_checkout.NewMockCheckout(ctl)
-	checkout = m
-
 	c := &createBranchRun{
 		firmware: true,
 	}
@@ -66,12 +47,6 @@ func TestNewBranchName_Firmware(t *testing.T) {
 }
 
 func TestNewBranchName_Stabilize(t *testing.T) {
-	ctl := gomock.NewController(t)
-	defer ctl.Finish()
-
-	m := mock_checkout.NewMockCheckout(ctl)
-	checkout = m
-
 	c := &createBranchRun{
 		stabilize: true,
 	}

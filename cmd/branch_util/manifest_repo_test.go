@@ -1,7 +1,7 @@
 // Copyright 2019 The Chromium OS Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-package manifest_repo
+package main
 
 import (
 	"io/ioutil"
@@ -10,22 +10,18 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/golang/mock/gomock"
-	mock_checkout "go.chromium.org/chromiumos/infra/go/internal/checkout/mock"
+	"go.chromium.org/chromiumos/infra/go/internal/cmd"
+	"go.chromium.org/chromiumos/infra/go/internal/git"
 	"go.chromium.org/chromiumos/infra/go/internal/repo"
 	"gotest.tools/assert"
 )
 
 func TestRepairManifest(t *testing.T) {
-	ctl := gomock.NewController(t)
-	defer ctl.Finish()
-
-	m := mock_checkout.NewMockCheckout(ctl)
 	manifestRepo := ManifestRepo{
-		Checkout: m,
 		Project: repo.Project{
 			Name: "chromiumos/manifest",
 		},
+		ProjectCheckout: "foo",
 	}
 	branchPathMap := map[string]string{
 		"foo/": "branch",
@@ -35,12 +31,12 @@ func TestRepairManifest(t *testing.T) {
 			Revision: "test",
 		},
 		Remotes: []repo.Remote{
-			{Name: "remote1", Revision: "123"},
+			{Name: "cros", Revision: "123"},
 			{Name: "remote2", Revision: "124"},
 			{Name: "remote3", Revision: "125"},
 		},
 		Projects: []repo.Project{
-			{Name: "foo", Path: "foo/"},
+			{Name: "chromiumos/foo", Path: "foo/", RemoteName: "cros"},
 			{Name: "pinned", Path: "pinned/",
 				Annotations: []repo.Annotation{
 					{Name: "branch-mode", Value: "pin"},
@@ -53,19 +49,16 @@ func TestRepairManifest(t *testing.T) {
 			},
 		},
 	}
+	expectedManifest = *expectedManifest.ResolveImplicitLinks()
 
+	workingManifest = expectedManifest
 	// Mock out loadManifestFromFile
 	loadManifestFromFile = func(path string) (repo.Manifest, error) {
 		return expectedManifest, nil
 	}
-	for _, project := range expectedManifest.Projects {
-		m.EXPECT().
-			EnsureProject(project).
-			Return(nil)
+	git.CommandRunnerImpl = cmd.FakeCommandRunner{
+		Stdout: "123 test",
 	}
-	m.EXPECT().
-		GitRevision(expectedManifest.Projects[1]).
-		Return("123", nil)
 
 	manifest, err := manifestRepo.RepairManifest("dummy_path", branchPathMap)
 	assert.NilError(t, err)
@@ -99,16 +92,26 @@ func TestRepairManifestsOnDisk(t *testing.T) {
 		},
 	}
 	fullManifest := repo.Manifest{
+		Default: repo.Default{
+			RemoteName: "cros",
+			Revision:   "refs/heads/master",
+		},
 		Projects: []repo.Project{
-			{Name: "foo", Path: "foo/", Revision: "123"},
+			{Name: "chromiumos/foo", Path: "foo/"},
 		},
 		Remotes: []repo.Remote{
 			{Name: "cros", Revision: "123"},
 		},
 	}
 	expectedFullManifest := repo.Manifest{
+		Default: repo.Default{
+			RemoteName: "cros",
+		},
 		Projects: []repo.Project{
-			{Name: "foo", Path: "foo/", Revision: "refs/heads/newbranch"},
+			{Name: "chromiumos/foo",
+				Path:       "foo/",
+				Revision:   "refs/heads/newbranch",
+				RemoteName: "cros"},
 		},
 		Remotes: []repo.Remote{
 			{Name: "cros", Revision: ""},
@@ -126,14 +129,15 @@ func TestRepairManifestsOnDisk(t *testing.T) {
 	manifests["full.xml"] = &fullManifest
 	manifestPath := make(map[string]string)
 
-	ctl := gomock.NewController(t)
-	defer ctl.Finish()
-	m := mock_checkout.NewMockCheckout(ctl)
 	manifestRepo := ManifestRepo{
-		Checkout: m,
 		Project: repo.Project{
 			Name: tmpDir,
 		},
+		ProjectCheckout: tmpDir,
+	}
+
+	git.CommandRunnerImpl = cmd.FakeCommandRunner{
+		Stdout: "123 refs/heads/master",
 	}
 
 	// Set up
@@ -142,25 +146,17 @@ func TestRepairManifestsOnDisk(t *testing.T) {
 		path := filepath.Join(tmpDir, manifestName)
 		manifestPath[manifestName] = path
 		assert.NilError(t, manifest.Write(path))
-		// Mock expectations.
-		m.EXPECT().
-			AbsoluteProjectPath(manifestRepo.Project, manifestName).
-			Return(path).
-			AnyTimes()
 	}
 
 	fooProject := fullManifest.Projects[0]
 	branchMap := make(map[string]string)
 	branchMap[fooProject.Path] = "newbranch"
-	m.EXPECT().
-		EnsureProject(fooProject).
-		Return(nil)
 
 	err = manifestRepo.RepairManifestsOnDisk(branchMap)
 	assert.NilError(t, err)
-
 	// Read repaired manifests from disk, check expectations.
 	defaultManifestMap, err := repo.LoadManifestTree(manifestPath["default.xml"])
+
 	assert.NilError(t, err)
 	assert.Assert(t,
 		reflect.DeepEqual(expectedFullManifest, *defaultManifestMap["full.xml"]))

@@ -10,13 +10,12 @@ import (
 	"strings"
 
 	"go.chromium.org/chromiumos/infra/go/internal/git"
-	"go.chromium.org/chromiumos/infra/go/internal/manifest_repo"
 	"go.chromium.org/chromiumos/infra/go/internal/repo"
 	"go.chromium.org/luci/common/errors"
 )
 
 var (
-	MANIFEST_PROJECTS = map[string]bool{
+	ManifestProjects = map[string]bool{
 		"chromiumos/manifest":        true,
 		"chromeos/manifest-internal": true,
 	}
@@ -134,57 +133,59 @@ func getBranchesByPath(branches []ProjectBranch) map[string]string {
 // on the current branch and commits the changes. It then pushes the state of
 // the local git branches to remote.
 func repairManifestRepositories(branches []ProjectBranch, dryRun, force bool) error {
-	for projectName := range MANIFEST_PROJECTS {
+	manifestBranchNames := make(map[string]string)
+
+	// Find names of manifest project branches so that we can push changes.
+	for _, projectBranch := range branches {
+		if _, ok := ManifestProjects[projectBranch.project.Name]; ok {
+			manifestBranchNames[projectBranch.project.Name] = projectBranch.branchName
+		}
+	}
+
+	for projectName := range ManifestProjects {
 		manifestProject, err := workingManifest.GetUniqueProject(projectName)
 		if err != nil {
 			return err
 		}
-		manifestRepo := manifest_repo.ManifestRepo{
-			Checkout: checkout,
-			Project:  manifestProject,
+		manifestCheckout, err := getProjectCheckout(manifestProject.Path)
+		defer os.RemoveAll(manifestCheckout)
+		if err != nil {
+			return errors.Annotate(err, "failed to checkout project %s", manifestProject.Path).Err()
+		}
+
+		manifestRepo := ManifestRepo{
+			ProjectCheckout: manifestCheckout,
+			Project:         manifestProject,
 		}
 		if err := manifestRepo.RepairManifestsOnDisk(getBranchesByPath(branches)); err != nil {
 			return errors.Annotate(err, "failed to repair manifest project %s", projectName).Err()
 		}
-		if _, err := git.RunGit(checkout.AbsoluteProjectPath(manifestProject),
+		if _, err := git.RunGit(manifestCheckout,
 			[]string{"commit", "-a", "-m", "commit repaired manifests"}); err != nil {
 			return errors.Annotate(err, "error committing repaired manifests").Err()
 		}
-	}
-	// Push the local git branches to remote.
-	for _, projectBranch := range branches {
-		// temporary hack while refactoring. only push the manifest
-		if _, ok := MANIFEST_PROJECTS[projectBranch.project.Name]; !ok {
-			continue
-		}
-		branchName := git.NormalizeRef(projectBranch.branchName)
+		refspec := fmt.Sprintf("HEAD:%s", manifestBranchNames[projectName])
 
-		// The refspec should look like 'HEAD:refs/heads/branchName'.
-		refspec := fmt.Sprintf("HEAD:%s", branchName)
-		remote := workingManifest.GetRemoteByName(projectBranch.project.RemoteName).GitName()
-
-		cmd := []string{"push", remote, refspec}
+		// TODO(@jackneus): Replace with git.Push call after git package is cleaned up.
+		cmd := []string{"push", "origin", refspec}
 		if dryRun {
 			cmd = append(cmd, "--dry-run")
 		}
 		if force {
 			cmd = append(cmd, "--force")
 		}
-
-		if _, err := checkout.RunGit(projectBranch.project, cmd); err != nil {
+		if _, err := git.RunGit(manifestCheckout, cmd); err != nil {
 			return errors.Annotate(err, "could not push branches to remote").Err()
 		}
 	}
-
 	return nil
 }
 
 func createRemoteBranches(branches []ProjectBranch, dryRun, force bool) error {
 	// Push the local git branches to remote.
 	for _, projectBranch := range branches {
-		// temporary hack while refactoring. don't push the manifest repos because
-		// that already happened in repairManifestRepositories
-		if _, ok := MANIFEST_PROJECTS[projectBranch.project.Name]; ok {
+		// Don't push the manifest repos because that already happened in repairManifestRepositories.
+		if _, ok := ManifestProjects[projectBranch.project.Name]; ok {
 			continue
 		}
 		projectCheckout, err := getProjectCheckout(projectBranch.project.Path)

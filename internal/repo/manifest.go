@@ -247,9 +247,11 @@ func (m *Manifest) ProjectBranchMode(project Project) BranchMode {
 
 	// Othwerise, peek at remote.
 	remote := m.GetRemoteByName(project.RemoteName)
+	// TODO(@jackneus): should do something if remote is null
 	remoteName := remote.GitName()
 	_, inCrosRemote := CROS_REMOTES[remoteName]
 	projectRegexp, inBranchableProjects := BRANCHABLE_PROJECTS[remoteName]
+
 	if inCrosRemote && inBranchableProjects && projectRegexp.MatchString(project.Name) {
 		return Create
 	} else {

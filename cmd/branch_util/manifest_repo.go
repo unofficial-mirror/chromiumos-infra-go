@@ -1,22 +1,22 @@
 // Copyright 2019 The Chromium OS Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-package manifest_repo
+package main
 
 import (
+	"fmt"
 	"log"
 	"path/filepath"
 	"strings"
 
-	checkoutp "go.chromium.org/chromiumos/infra/go/internal/checkout"
 	"go.chromium.org/chromiumos/infra/go/internal/git"
 	"go.chromium.org/chromiumos/infra/go/internal/repo"
 	"go.chromium.org/luci/common/errors"
 )
 
 type ManifestRepo struct {
-	Checkout checkoutp.Checkout
-	Project  repo.Project
+	ProjectCheckout string
+	Project         repo.Project
 }
 
 const (
@@ -28,15 +28,34 @@ const (
 var loadManifestFromFile = repo.LoadManifestFromFile
 var loadManifestTree = repo.LoadManifestTree
 
+func (m *ManifestRepo) gitRevision(project repo.Project) (string, error) {
+	remoteUrl, err := projectFetchUrl(project.Path)
+	if err != nil {
+		return "", nil
+	}
+
+	// Doesn't need to be in an actual git repo.
+	output, err := git.RunGit("", []string{"ls-remote", remoteUrl})
+	if err != nil {
+		return "", errors.Annotate(err, "failed to read remote branches for %s", remoteUrl).Err()
+	}
+	for _, line := range strings.Split(strings.TrimSpace(output.Stdout), "\n") {
+		if strings.Fields(line)[1] == project.Revision {
+			return strings.Fields(line)[0], nil
+		}
+	}
+	return "", fmt.Errorf("no ref for %s in project %s", project.Revision, project.Path)
+}
+
 // RepairManifest reads the manifest at the given path and repairs it in memory.
 // Because humans rarely read branched manifests, this function optimizes for
 // code readibility and explicitly sets revision on every project in the manifest,
 // deleting any defaults.
 // branchesByPath maps project paths to branch names.
-func (m *ManifestRepo) RepairManifest(path string, branchesByPath map[string]string) (repo.Manifest, error) {
+func (m *ManifestRepo) RepairManifest(path string, branchesByPath map[string]string) (*repo.Manifest, error) {
 	manifest, err := loadManifestFromFile(path)
 	if err != nil {
-		return repo.Manifest{}, errors.Annotate(err, "error loading manifest").Err()
+		return nil, errors.Annotate(err, "error loading manifest").Err()
 	}
 
 	// Delete the default revision.
@@ -49,32 +68,30 @@ func (m *ManifestRepo) RepairManifest(path string, branchesByPath map[string]str
 
 	// Update all project revisions.
 	for i, project := range manifest.Projects {
-		err = m.Checkout.EnsureProject(project)
-		if err != nil {
-			return repo.Manifest{}, errors.Annotate(err, "missing project while repairing manifest").Err()
-		}
-
-		// If project path is in the dict, the project must have been branched.
-		branchName, inDict := branchesByPath[project.Path]
-		explicitMode, _ := project.GetAnnotation("branch-mode")
-
-		if inDict {
+		switch branchMode := workingManifest.ProjectBranchMode(project); branchMode {
+		case repo.Create:
+			branchName, inDict := branchesByPath[project.Path]
+			if !inDict {
+				return nil, fmt.Errorf("project %s is not pinned/tot but not set in branchesByPath", project.Path)
+			}
 			manifest.Projects[i].Revision = git.NormalizeRef(branchName)
-		} else if explicitMode == manifestAttrBranchingTot {
-			// Otherwise, check if project is explicitly TOT.
+		case repo.Tot:
 			manifest.Projects[i].Revision = git.NormalizeRef("master")
-		} else {
-			// If not, it's pinned.
-			revision, err := m.Checkout.GitRevision(project)
+		case repo.Pinned:
+			// TODO(@jackneus): all this does is convert the current revision to a SHA.
+			// Is this really necessary?
+			revision, err := m.gitRevision(project)
 			if err != nil {
-				return repo.Manifest{}, errors.Annotate(err, "error repairing manifest").Err()
+				return nil, errors.Annotate(err, "error repairing manifest").Err()
 			}
 			manifest.Projects[i].Revision = revision
+		default:
+			return nil, fmt.Errorf("project %s branch mode unspecifed", project.Path)
 		}
 
 		manifest.Projects[i].Upstream = ""
 	}
-	return manifest, nil
+	return &manifest, nil
 }
 
 // listManifests finds all manifests included directly or indirectly by root
@@ -83,7 +100,7 @@ func (m *ManifestRepo) listManifests(rootPaths []string) ([]string, error) {
 	manifestPaths := make(map[string]bool)
 
 	for _, path := range rootPaths {
-		path = m.Checkout.AbsoluteProjectPath(m.Project, path)
+		path = filepath.Join(m.ProjectCheckout, path)
 		manifestMap, err := loadManifestTree(path)
 		if err != nil {
 			// It is only correct to continue when a file does not exist,

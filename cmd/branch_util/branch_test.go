@@ -7,8 +7,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/golang/mock/gomock"
-	mock_checkout "go.chromium.org/chromiumos/infra/go/internal/checkout/mock"
 	"go.chromium.org/chromiumos/infra/go/internal/repo"
 	"gotest.tools/assert"
 )
@@ -43,9 +41,6 @@ var canBranchTestManifest = repo.Manifest{
 }
 
 func TestProjectBranchName(t *testing.T) {
-	ctl := gomock.NewController(t)
-	defer ctl.Finish()
-
 	manifest := branchNameTestManifest
 	workingManifest = manifest
 	assert.Equal(t, projectBranchName("mybranch", manifest.Projects[0], ""), "mybranch")
@@ -54,9 +49,6 @@ func TestProjectBranchName(t *testing.T) {
 }
 
 func TestProjectBranchName_withOriginal(t *testing.T) {
-	ctl := gomock.NewController(t)
-	defer ctl.Finish()
-
 	manifest := branchNameTestManifest
 	workingManifest = manifest
 	assert.Equal(t, projectBranchName("mybranch", manifest.Projects[3], "oldbranch"), "mybranch-factory-100")
@@ -91,9 +83,6 @@ var branchesTestManifest = repo.Manifest{
 }
 
 func TestProjectBranches(t *testing.T) {
-	ctl := gomock.NewController(t)
-	defer ctl.Finish()
-
 	manifest := branchesTestManifest
 	workingManifest = manifest
 	expected := []ProjectBranch{
@@ -118,12 +107,6 @@ func TestGetBranchesByPath(t *testing.T) {
 }
 
 func TestWhichVersionShouldBump_successPatch(t *testing.T) {
-	ctl := gomock.NewController(t)
-	defer ctl.Finish()
-
-	m := mock_checkout.NewMockCheckout(ctl)
-	checkout = m
-
 	vinfo := repo.VersionInfo{
 		ChromeBranch:      0xfa,
 		BuildNumber:       0xca,
@@ -137,12 +120,6 @@ func TestWhichVersionShouldBump_successPatch(t *testing.T) {
 }
 
 func TestWhichVersionShouldBump_successBranch(t *testing.T) {
-	ctl := gomock.NewController(t)
-	defer ctl.Finish()
-
-	m := mock_checkout.NewMockCheckout(ctl)
-	checkout = m
-
 	vinfo := repo.VersionInfo{
 		ChromeBranch:      0xfe,
 		BuildNumber:       0xed,

@@ -7,11 +7,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/url"
+	"os"
 	"path"
 	"path/filepath"
 
 	"github.com/maruel/subcommands"
-	checkoutp "go.chromium.org/chromiumos/infra/go/internal/checkout"
 	"go.chromium.org/chromiumos/infra/go/internal/git"
 	"go.chromium.org/chromiumos/infra/go/internal/repo"
 	"go.chromium.org/luci/common/errors"
@@ -37,9 +37,9 @@ const (
 )
 
 var (
-	RepoToolPath    string
-	checkout        checkoutp.Checkout
-	workingManifest repo.Manifest
+	RepoToolPath     string
+	workingManifest  repo.Manifest
+	manifestCheckout string
 )
 
 func (c *CommonFlags) Init() {
@@ -82,15 +82,18 @@ func projectFetchUrl(projectPath string) (string, error) {
 
 // Get a local checkout of a particular project.
 func getProjectCheckout(projectPath string) (string, error) {
-	checkoutDir, err := ioutil.TempDir("", "cros-branch-")
-	if err != nil {
-		return "", errors.Annotate(err, "tmp dir could not be created").Err()
-	}
-
 	projectUrl, err := projectFetchUrl(projectPath)
 
 	if err != nil {
 		return "", errors.Annotate(err, "failed to get project fetch url").Err()
+	}
+	return getProjectCheckoutFromUrl(projectUrl)
+}
+
+func getProjectCheckoutFromUrl(projectUrl string) (string, error) {
+	checkoutDir, err := ioutil.TempDir("", "cros-branch-")
+	if err != nil {
+		return "", errors.Annotate(err, "tmp dir could not be created").Err()
 	}
 
 	// TODO(@jackneus): add  "--branch", git.StripRefs(project.Upstream) when appropriate?
@@ -111,5 +114,25 @@ func Run(c branchCommand, a subcommands.Application, args []string,
 		fmt.Fprintf(a.GetErr(), errMsg+"\n")
 		return 1
 	}
+
+	manifestCheckout, err := getProjectCheckoutFromUrl(c.getManifestUrl())
+	if err != nil {
+		fmt.Fprintf(a.GetErr(), "%s\n",
+			errors.Annotate(err, "could not checkout %s", c.getManifestUrl()).Err().Error())
+		return 1
+	}
+	defer os.RemoveAll(manifestCheckout)
+
+	manifestPath := filepath.Join(manifestCheckout, "default.xml")
+
+	// Read in manifest from file (and resolve includes).
+	manifest, err := repo.LoadManifestFromFileWithIncludes(manifestPath)
+	if err != nil {
+		err = errors.Annotate(err, "failed to load manifests").Err()
+		fmt.Fprintf(a.GetErr(), err.Error())
+		return 1
+	}
+	workingManifest = *manifest
+
 	return 0
 }

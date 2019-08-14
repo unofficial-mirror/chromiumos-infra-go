@@ -127,6 +127,7 @@ func (m *ManifestRepo) listManifests(rootPaths []string) ([]string, error) {
 func (m *ManifestRepo) RepairManifestsOnDisk(branchesByPath map[string]string) error {
 	log.Printf("Repairing manifest project %s.", m.Project.Name)
 	manifestPaths, err := m.listManifests([]string{defaultManifest, officialManifest})
+
 	if err != nil {
 		return errors.Annotate(err, "failed to listManifests").Err()
 	}

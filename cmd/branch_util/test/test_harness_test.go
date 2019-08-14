@@ -220,7 +220,7 @@ func TestAssertCrosBranchFromManifest_true(t *testing.T) {
 	// chromiumos/multicheckout-b
 	assert.NilError(t, r.Harness.CreateRemoteRef(rh.GetRemoteProject(manifest.Projects[4]), crosBranchName+"-multicheckout-b", "refs/heads/multicheckout-b"))
 
-	assert.NilError(t, r.AssertCrosBranchFromManifest(crosBranchName, manifest))
+	assert.NilError(t, r.AssertCrosBranchFromManifest(manifest, crosBranchName, ""))
 }
 
 func TestAssertCrosBranchFromManifest_false(t *testing.T) {
@@ -249,7 +249,7 @@ func TestAssertCrosBranchFromManifest_false(t *testing.T) {
 	// chromiumos/multicheckout-b
 	assert.NilError(t, r.Harness.CreateRemoteRef(rh.GetRemoteProject(manifest.Projects[4]), crosBranchName+"-multicheckout-b", "refs/heads/master"))
 
-	assert.ErrorContains(t, r.AssertCrosBranchFromManifest(crosBranchName, manifest), "does not descend")
+	assert.ErrorContains(t, r.AssertCrosBranchFromManifest(manifest, crosBranchName, ""), "does not descend")
 }
 
 func TestAssertCrosVersion(t *testing.T) {
@@ -334,8 +334,8 @@ func TestAssertProjectRevisionsMatchBranch(t *testing.T) {
 		project.Revision = git.NormalizeRef("master-" + git.StripRefs(project.Revision))
 	}
 
-	assert.NilError(t, r.AssertProjectRevisionsMatchBranch(manifest, "master"))
-	assert.Assert(t, r.AssertProjectRevisionsMatchBranch(manifest, "foo") != nil)
+	assert.NilError(t, r.AssertProjectRevisionsMatchBranch(manifest, "master", ""))
+	assert.Assert(t, r.AssertProjectRevisionsMatchBranch(manifest, "foo", "") != nil)
 }
 
 func TestAssertManifestProjectRepaired(t *testing.T) {

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"path/filepath"
+	"strings"
 
 	"go.chromium.org/chromiumos/infra/go/internal/git"
 	"go.chromium.org/chromiumos/infra/go/internal/repo"
@@ -131,6 +132,17 @@ func projectRef(project repo.Project) string {
 	}
 }
 
+func multicheckoutBranchName(project *repo.Project, branch, sourceBranch string) string {
+	pid := projectRef(*project)
+	// If branch was the result of a rename, then the project ref will start with
+	// sourceBranch-. This function removes that bit.
+	if sourceBranch != "" {
+		pid = strings.Replace(pid, sourceBranch+"-", "", 1)
+	}
+	branchName := fmt.Sprintf("%s-%s", branch, pid)
+	return branchName
+}
+
 // versionFileContents returns the contents of a basic ChromeOS version file.
 func versionFileContents(version repo.VersionInfo) string {
 	contents := fmt.Sprintf("#!/bin/sh\n"+
@@ -193,9 +205,8 @@ func (r *CrosRepoHarness) AssertCrosBranches(branches []string) error {
 	multiProjects := manifest.GetMultiCheckoutProjects()
 	for _, project := range multiProjects {
 		projectBranches := []string{"master"}
-		pid := projectRef(*project)
 		for _, branch := range branches {
-			projectBranches = append(projectBranches, fmt.Sprintf("%s-%s", branch, pid))
+			projectBranches = append(projectBranches, multicheckoutBranchName(project, branch, ""))
 		}
 		if err := r.Harness.AssertProjectBranches(rh.GetRemoteProject(*project), projectBranches); err != nil {
 			return err
@@ -236,9 +247,8 @@ func (r *CrosRepoHarness) AssertCrosBranchesMissing(branches []string) error {
 	multiProjects := manifest.GetMultiCheckoutProjects()
 	for _, project := range multiProjects {
 		projectBranches := []string{"master"}
-		pid := projectRef(*project)
 		for _, branch := range branches {
-			projectBranches = append(projectBranches, fmt.Sprintf("%s-%s", branch, pid))
+			projectBranches = append(projectBranches, multicheckoutBranchName(project, branch, ""))
 		}
 		if err := branchAssertFn(rh.GetRemoteProject(*project), projectBranches); err != nil {
 			return err
@@ -269,7 +279,8 @@ func (r *CrosRepoHarness) getRecentProjectSnapshot(project rh.RemoteProject) (st
 
 // AssertCrosBranchFromManifest asserts that the specified CrOS branch descends
 // from the given manifest.
-func (r *CrosRepoHarness) AssertCrosBranchFromManifest(branch string, manifest repo.Manifest) error {
+// sourceBranch should be set if branch was the result of a branch rename.
+func (r *CrosRepoHarness) AssertCrosBranchFromManifest(manifest repo.Manifest, branch string, sourceBranch string) error {
 	projectSnapshots := make(map[string]string)
 	var err error
 	for _, project := range manifest.Projects {
@@ -295,11 +306,10 @@ func (r *CrosRepoHarness) AssertCrosBranchFromManifest(branch string, manifest r
 
 	multiProjects := manifest.GetMultiCheckoutProjects()
 	for _, project := range multiProjects {
-		pid := projectRef(*project)
 		projectSnapshot := projectSnapshots[project.Name]
 		err := r.Harness.AssertProjectBranchHasAncestor(
 			rh.GetRemoteProject(*project),
-			fmt.Sprintf("%s-%s", branch, pid),
+			multicheckoutBranchName(project, branch, sourceBranch),
 			projectSnapshot, project.Revision)
 		if err != nil {
 			return err
@@ -395,7 +405,7 @@ func projectInList(project repo.Project, projects []*repo.Project) bool {
 }
 
 // AssertProjectRevisionsMatchBranch asserts that the project revisions match the given CrOS branch.
-func (r *CrosRepoHarness) AssertProjectRevisionsMatchBranch(manifest repo.Manifest, branch string) error {
+func (r *CrosRepoHarness) AssertProjectRevisionsMatchBranch(manifest repo.Manifest, branch, sourceBranch string) error {
 	originalManifest := r.Harness.Manifest()
 	singleProjects := originalManifest.GetSingleCheckoutProjects()
 	multiProjects := originalManifest.GetMultiCheckoutProjects()
@@ -414,7 +424,7 @@ func (r *CrosRepoHarness) AssertProjectRevisionsMatchBranch(manifest repo.Manife
 			if err != nil {
 				return errors.Annotate(err, "could not get project %s from harness manifest", project.Path).Err()
 			}
-			expected := git.NormalizeRef(fmt.Sprintf("%s-%s", branch, projectRef(*originalProject)))
+			expected := git.NormalizeRef(multicheckoutBranchName(originalProject, branch, sourceBranch))
 			if err := assertEqual(expected, project.Revision); err != nil {
 				return errors.Annotate(err, "mismatch for project %s", project.Path).Err()
 			}
@@ -447,7 +457,7 @@ func (r *CrosRepoHarness) AssertProjectRevisionsMatchBranch(manifest repo.Manife
 	return nil
 }
 
-// AssertManfiestProjectRepaired asserts that the specified manifest XML files in the specified branch
+// AssertManifestProjectRepaired asserts that the specified manifest XML files in the specified branch
 // of a project were repaired.
 // This function assumes that r.Harness.SyncLocalCheckout() has just been run.
 func (r *CrosRepoHarness) AssertManifestProjectRepaired(
@@ -466,7 +476,7 @@ func (r *CrosRepoHarness) AssertManifestProjectRepaired(
 	defer git.RunGitIgnoreOutput(localProjectPath, []string{"checkout", "--detach"})
 
 	if err != nil {
-		return errors.Annotate(err, "failed to checkout branch %s in project %s", branch, localProject.Path).Err()
+		return errors.Annotate(err, "failed to checkout branch %s in project %s", branch, localProjectPath).Err()
 	}
 
 	for _, file := range manifestFiles {
@@ -478,7 +488,7 @@ func (r *CrosRepoHarness) AssertManifestProjectRepaired(
 		if err = AssertNoDefaultRevisions(manifest); err != nil {
 			return errors.Annotate(err, "manifest %s has error", file).Err()
 		}
-		if err = r.AssertProjectRevisionsMatchBranch(manifest, branch); err != nil {
+		if err = r.AssertProjectRevisionsMatchBranch(manifest, branch, ""); err != nil {
 			return errors.Annotate(err, "manifest %s has error", file).Err()
 		}
 	}

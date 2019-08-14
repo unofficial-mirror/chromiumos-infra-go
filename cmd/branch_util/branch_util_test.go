@@ -420,7 +420,7 @@ func TestCreate(t *testing.T) {
 	assert.NilError(t, r.Harness.SyncLocalCheckout())
 
 	assert.NilError(t, r.AssertCrosBranches([]string{branch}))
-	assert.NilError(t, r.AssertCrosBranchFromManifest(branch, manifest))
+	assert.NilError(t, r.AssertCrosBranchFromManifest(manifest, branch, ""))
 	assertManifestsRepaired(t, r, branch)
 	newBranchVersion := repo.VersionInfo{
 		ChromeBranch:      12,
@@ -486,7 +486,7 @@ func TestCreateRelease(t *testing.T) {
 
 	branch := "release-R12-3.B"
 	assert.NilError(t, r.AssertCrosBranches([]string{branch}))
-	assert.NilError(t, r.AssertCrosBranchFromManifest(branch, manifest))
+	assert.NilError(t, r.AssertCrosBranchFromManifest(manifest, branch, ""))
 	assertManifestsRepaired(t, r, branch)
 	newBranchVersion := repo.VersionInfo{
 		ChromeBranch:      12,
@@ -531,7 +531,7 @@ func TestCreateOverwrite(t *testing.T) {
 	assert.NilError(t, r.Harness.SyncLocalCheckout())
 
 	assert.NilError(t, r.AssertCrosBranches([]string{branch}))
-	assert.NilError(t, r.AssertCrosBranchFromManifest(branch, manifest))
+	assert.NilError(t, r.AssertCrosBranchFromManifest(manifest, branch, ""))
 	assertManifestsRepaired(t, r, branch)
 	newBranchVersion := repo.VersionInfo{
 		ChromeBranch:      12,
@@ -619,6 +619,182 @@ func TestCreateExistingVersion(t *testing.T) {
 	assert.Assert(t, ret != 0)
 	// TODO(@jackneus): fix logging so that we can make this assert.
 	//assert.Assert(t, strings.Contains(stdoutBuf.String(), "already branched 3.0.0"))
+	assertNoRemoteDiff(t, r)
+}
+
+func TestRename(t *testing.T) {
+	r := setUp(t)
+	defer r.Teardown()
+
+	localRoot, err := ioutil.TempDir("", "test_rename")
+	defer os.RemoveAll(localRoot)
+	assert.NilError(t, err)
+	manifest := r.Harness.Manifest()
+	manifestDir := r.Harness.GetRemotePath(manifestInternalProject)
+
+	oldBranch := "old-branch"
+	newBranch := "new-branch"
+
+	s := &branchApplication{application, log.New(ioutil.Discard, "", log.LstdFlags|log.Lmicroseconds)}
+	ret := subcommands.Run(s, []string{
+		"rename", "--push", "--root", localRoot,
+		"--manifest-url", manifestDir,
+		oldBranch, newBranch,
+	})
+	assert.Assert(t, ret == 0)
+
+	// Sync local checkout before asserts.
+	assert.NilError(t, r.Harness.SyncLocalCheckout())
+
+	assert.NilError(t, r.AssertCrosBranches([]string{newBranch}))
+	assert.NilError(t, r.AssertCrosBranchesMissing([]string{oldBranch}))
+
+	// Get manifest for oldBranch.
+	crosFetchVal := manifest.GetRemoteByName("cros").Fetch
+	crosInternalFetchVal := manifest.GetRemoteByName("cros-internal").Fetch
+	_, _, fullBranchedXML := getBranchedManifestFiles(crosFetchVal, crosInternalFetchVal)
+	var branchManifest *repo.Manifest
+	assert.NilError(t, xml.Unmarshal([]byte(fullBranchedXML), &branchManifest))
+	branchManifest = branchManifest.ResolveImplicitLinks()
+
+	assert.NilError(t, r.AssertCrosBranchFromManifest(*branchManifest, newBranch, oldBranch))
+	assertManifestsRepaired(t, r, newBranch)
+	newBranchVersion := repo.VersionInfo{
+		ChromeBranch:      12,
+		BuildNumber:       2,
+		BranchBuildNumber: 1,
+		PatchNumber:       0,
+	}
+	assert.NilError(t, r.AssertCrosVersion(newBranch, newBranchVersion))
+}
+
+func TestRenameDryRun(t *testing.T) {
+	r := setUp(t)
+	defer r.Teardown()
+
+	localRoot, err := ioutil.TempDir("", "test_rename")
+	defer os.RemoveAll(localRoot)
+	assert.NilError(t, err)
+	manifestDir := r.Harness.GetRemotePath(manifestInternalProject)
+
+	oldBranch := "old-branch"
+	newBranch := "new-branch"
+
+	s := &branchApplication{application, log.New(ioutil.Discard, "", log.LstdFlags|log.Lmicroseconds)}
+	ret := subcommands.Run(s, []string{
+		"rename", "--root", localRoot,
+		"--manifest-url", manifestDir,
+		oldBranch, newBranch,
+	})
+	assert.Assert(t, ret == 0)
+
+	assertNoRemoteDiff(t, r)
+}
+
+// Test rename successfully force overwrites.
+func TestRenameOverwrite(t *testing.T) {
+	r := setUp(t)
+	defer r.Teardown()
+
+	localRoot, err := ioutil.TempDir("", "test_rename")
+	defer os.RemoveAll(localRoot)
+	assert.NilError(t, err)
+	manifest := r.Harness.Manifest()
+	manifestDir := r.Harness.GetRemotePath(manifestInternalProject)
+
+	oldBranch := "old-branch"
+	newBranch := "new-branch"
+
+	// Create a branch to rename. To quote the functional tests for `cros branch`:
+	// "This may seem like we depend on the correctness of the code under test, but in practice
+	// the branches to be renamed will be created by `cros branch` anyways."
+	s := &branchApplication{application, log.New(ioutil.Discard, "", log.LstdFlags|log.Lmicroseconds)}
+	ret := subcommands.Run(s, []string{
+		"create", "--push", "--root", localRoot,
+		"--manifest-url", manifestDir,
+		"--file", fullManifestPath(r),
+		"--custom", newBranch,
+	})
+	assert.Assert(t, ret == 0)
+
+	// Sync local checkout before asserts.
+	assert.NilError(t, r.Harness.SyncLocalCheckout())
+
+	assert.NilError(t, r.AssertCrosBranches([]string{newBranch}))
+	assert.NilError(t, r.AssertCrosBranchFromManifest(manifest, newBranch, ""))
+	assertManifestsRepaired(t, r, newBranch)
+	newBranchVersion := repo.VersionInfo{
+		ChromeBranch:      12,
+		BuildNumber:       3,
+		BranchBuildNumber: 1,
+		PatchNumber:       0,
+	}
+	assert.NilError(t, r.AssertCrosVersion(newBranch, newBranchVersion))
+	masterVersion := repo.VersionInfo{
+		ChromeBranch:      12,
+		BuildNumber:       4,
+		BranchBuildNumber: 0,
+		PatchNumber:       0,
+	}
+	assert.NilError(t, r.AssertCrosVersion("master", masterVersion))
+	oldBranchVersion := repo.VersionInfo{
+		ChromeBranch:      12,
+		BuildNumber:       2,
+		BranchBuildNumber: 1,
+		PatchNumber:       0,
+	}
+	assert.NilError(t, r.AssertCrosVersion(oldBranch, oldBranchVersion))
+
+	// Gah! Turns out we actually wanted what's in oldBranch. Let's try force renaming
+	// oldBranch to newBranch, overwriting the existing contents of newBranch in the process.
+	s = &branchApplication{application, log.New(ioutil.Discard, "", log.LstdFlags|log.Lmicroseconds)}
+	ret = subcommands.Run(s, []string{
+		"rename", "--push", "--force", "--root", localRoot,
+		"--manifest-url", manifestDir,
+		oldBranch, newBranch,
+	})
+	assert.Assert(t, ret == 0)
+
+	// Sync local checkout before asserts.
+	assert.NilError(t, r.Harness.SyncLocalCheckout())
+
+	assert.NilError(t, r.AssertCrosBranches([]string{newBranch}))
+	assert.NilError(t, r.AssertCrosBranchesMissing([]string{oldBranch}))
+
+	// Get manifest for oldBranch.
+	crosFetchVal := manifest.GetRemoteByName("cros").Fetch
+	crosInternalFetchVal := manifest.GetRemoteByName("cros-internal").Fetch
+	_, _, fullBranchedXML := getBranchedManifestFiles(crosFetchVal, crosInternalFetchVal)
+	var branchManifest *repo.Manifest
+	assert.NilError(t, xml.Unmarshal([]byte(fullBranchedXML), &branchManifest))
+	branchManifest = branchManifest.ResolveImplicitLinks()
+
+	assert.NilError(t, r.AssertCrosBranchFromManifest(*branchManifest, newBranch, oldBranch))
+	assertManifestsRepaired(t, r, newBranch)
+	assert.NilError(t, r.AssertCrosVersion(newBranch, oldBranchVersion))
+}
+
+// Test rename dies if it tries to overwrite without --force.
+func TestRenameOverwriteMissingForce(t *testing.T) {
+	r := setUp(t)
+	defer r.Teardown()
+
+	localRoot, err := ioutil.TempDir("", "test_rename")
+	defer os.RemoveAll(localRoot)
+	assert.NilError(t, err)
+	manifestDir := r.Harness.GetRemotePath(manifestInternalProject)
+
+	oldBranch := "old-branch"
+
+	s := &branchApplication{application, log.New(ioutil.Discard, "", log.LstdFlags|log.Lmicroseconds)}
+	ret := subcommands.Run(s, []string{
+		"rename", "--push", "--root", localRoot,
+		"--manifest-url", manifestDir,
+		"master", oldBranch,
+	})
+	assert.Assert(t, ret != 0)
+	// TODO(@jackneus): fix logging so that we can make this assert.
+	//assert.Assert(t,strings.Contains(stdoutBuf.String(), "Must set --force to rename remote branches."))
 	assertNoRemoteDiff(t, r)
 }
 

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/url"
-	"os"
 	"path"
 	"path/filepath"
 
@@ -106,6 +105,30 @@ func getProjectCheckoutFromUrl(projectUrl string) (string, error) {
 	return checkoutDir, nil
 }
 
+func initWorkingManifest(c branchCommand, branch string) error {
+	manifestCheckout, err := getProjectCheckoutFromUrl(c.getManifestUrl())
+	if err != nil {
+		return errors.Annotate(err, "could not checkout %s", c.getManifestUrl()).Err()
+	}
+
+	if branch != "" {
+		err := git.Checkout(manifestCheckout, branch)
+		if err != nil {
+			return errors.Annotate(err, "failed to checkout branch %s of %s", branch, c.getManifestUrl()).Err()
+		}
+	}
+
+	manifestPath := filepath.Join(manifestCheckout, "default.xml")
+
+	// Read in manifest from file (and resolve includes).
+	manifest, err := repo.LoadManifestFromFileWithIncludes(manifestPath)
+	if err != nil {
+		return errors.Annotate(err, "failed to load manifests").Err()
+	}
+	workingManifest = *manifest
+	return nil
+}
+
 func Run(c branchCommand, a subcommands.Application, args []string,
 	// Validate flags/arguments.
 	env subcommands.Env) int {
@@ -114,25 +137,6 @@ func Run(c branchCommand, a subcommands.Application, args []string,
 		fmt.Fprintf(a.GetErr(), errMsg+"\n")
 		return 1
 	}
-
-	manifestCheckout, err := getProjectCheckoutFromUrl(c.getManifestUrl())
-	if err != nil {
-		fmt.Fprintf(a.GetErr(), "%s\n",
-			errors.Annotate(err, "could not checkout %s", c.getManifestUrl()).Err().Error())
-		return 1
-	}
-	defer os.RemoveAll(manifestCheckout)
-
-	manifestPath := filepath.Join(manifestCheckout, "default.xml")
-
-	// Read in manifest from file (and resolve includes).
-	manifest, err := repo.LoadManifestFromFileWithIncludes(manifestPath)
-	if err != nil {
-		err = errors.Annotate(err, "failed to load manifests").Err()
-		fmt.Fprintf(a.GetErr(), err.Error())
-		return 1
-	}
-	workingManifest = *manifest
 
 	return 0
 }

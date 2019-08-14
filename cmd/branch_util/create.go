@@ -221,6 +221,11 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 	if ret != 0 {
 		return ret
 	}
+	if err := initWorkingManifest(c, ""); err != nil {
+		fmt.Fprintf(a.GetErr(), "%s\n", err.Error())
+		return 1
+	}
+	defer os.RemoveAll(manifestCheckout)
 
 	// Validate the version.
 	// Double check that the checkout has a zero patch number. Otherwise,

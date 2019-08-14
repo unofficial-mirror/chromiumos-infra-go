@@ -129,6 +129,17 @@ func getBranchesByPath(branches []ProjectBranch) map[string]string {
 	return branchesByPath
 }
 
+// getOriginRef returns the equivalent of the specified ref for the "origin" remote.
+func getOriginRef(ref string) string {
+	// If the revision starts with refs/heads/, make it start with
+	// refs/remotes/origin instead.
+	if git.StripRefsHead(ref) != ref {
+		return "refs/remotes/origin/" + git.StripRefsHead(ref)
+	}
+	// If the revision is a SHA, let it be.
+	return ref
+}
+
 // repairManifestRepositories repairs all manifests in all manifest repositories
 // on the current branch and commits the changes. It then pushes the state of
 // the local git branches to remote.
@@ -152,6 +163,13 @@ func repairManifestRepositories(branches []ProjectBranch, dryRun, force bool) er
 		if err != nil {
 			return errors.Annotate(err, "failed to checkout project %s", manifestProject.Path).Err()
 		}
+		// Checkout the appropriate revision to modify. Otherwise, the new branch won't descend from
+		// the correct branch.
+		if err := git.Checkout(manifestCheckout, getOriginRef(manifestProject.Revision)); err != nil {
+			return errors.Annotate(err, "failed to checkout %s of project %s",
+				getOriginRef(manifestProject.Revision),
+				manifestProject.Path).Err()
+		}
 
 		manifestRepo := ManifestRepo{
 			ProjectCheckout: manifestCheckout,
@@ -164,7 +182,8 @@ func repairManifestRepositories(branches []ProjectBranch, dryRun, force bool) er
 			[]string{"commit", "-a", "-m", "commit repaired manifests"}); err != nil {
 			return errors.Annotate(err, "error committing repaired manifests").Err()
 		}
-		refspec := fmt.Sprintf("HEAD:%s", manifestBranchNames[projectName])
+		branchRef := git.NormalizeRef(manifestBranchNames[manifestProject.Name])
+		refspec := fmt.Sprintf("HEAD:%s", branchRef)
 
 		// TODO(@jackneus): Replace with git.Push call after git package is cleaned up.
 		cmd := []string{"push", "origin", refspec}
@@ -174,8 +193,8 @@ func repairManifestRepositories(branches []ProjectBranch, dryRun, force bool) er
 		if force {
 			cmd = append(cmd, "--force")
 		}
-		if _, err := git.RunGit(manifestCheckout, cmd); err != nil {
-			return errors.Annotate(err, "could not push branches to remote").Err()
+		if output, err := git.RunGit(manifestCheckout, cmd); err != nil {
+			return fmt.Errorf("could not push branches to remote: %s", output.Stderr)
 		}
 	}
 	return nil
@@ -196,14 +215,7 @@ func createRemoteBranches(branches []ProjectBranch, dryRun, force bool) error {
 		}
 
 		branchName := git.NormalizeRef(projectBranch.branchName)
-
-		// If the revision is a SHA, let it be. Otherwise we need to strip refs/...
-		revision := projectBranch.project.Revision
-		// i.e. if revision starts with refs/...
-		if git.StripRefs(revision) != revision {
-			revision = "refs/remotes/origin/" + git.StripRefs(revision)
-		}
-		refspec := fmt.Sprintf("%s:%s", revision, branchName)
+		refspec := fmt.Sprintf("%s:%s", getOriginRef(projectBranch.project.Revision), branchName)
 
 		cmd := []string{"push", "origin", refspec}
 		if dryRun {

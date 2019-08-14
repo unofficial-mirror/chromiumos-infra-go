@@ -4,7 +4,13 @@
 package main
 
 import (
+	"fmt"
+	"os"
+	"regexp"
+
 	"github.com/maruel/subcommands"
+	"go.chromium.org/chromiumos/infra/go/internal/git"
+	"go.chromium.org/luci/common/errors"
 )
 
 var cmdRenameBranch = &subcommands.Command{
@@ -52,6 +58,84 @@ func (c *renameBranchRun) Run(a subcommands.Application, args []string,
 	if ret != 0 {
 		return ret
 	}
+	if err := initWorkingManifest(c, c.old); err != nil {
+		fmt.Fprintf(a.GetErr(), "%s\n", err.Error())
+		return 1
+	}
+	defer os.RemoveAll(manifestCheckout)
 
-	return 0
+	// There is no way to atomically rename a remote branch. This method
+	// creates new branches and deletes the old ones using portions of
+	// the create and delete operations.
+
+	// Need to do this for testing, sadly -- don't want to rename real branches.
+	if c.ManifestUrl != defaultManifestUrl {
+		fmt.Fprintf(a.GetOut(), "Warning: --manifest-url should not be used for branch renaming.\n")
+	}
+
+	// manifest-internal serves as the sentinel project.
+	manifestInternal, err := workingManifest.GetUniqueProject("chromeos/manifest-internal")
+	if err != nil {
+		fmt.Fprintf(a.GetErr(),
+			errors.Annotate(err, "Could not get chromeos/manifest-internal project.").Err().Error())
+		return 1
+	}
+
+	pattern := regexp.MustCompile(fmt.Sprintf(`^%s$`, c.new))
+	newExists, err := branchExists(manifestInternal, pattern)
+	if err != nil {
+		fmt.Fprintf(a.GetErr(), err.Error())
+		return 1
+	}
+
+	if newExists && c.Push && !c.Force {
+		fmt.Fprintf(a.GetErr(), "Must set --force to overwrite remote branches.")
+		return 1
+	}
+
+	// Generate new git branch names.
+	newBranches := projectBranches(c.new, c.old)
+
+	// If not --force, validate branch names to ensure that they do not already exist.
+	if !c.Force {
+		err := assertBranchesDoNotExist(newBranches)
+		if err != nil {
+			fmt.Fprintf(a.GetErr(), err.Error())
+			return 1
+		}
+	}
+
+	// Create git branches for new branch.
+	if err := createRemoteBranches(newBranches, !c.Push, c.Force); err != nil {
+		fmt.Fprintf(a.GetErr(), err.Error())
+		return 1
+	}
+	// Repair manifest repositories.
+	if err := repairManifestRepositories(newBranches, !c.Push, c.Force); err != nil {
+		fmt.Fprintf(a.GetErr(), err.Error())
+		return 1
+	}
+
+	// Delete old branches.
+	oldBranches := projectBranches(c.old, c.old)
+	retCode := 0
+	for _, projectBranch := range oldBranches {
+		project := projectBranch.project
+		branch := git.NormalizeRef(projectBranch.branchName)
+		remote := workingManifest.GetRemoteByName(project.RemoteName)
+		projectRemote := fmt.Sprintf("%s/%s", remote.Fetch, project.Name)
+		cmd := []string{"push", projectRemote, "--delete", branch}
+		if !c.Push {
+			cmd = append(cmd, "--dry-run")
+		}
+
+		_, err := git.RunGit(manifestCheckout, cmd)
+		if err != nil {
+			fmt.Fprintf(a.GetErr(), "Failed to delete branch %s in project %s.\n", branch, project.Name)
+			// Try and delete as many of the branches as possible, even if some fail.
+			retCode = 1
+		}
+	}
+
+	return retCode
 }

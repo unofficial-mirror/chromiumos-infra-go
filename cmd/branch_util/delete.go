@@ -5,6 +5,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/maruel/subcommands"
 	"go.chromium.org/chromiumos/infra/go/internal/git"
@@ -52,11 +53,16 @@ func (c *deleteBranchRun) Run(a subcommands.Application, args []string,
 	if ret != 0 {
 		return ret
 	}
-
 	if c.Push && !c.Force {
 		fmt.Fprintf(a.GetErr(), "Must set --force to delete remote branches.")
 		return 1
 	}
+
+	if err := initWorkingManifest(c, ""); err != nil {
+		fmt.Fprintf(a.GetErr(), "%s\n", err.Error())
+		return 1
+	}
+	defer os.RemoveAll(manifestCheckout)
 
 	// Need to do this for testing, sadly -- don't want to delete real branches.
 	if c.ManifestUrl != defaultManifestUrl {

@@ -6,11 +6,9 @@ package main
 import (
 	"fmt"
 	"os"
-	"regexp"
 
 	"github.com/maruel/subcommands"
 	"go.chromium.org/chromiumos/infra/go/internal/git"
-	"go.chromium.org/luci/common/errors"
 )
 
 var cmdRenameBranch = &subcommands.Command{
@@ -71,26 +69,6 @@ func (c *renameBranchRun) Run(a subcommands.Application, args []string,
 	// Need to do this for testing, sadly -- don't want to rename real branches.
 	if c.ManifestUrl != defaultManifestUrl {
 		fmt.Fprintf(a.GetOut(), "Warning: --manifest-url should not be used for branch renaming.\n")
-	}
-
-	// manifest-internal serves as the sentinel project.
-	manifestInternal, err := workingManifest.GetUniqueProject("chromeos/manifest-internal")
-	if err != nil {
-		fmt.Fprintf(a.GetErr(),
-			errors.Annotate(err, "Could not get chromeos/manifest-internal project.").Err().Error())
-		return 1
-	}
-
-	pattern := regexp.MustCompile(fmt.Sprintf(`^%s$`, c.new))
-	newExists, err := branchExists(manifestInternal, pattern)
-	if err != nil {
-		fmt.Fprintf(a.GetErr(), err.Error())
-		return 1
-	}
-
-	if newExists && c.Push && !c.Force {
-		fmt.Fprintf(a.GetErr(), "Must set --force to overwrite remote branches.")
-		return 1
 	}
 
 	// Generate new git branch names.

@@ -58,6 +58,11 @@ func TestNormalizeRef(t *testing.T) {
 	assert.Equal(t, NormalizeRef("foo"), "refs/heads/foo")
 }
 
+func TestIsSHA(t *testing.T) {
+	assert.Assert(t, IsSHA("4f4fad584e9c2735af5131f15b697376a3327de5"))
+	assert.Assert(t, !IsSHA("refs/heads/master"))
+}
+
 func TestGetCurrentBranch_success(t *testing.T) {
 	fakeGitRepo := "top-secret-project"
 	fakeGitData := "refs/heads/current-branch"

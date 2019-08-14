@@ -413,6 +413,7 @@ func TestCreate(t *testing.T) {
 		"--manifest-url", manifestDir,
 		"--file", fullManifestPath(r),
 		"--custom", branch,
+		"-j", "2", // Test with two workers for kicks.
 	})
 	assert.Assert(t, ret == 0)
 

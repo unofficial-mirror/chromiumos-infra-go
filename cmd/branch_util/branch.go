@@ -4,13 +4,17 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"log"
 	"os"
 	"regexp"
 	"strings"
+	"sync"
 
 	"go.chromium.org/chromiumos/infra/go/internal/git"
 	"go.chromium.org/chromiumos/infra/go/internal/repo"
+	"go.chromium.org/chromiumos/infra/go/internal/shared"
 	"go.chromium.org/luci/common/errors"
 )
 
@@ -81,7 +85,7 @@ func projectBranches(branch, original string) []ProjectBranch {
 	return projectBranches
 }
 
-// branchExists checks that a branch exists in a particular project.
+// branchExists checks that a branch matching the given pattern exists in a particular project.
 func branchExists(project repo.Project, branchPattern *regexp.Regexp) (bool, error) {
 	remoteUrl, err := projectFetchUrl(project.Path)
 	if err != nil {
@@ -103,19 +107,77 @@ func branchExists(project repo.Project, branchPattern *regexp.Regexp) (bool, err
 	return false, nil
 }
 
+// branchExistsExplicit checks that the given branch exists in the project.
+// It is a good bit faster than branchExists.
+func branchExistsExplicit(project repo.Project, branch string) (bool, error) {
+	remoteUrl, err := projectFetchUrl(project.Path)
+	if err != nil {
+		return false, errors.Annotate(err, "failed to get remote project url").Err()
+	}
+
+	ch := make(chan bool, 1)
+
+	ctx, cancel := context.WithTimeout(context.Background(), gitTimeout)
+	defer cancel()
+	opts := shared.DefaultOpts
+	opts.Retries = gitRetries
+	err = shared.DoWithRetry(ctx, opts, func() error {
+		// If we give a full URL, don't need to run the command in a git repo.
+		output, err := git.RemoteHasBranch("", remoteUrl, branch)
+		if err != nil {
+			return err
+		}
+		ch <- output
+		return nil
+	})
+	if err != nil {
+		return false, errors.Annotate(err, "failed to list remote branches for %s", remoteUrl).Err()
+	}
+
+	return <-ch, nil
+}
+
+func assertBranchesDoNotExistWorker(
+	wg *sync.WaitGroup, projectBranches <-chan ProjectBranch, errs chan<- error) {
+	for projectBranch := range projectBranches {
+		log.Printf("...checking that %s does not exist in %s.\n",
+			projectBranch.branchName,
+			projectBranch.project.Name)
+		exists, err := branchExistsExplicit(projectBranch.project, projectBranch.branchName)
+		if err != nil {
+			if exists {
+				errs <- fmt.Errorf("Branch %s exists for %s. Please rerun with --force to proceed.",
+					projectBranch.branchName, projectBranch.project.Name)
+			}
+		} else {
+			errs <- err
+		}
+		wg.Done()
+	}
+}
+
 // assertBranchesDoNotExist checks that branches do not already exist.
 func assertBranchesDoNotExist(branches []ProjectBranch) error {
+	projectBranches := make(chan ProjectBranch, len(branches))
+	errs := make(chan error, len(branches))
+
+	var wg sync.WaitGroup
+	for i := 1; i <= workerCount; i++ {
+		go assertBranchesDoNotExistWorker(&wg, projectBranches, errs)
+	}
+
 	for _, projectBranch := range branches {
-		pattern := regexp.MustCompile(projectBranch.branchName)
-		exists, err := branchExists(projectBranch.project, pattern)
-		if err != nil {
-			return errors.Annotate(err, "Error checking existence of branch %s in %s.",
-				projectBranch.branchName, projectBranch.project.Name).Err()
-		}
-		if exists {
-			return fmt.Errorf("Branch %s exists for %s. Please rerun with --force to proceed.",
-				projectBranch.branchName, projectBranch.project.Name)
-		}
+		projectBranches <- projectBranch
+		wg.Add(1)
+	}
+	close(projectBranches)
+
+	wg.Wait()
+
+	select {
+	case err := <-errs:
+		return err
+	default:
 	}
 	return nil
 }
@@ -158,17 +220,15 @@ func repairManifestRepositories(branches []ProjectBranch, dryRun, force bool) er
 		if err != nil {
 			return err
 		}
-		manifestCheckout, err := getProjectCheckout(manifestProject.Path)
+		opts := &checkoutOptions{
+			depth: 1,
+			ref:   manifestProject.Revision,
+		}
+		manifestCheckout, err := getProjectCheckout(manifestProject.Path, opts)
 		defer os.RemoveAll(manifestCheckout)
+
 		if err != nil {
 			return errors.Annotate(err, "failed to checkout project %s", manifestProject.Path).Err()
-		}
-		// Checkout the appropriate revision to modify. Otherwise, the new branch won't descend from
-		// the correct branch.
-		if err := git.Checkout(manifestCheckout, getOriginRef(manifestProject.Revision)); err != nil {
-			return errors.Annotate(err, "failed to checkout %s of project %s",
-				getOriginRef(manifestProject.Revision),
-				manifestProject.Path).Err()
 		}
 
 		manifestRepo := ManifestRepo{
@@ -178,9 +238,9 @@ func repairManifestRepositories(branches []ProjectBranch, dryRun, force bool) er
 		if err := manifestRepo.RepairManifestsOnDisk(getBranchesByPath(branches)); err != nil {
 			return errors.Annotate(err, "failed to repair manifest project %s", projectName).Err()
 		}
-		if _, err := git.RunGit(manifestCheckout,
+		if output, err := git.RunGit(manifestCheckout,
 			[]string{"commit", "-a", "-m", "commit repaired manifests"}); err != nil {
-			return errors.Annotate(err, "error committing repaired manifests").Err()
+			return fmt.Errorf("error committing repaired manifests: %s", output.Stdout)
 		}
 		branchRef := git.NormalizeRef(manifestBranchNames[manifestProject.Name])
 		refspec := fmt.Sprintf("HEAD:%s", branchRef)
@@ -200,18 +260,23 @@ func repairManifestRepositories(branches []ProjectBranch, dryRun, force bool) er
 	return nil
 }
 
-func createRemoteBranches(branches []ProjectBranch, dryRun, force bool) error {
-	// Push the local git branches to remote.
-	for _, projectBranch := range branches {
-		// Don't push the manifest repos because that already happened in repairManifestRepositories.
-		if _, ok := ManifestProjects[projectBranch.project.Name]; ok {
-			continue
+func createRemoteBranchesWorker(
+	wg *sync.WaitGroup,
+	branches <-chan ProjectBranch,
+	errs chan<- error,
+	dryRun, force bool) {
+	for projectBranch := range branches {
+		opts := &checkoutOptions{
+			depth: 1,
+			ref:   projectBranch.project.Revision,
 		}
-		projectCheckout, err := getProjectCheckout(projectBranch.project.Path)
+		projectCheckout, err := getProjectCheckout(projectBranch.project.Path, opts)
 		defer os.RemoveAll(projectCheckout)
 		if err != nil {
-			return errors.Annotate(err, "could not checkout %s:%s",
+			errs <- errors.Annotate(err, "could not checkout %s:%s",
 				projectBranch.project.Path, projectBranch.branchName).Err()
+			wg.Done()
+			continue
 		}
 
 		branchName := git.NormalizeRef(projectBranch.branchName)
@@ -224,11 +289,54 @@ func createRemoteBranches(branches []ProjectBranch, dryRun, force bool) error {
 		if force {
 			cmd = append(cmd, "--force")
 		}
-		if _, err := git.RunGit(projectCheckout, cmd); err != nil {
-			return errors.Annotate(err, "could not push branches to remote").Err()
+		log.Printf("Pushing ref %s for project %s.\n", branchName, projectBranch.project.Path)
+
+		ctx, cancel := context.WithTimeout(context.Background(), gitTimeout)
+		defer cancel()
+		retryOpts := shared.DefaultOpts
+		retryOpts.Retries = gitRetries
+		err = shared.DoWithRetry(ctx, retryOpts, func() error {
+			return git.RunGitIgnoreOutput(projectCheckout, cmd)
+		})
+		if err != nil {
+			errs <- errors.Annotate(err, "could not push branches to remote").Err()
+			wg.Done()
+			continue
 		}
+		wg.Done()
 	}
 
+	return
+}
+
+func createRemoteBranches(branches []ProjectBranch, dryRun, force bool) error {
+	branchChan := make(chan ProjectBranch, len(branches))
+	errs := make(chan error, len(branches))
+
+	var wg sync.WaitGroup
+	for i := 1; i <= workerCount; i++ {
+		go createRemoteBranchesWorker(&wg, branchChan, errs, dryRun, force)
+	}
+
+	// Push the local git branches to remote.
+	for _, projectBranch := range branches {
+		// Don't push the manifest repos because that already happened in repairManifestRepositories.
+		if _, ok := ManifestProjects[projectBranch.project.Name]; ok {
+			continue
+		}
+
+		branchChan <- projectBranch
+		wg.Add(1)
+	}
+	close(branchChan)
+
+	wg.Wait()
+
+	select {
+	case err := <-errs:
+		return err
+	default:
+	}
 	return nil
 }
 

@@ -5,6 +5,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"regexp"
 	"strings"
@@ -171,18 +172,20 @@ func (c *createBranchRun) bumpVersion(
 	component repo.VersionComponent,
 	branch, commitMsg string,
 	dryRun bool) error {
+	// Branch won't exist if running tool with --dry-run.
+	if dryRun {
+		return nil
+	}
+
 	// Get checkout of versionProjectPath, which has chromeos_version.sh.
-	versionProjectCheckout, err := getProjectCheckout(versionProjectPath)
+	opts := &checkoutOptions{
+		depth: 1,
+		ref:   branch,
+	}
+	versionProjectCheckout, err := getProjectCheckout(versionProjectPath, opts)
 	defer os.RemoveAll(versionProjectCheckout)
 	if err != nil {
 		return errors.Annotate(err, "local checkout of version project failed").Err()
-	}
-
-	// Branch won't exist if running tool with --dry-run.
-	if !dryRun {
-		if err := git.Checkout(versionProjectCheckout, branch); err != nil {
-			return errors.Annotate(err, "failed to checkout branch %s", branch).Err()
-		}
 	}
 
 	version, err := repo.GetVersionInfoFromRepo(versionProjectCheckout)
@@ -226,11 +229,16 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 		return 1
 	}
 	defer os.RemoveAll(manifestCheckout)
+	log.Printf("Fetched working manifest.\n")
 
 	// Validate the version.
 	// Double check that the checkout has a zero patch number. Otherwise,
 	// we cannot branch from it.
-	versionProjectCheckout, err := getProjectCheckout(versionProjectPath)
+	opts := &checkoutOptions{
+		depth: 1,
+		ref:   "master",
+	}
+	versionProjectCheckout, err := getProjectCheckout(versionProjectPath, opts)
 	defer os.RemoveAll(versionProjectCheckout)
 	if err != nil {
 		err = errors.Annotate(err, "local checkout of version project failed").Err()
@@ -248,6 +256,7 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 			vinfo.VersionString())
 		return 1
 	}
+	log.Printf("Version found: %s.\n", vinfo.VersionString())
 
 	// Check that we did not already branch from this version.
 	// manifest-internal serves as the sentinel project.
@@ -263,19 +272,23 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 		fmt.Fprintf(a.GetErr(), err.Error())
 		return 1
 	}
-	if exists && !c.Force {
-		fmt.Fprintf(a.GetErr(), "Already branched %s. Please rerun with --force if you "+
-			"would like to proceed.", vinfo.VersionString())
-		return 1
+	if exists {
+		if !c.Force {
+			fmt.Fprintf(a.GetErr(), "Already branched %s. Please rerun with --force if you "+
+				"would like to proceed.", vinfo.VersionString())
+			return 1
+		} else {
+			log.Printf("Overwriting branch with version %s (--force was set).\n", vinfo.VersionString())
+		}
+	} else {
+		log.Printf("No branch exists for version %s. Continuing...\n", vinfo.VersionString())
 	}
 
 	// Generate branch name.
 	branchName := c.newBranchName(vinfo)
-
-	// TODO(@jackneus): double check name with user via boolean CLI prompt
+	log.Printf("Creating branch: %s\n", branchName)
 
 	// Create branch.
-
 	componentToBump, err := whichVersionShouldBump(vinfo)
 	if err != nil {
 		fmt.Fprintf(a.GetErr(), err.Error())
@@ -292,6 +305,7 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 			return 1
 		}
 	}
+	log.Printf("Done validating project branches.\n")
 
 	// Create git branches for new branch.
 	if err = createRemoteBranches(branches, !c.Push, c.Force); err != nil {

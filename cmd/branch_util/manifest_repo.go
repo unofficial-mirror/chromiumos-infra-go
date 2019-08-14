@@ -29,22 +29,24 @@ var loadManifestFromFile = repo.LoadManifestFromFile
 var loadManifestTree = repo.LoadManifestTree
 
 func (m *ManifestRepo) gitRevision(project repo.Project) (string, error) {
+	if git.IsSHA(project.Revision) {
+		return project.Revision, nil
+	}
+
 	remoteUrl, err := projectFetchUrl(project.Path)
 	if err != nil {
 		return "", nil
 	}
 
 	// Doesn't need to be in an actual git repo.
-	output, err := git.RunGit("", []string{"ls-remote", remoteUrl})
+	output, err := git.RunGit("", []string{"ls-remote", remoteUrl, project.Revision})
 	if err != nil {
 		return "", errors.Annotate(err, "failed to read remote branches for %s", remoteUrl).Err()
 	}
-	for _, line := range strings.Split(strings.TrimSpace(output.Stdout), "\n") {
-		if strings.Fields(line)[1] == project.Revision {
-			return strings.Fields(line)[0], nil
-		}
+	if strings.TrimSpace(output.Stdout) == "" {
+		return "", fmt.Errorf("no ref for %s in project %s", project.Revision, project.Path)
 	}
-	return "", fmt.Errorf("no ref for %s in project %s", project.Revision, project.Path)
+	return strings.Fields(output.Stdout)[0], nil
 }
 
 // RepairManifest reads the manifest at the given path and repairs it in memory.
@@ -68,6 +70,11 @@ func (m *ManifestRepo) RepairManifest(path string, branchesByPath map[string]str
 
 	// Update all project revisions.
 	for i, project := range manifest.Projects {
+		workingProject, err := workingManifest.GetProjectByPath(project.Path)
+		if err != nil {
+			return nil, fmt.Errorf("project %s does not exist in working manifest", project.Path)
+		}
+
 		switch branchMode := workingManifest.ProjectBranchMode(project); branchMode {
 		case repo.Create:
 			branchName, inDict := branchesByPath[project.Path]
@@ -80,7 +87,7 @@ func (m *ManifestRepo) RepairManifest(path string, branchesByPath map[string]str
 		case repo.Pinned:
 			// TODO(@jackneus): all this does is convert the current revision to a SHA.
 			// Is this really necessary?
-			revision, err := m.gitRevision(project)
+			revision, err := m.gitRevision(*workingProject)
 			if err != nil {
 				return nil, errors.Annotate(err, "error repairing manifest").Err()
 			}

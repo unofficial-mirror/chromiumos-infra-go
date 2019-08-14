@@ -9,6 +9,8 @@ import (
 	"net/url"
 	"path"
 	"path/filepath"
+	"strconv"
+	"time"
 
 	"github.com/maruel/subcommands"
 	"go.chromium.org/chromiumos/infra/go/internal/git"
@@ -33,12 +35,15 @@ type CommonFlags struct {
 
 const (
 	defaultManifestUrl = "https://chrome-internal.googlesource.com/chromeos/manifest-internal"
+	gitRetries         = 3
+	gitTimeout         = 30 * time.Second
 )
 
 var (
 	RepoToolPath     string
 	workingManifest  repo.Manifest
 	manifestCheckout string
+	workerCount      int
 )
 
 func (c *CommonFlags) Init() {
@@ -60,6 +65,7 @@ func (c *CommonFlags) Init() {
 	c.Flags.StringVar(&c.ManifestUrl, "manifest-url", defaultManifestUrl,
 		"URL of the manifest to be checked out. Defaults to googlesource URL "+
 			"for manifest-internal.")
+	c.Flags.IntVar(&workerCount, "j", 1, "Number of jobs to run for parallel operations.")
 }
 
 // projectFetchUrl returns the fetch URL for a remote project.
@@ -79,34 +85,67 @@ func projectFetchUrl(projectPath string) (string, error) {
 	return projectUrl.String(), nil
 }
 
+type checkoutOptions struct {
+	// If set, will get only this ref.
+	// If not set, will get the full repo.
+	ref string
+	// To be used with the git clone --depth flag.
+	depth int
+}
+
 // Get a local checkout of a particular project.
-func getProjectCheckout(projectPath string) (string, error) {
+func getProjectCheckout(projectPath string, opts *checkoutOptions) (string, error) {
 	projectUrl, err := projectFetchUrl(projectPath)
 
 	if err != nil {
 		return "", errors.Annotate(err, "failed to get project fetch url").Err()
 	}
-	return getProjectCheckoutFromUrl(projectUrl)
+	return getProjectCheckoutFromUrl(projectUrl, opts)
 }
 
-func getProjectCheckoutFromUrl(projectUrl string) (string, error) {
+func getProjectCheckoutFromUrl(projectUrl string, opts *checkoutOptions) (string, error) {
 	checkoutDir, err := ioutil.TempDir("", "cros-branch-")
 	if err != nil {
 		return "", errors.Annotate(err, "tmp dir could not be created").Err()
 	}
 
-	// TODO(@jackneus): add  "--branch", git.StripRefs(project.Upstream) when appropriate?
-	output, err := git.RunGit(filepath.Dir(checkoutDir),
-		[]string{"clone", projectUrl, checkoutDir})
+	if err := git.Init(checkoutDir, false); err != nil {
+		return "", err
+	}
+	if err := git.AddRemote(checkoutDir, "origin", projectUrl); err != nil {
+		return "", errors.Annotate(err, "could not add %s as remote", projectUrl).Err()
+	}
+
+	cmd := []string{"fetch", "origin"}
+	if opts != nil {
+		if opts.ref != "" {
+			cmd = append(cmd, git.StripRefs(opts.ref))
+		}
+		if opts.depth > 0 {
+			cmd = append(cmd, "--depth", strconv.Itoa(opts.depth))
+		}
+	}
+	output, err := git.RunGit(checkoutDir, cmd)
 	if err != nil {
-		return "", fmt.Errorf("failed to clone %s: %s", projectUrl, output.Stderr)
+		return "", fmt.Errorf("failed to fetch %s: %s", projectUrl, output.Stderr)
+	}
+	checkoutBranch := "master"
+	if opts != nil && opts.ref != "" {
+		checkoutBranch = git.StripRefs(opts.ref)
+	}
+	if err := git.Checkout(checkoutDir, checkoutBranch); err != nil {
+		return "", fmt.Errorf("failed to checkout %s", checkoutBranch)
 	}
 
 	return checkoutDir, nil
 }
 
 func initWorkingManifest(c branchCommand, branch string) error {
-	manifestCheckout, err := getProjectCheckoutFromUrl(c.getManifestUrl())
+	opts := &checkoutOptions{
+		depth: 1,
+		ref:   branch,
+	}
+	manifestCheckout, err := getProjectCheckoutFromUrl(c.getManifestUrl(), opts)
 	if err != nil {
 		return errors.Annotate(err, "could not checkout %s", c.getManifestUrl()).Err()
 	}

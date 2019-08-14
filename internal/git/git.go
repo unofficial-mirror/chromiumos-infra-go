@@ -107,6 +107,12 @@ func MatchBranchNameWithNamespace(gitRepo string, pattern, namespace *regexp.Reg
 	return matchedBranches, nil
 }
 
+// IsSHA checks whether or not the given ref is a SHA.
+func IsSHA(ref string) bool {
+	shaRegexp := regexp.MustCompile("^[0-9a-f]{40}$")
+	return shaRegexp.MatchString(ref)
+}
+
 // GetGitRepoRevision finds and returns the revision of a branch.
 func GetGitRepoRevision(cwd, branch string) (string, error) {
 	if branch == "" {
@@ -311,7 +317,7 @@ func RemoteBranches(gitRepo, remote string) ([]string, error) {
 		if strings.Contains(output.Stderr, "not appear to be a git repository") {
 			return []string{}, fmt.Errorf("%s is not a valid remote", remote)
 		}
-		return []string{}, err
+		return []string{}, fmt.Errorf(output.Stderr)
 	}
 	remotes := []string{}
 	for _, line := range strings.Split(strings.TrimSpace(output.Stdout), "\n") {
@@ -325,17 +331,14 @@ func RemoteBranches(gitRepo, remote string) ([]string, error) {
 
 // RemoteHasBranch checks whether or not a branch exists on a remote.
 func RemoteHasBranch(gitRepo, remote, branch string) (bool, error) {
-	branches, err := RemoteBranches(gitRepo, remote)
+	output, err := RunGit(gitRepo, []string{"ls-remote", remote, branch})
 	if err != nil {
-		return false, err
-	}
-	branch = StripRefs(branch)
-	for _, remoteBranch := range branches {
-		if branch == remoteBranch {
-			return true, nil
+		if strings.Contains(output.Stderr, "not appear to be a git repository") {
+			return false, fmt.Errorf("%s is not a valid remote", remote)
 		}
+		return false, fmt.Errorf(output.Stderr)
 	}
-	return false, nil
+	return output.Stdout != "", nil
 }
 
 // AssertGitBranches asserts that the git repo has the given branches (it may have others, too).

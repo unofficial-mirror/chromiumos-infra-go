@@ -276,44 +276,6 @@ func TestCommitEmpty(t *testing.T) {
 	assert.Equal(t, commit, "abcde12345")
 }
 
-func TestPushChanges(t *testing.T) {
-	fakeGitRepo := "da-bank"
-	commitMsg := "da-money"
-	localRef := "da-vault"
-
-	remoteRef := RemoteRef{
-		Remote: "da-family",
-		Ref:    "da-van",
-	}
-
-	pushStr := fmt.Sprintf("%s:%s", localRef, remoteRef.Ref)
-	CommandRunnerImpl = &cmd.FakeCommandRunnerMulti{
-		CommandRunners: []cmd.FakeCommandRunner{
-			{
-				ExpectedDir: fakeGitRepo,
-				ExpectedCmd: []string{"git", "add", "-A"},
-			},
-			{
-				ExpectedDir: fakeGitRepo,
-				ExpectedCmd: []string{"git", "commit", "-m", commitMsg},
-			},
-			{
-				ExpectedDir: fakeGitRepo,
-				ExpectedCmd: []string{"git", "rev-parse", "HEAD"},
-				Stdout:      "abcde\n",
-			},
-			{
-				ExpectedDir: fakeGitRepo,
-				ExpectedCmd: []string{"git", "push", remoteRef.Remote, pushStr, "--dry-run"},
-			},
-		},
-	}
-
-	commit, err := PushChanges(fakeGitRepo, localRef, commitMsg, true, remoteRef)
-	assert.NilError(t, err)
-	assert.Equal(t, commit, "abcde")
-}
-
 func TestPushRef(t *testing.T) {
 	fakeGitRepo := "repo"
 	localRef := "commitId"

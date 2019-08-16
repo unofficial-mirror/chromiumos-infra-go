@@ -227,17 +227,6 @@ func CommitEmpty(gitRepo, commitMsg string) (string, error) {
 	return strings.TrimSpace(output.Stdout), nil
 }
 
-// PushChanges stages and commits any local changes before pushing the commit
-// to the specified remote ref. Returns the sha1 of the commit.
-func PushChanges(gitRepo, localRef, commitMsg string, dryRun bool, pushTo RemoteRef) (string, error) {
-	commit, err := CommitAll(gitRepo, commitMsg)
-	// It's ok if there's nothing to commit, we can still try to push.
-	if err != nil && !strings.Contains(err.Error(), "nothing to commit") {
-		return "", err
-	}
-	return commit, PushRef(gitRepo, localRef, dryRun, pushTo)
-}
-
 // PushRef pushes the specified local ref to the specified remote ref.
 func PushRef(gitRepo, localRef string, dryRun bool, pushTo RemoteRef) error {
 	ref := fmt.Sprintf("%s:%s", localRef, pushTo.Ref)

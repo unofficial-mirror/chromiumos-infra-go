@@ -350,8 +350,8 @@ func (r *RepoHarness) AddFiles(project RemoteProject, branch string, files []Fil
 			ioutil.WriteFile(filePath, file.Contents, file.Perm))
 	}
 
-	commit, err := git.PushChanges(tmpRepo, "tmp", "add files", false, remoteRef)
-	errs = append(errs, err)
+	commit, err := git.CommitAll(tmpRepo, "add files")
+	errs = append(errs, err, git.PushRef(tmpRepo, "tmp", false, remoteRef))
 
 	for _, err = range errs {
 		if err != nil {
@@ -380,7 +380,7 @@ func (r *RepoHarness) ReadFile(project RemoteProject, branch, filePath string) (
 	errs := []error{
 		git.Init(tmpRepo, false),
 		git.AddRemote(tmpRepo, remoteRef.Remote, remotePath),
-		git.RunGitIgnoreOutput(tmpRepo, []string{"fetch", remoteRef.Remote}),
+		git.RunGitIgnoreOutput(tmpRepo, []string{"fetch", remoteRef.Remote, "--depth", "1"}),
 		git.RunGitIgnoreOutput(tmpRepo, []string{"checkout", remoteBranch, "--", filePath}),
 	}
 	contents, err := ioutil.ReadFile(filepath.Join(tmpRepo, filePath))

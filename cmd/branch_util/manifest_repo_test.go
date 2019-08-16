@@ -16,7 +16,7 @@ import (
 	"gotest.tools/assert"
 )
 
-func TestRepairManifest(t *testing.T) {
+func TestRepairManifest_success(t *testing.T) {
 	manifestRepo := ManifestRepo{
 		Project: repo.Project{
 			Name: "chromiumos/manifest",
@@ -28,7 +28,8 @@ func TestRepairManifest(t *testing.T) {
 	}
 	expectedManifest := repo.Manifest{
 		Default: repo.Default{
-			Revision: "test",
+			RemoteName: "cros",
+			Revision:   "test",
 		},
 		Remotes: []repo.Remote{
 			{Name: "cros", Revision: "123"},

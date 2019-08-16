@@ -78,14 +78,13 @@ func (r *Remote) GitName() string {
 
 // GetRemoteByName returns a pointer to the remote with
 // the given name/alias in the given manifest.
-// TODO(@jackneus): throw an error if DNE instead of returning empty Remote
 func (m *Manifest) GetRemoteByName(name string) *Remote {
 	for i, remote := range m.Remotes {
 		if remote.Name == name {
 			return &m.Remotes[i]
 		}
 	}
-	return &Remote{}
+	return nil
 }
 
 // GetProjectByName returns a pointer to the remote with
@@ -96,7 +95,7 @@ func (m *Manifest) GetProjectByName(name string) (*Project, error) {
 			return &m.Projects[i], nil
 		}
 	}
-	return &Project{}, fmt.Errorf("project %s does not exist in manifest", name)
+	return nil, fmt.Errorf("project %s does not exist in manifest", name)
 }
 
 // GetProjectByPath returns a pointer to the remote with
@@ -107,7 +106,7 @@ func (m *Manifest) GetProjectByPath(path string) (*Project, error) {
 			return &m.Projects[i], nil
 		}
 	}
-	return &Project{}, fmt.Errorf("project %s does not exist in manifest", path)
+	return nil, fmt.Errorf("project %s does not exist in manifest", path)
 }
 
 type projectType string
@@ -247,7 +246,9 @@ func (m *Manifest) ProjectBranchMode(project Project) BranchMode {
 
 	// Othwerise, peek at remote.
 	remote := m.GetRemoteByName(project.RemoteName)
-	// TODO(@jackneus): should do something if remote is null
+	if remote == nil {
+		return UnspecifiedMode
+	}
 	remoteName := remote.GitName()
 	_, inCrosRemote := CROS_REMOTES[remoteName]
 	projectRegexp, inBranchableProjects := BRANCHABLE_PROJECTS[remoteName]
@@ -308,7 +309,7 @@ func (m *Manifest) ResolveImplicitLinks() *Manifest {
 		// Set default revision on projects without an explicit revision
 		if project.Revision == "" {
 			remote := m.GetRemoteByName(project.RemoteName)
-			if remote.Revision == "" {
+			if remote == nil || remote.Revision == "" {
 				project.Revision = m.Default.Revision
 			} else {
 				project.Revision = remote.Revision

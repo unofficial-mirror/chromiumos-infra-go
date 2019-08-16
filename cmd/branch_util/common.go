@@ -76,6 +76,9 @@ func projectFetchUrl(projectPath string) (string, error) {
 	}
 
 	remote := workingManifest.GetRemoteByName(project.RemoteName)
+	if remote == nil {
+		return "", fmt.Errorf("remote %s does not exist in working manifest", project.RemoteName)
+	}
 	projectUrl, err := url.Parse(remote.Fetch)
 	if err != nil {
 		return "", errors.Annotate(err, "failed to parse fetch location for remote %s", remote.Name).Err()

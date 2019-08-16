@@ -78,6 +78,12 @@ func (c *deleteBranchRun) Run(a subcommands.Application, args []string,
 		project := projectBranch.project
 		branch := git.NormalizeRef(projectBranch.branchName)
 		remote := workingManifest.GetRemoteByName(project.RemoteName)
+		if remote == nil {
+			// Try and delete as many of the branches as possible, even if some fail.
+			fmt.Fprintf(a.GetErr(), "Remote %s does not exist in working manifest.\n", project.RemoteName)
+			retCode = 1
+			continue
+		}
 		projectRemote := fmt.Sprintf("%s/%s", remote.Fetch, project.Name)
 		cmd := []string{"push", projectRemote, "--delete", branch}
 		if !c.Push {

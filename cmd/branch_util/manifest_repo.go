@@ -35,7 +35,7 @@ func (m *ManifestRepo) gitRevision(project repo.Project) (string, error) {
 
 	remoteUrl, err := projectFetchUrl(project.Path)
 	if err != nil {
-		return "", nil
+		return "", err
 	}
 
 	// Doesn't need to be in an actual git repo.

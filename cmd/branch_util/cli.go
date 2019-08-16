@@ -5,7 +5,6 @@ package main
 
 import (
 	"context"
-	"io/ioutil"
 	"log"
 	"os"
 
@@ -29,10 +28,14 @@ var application = &subcommands.DefaultApplication{
 
 type branchApplication struct {
 	*subcommands.DefaultApplication
-	log *log.Logger
+	stdoutLog *log.Logger
+	stderrLog *log.Logger
 }
 
 func main() {
-	s := &branchApplication{application, log.New(ioutil.Discard, "", log.LstdFlags|log.Lmicroseconds)}
+	s := &branchApplication{
+		application,
+		log.New(os.Stdout, "", log.LstdFlags|log.Lmicroseconds),
+		log.New(os.Stderr, "", log.LstdFlags|log.Lmicroseconds)}
 	os.Exit(subcommands.Run(s, nil))
 }

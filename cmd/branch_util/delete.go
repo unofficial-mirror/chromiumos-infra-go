@@ -54,19 +54,19 @@ func (c *deleteBranchRun) Run(a subcommands.Application, args []string,
 		return ret
 	}
 	if c.Push && !c.Force {
-		fmt.Fprintf(a.GetErr(), "Must set --force to delete remote branches.")
+		logErr("Must set --force to delete remote branches.")
 		return 1
 	}
 
 	if err := initWorkingManifest(c, ""); err != nil {
-		fmt.Fprintf(a.GetErr(), "%s\n", err.Error())
+		logErr("%s\n", err.Error())
 		return 1
 	}
 	defer os.RemoveAll(manifestCheckout)
 
 	// Need to do this for testing, sadly -- don't want to delete real branches.
 	if c.ManifestUrl != defaultManifestUrl {
-		fmt.Fprintf(a.GetOut(), "Warning: --manifest-url should not be used for branch deletion.\n")
+		logErr("Warning: --manifest-url should not be used for branch deletion.\n")
 	}
 
 	// Generate git branch names.
@@ -80,7 +80,7 @@ func (c *deleteBranchRun) Run(a subcommands.Application, args []string,
 		remote := workingManifest.GetRemoteByName(project.RemoteName)
 		if remote == nil {
 			// Try and delete as many of the branches as possible, even if some fail.
-			fmt.Fprintf(a.GetErr(), "Remote %s does not exist in working manifest.\n", project.RemoteName)
+			logErr("Remote %s does not exist in working manifest.\n", project.RemoteName)
 			retCode = 1
 			continue
 		}
@@ -92,7 +92,7 @@ func (c *deleteBranchRun) Run(a subcommands.Application, args []string,
 
 		_, err := git.RunGit(manifestCheckout, cmd)
 		if err != nil {
-			fmt.Fprintf(a.GetErr(), "Failed to delete branch %s in project %s.\n", branch, project.Name)
+			logErr("Failed to delete branch %s in project %s.\n", branch, project.Name)
 			// Try and delete as many of the branches as possible, even if some fail.
 			retCode = 1
 		}

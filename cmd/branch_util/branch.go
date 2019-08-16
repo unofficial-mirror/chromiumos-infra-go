@@ -6,7 +6,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"regexp"
 	"strings"
@@ -140,11 +139,11 @@ func branchExistsExplicit(project repo.Project, branch string) (bool, error) {
 func assertBranchesDoNotExistWorker(
 	wg *sync.WaitGroup, projectBranches <-chan ProjectBranch, errs chan<- error) {
 	for projectBranch := range projectBranches {
-		log.Printf("...checking that %s does not exist in %s.\n",
+		logOut("...checking that %s does not exist in %s.\n",
 			projectBranch.branchName,
 			projectBranch.project.Name)
 		exists, err := branchExistsExplicit(projectBranch.project, projectBranch.branchName)
-		if err != nil {
+		if err == nil {
 			if exists {
 				errs <- fmt.Errorf("Branch %s exists for %s. Please rerun with --force to proceed.",
 					projectBranch.branchName, projectBranch.project.Name)
@@ -289,7 +288,7 @@ func createRemoteBranchesWorker(
 		if force {
 			cmd = append(cmd, "--force")
 		}
-		log.Printf("Pushing ref %s for project %s.\n", branchName, projectBranch.project.Path)
+		logOut("Pushing ref %s for project %s.\n", branchName, projectBranch.project.Path)
 
 		ctx, cancel := context.WithTimeout(context.Background(), gitTimeout)
 		defer cancel()

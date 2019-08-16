@@ -5,7 +5,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"regexp"
 	"strings"
@@ -225,11 +224,11 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 		return ret
 	}
 	if err := initWorkingManifest(c, ""); err != nil {
-		fmt.Fprintf(a.GetErr(), "%s\n", err.Error())
+		logErr("%s\n", err.Error())
 		return 1
 	}
 	defer os.RemoveAll(manifestCheckout)
-	log.Printf("Fetched working manifest.\n")
+	logOut("Fetched working manifest.\n")
 
 	// Validate the version.
 	// Double check that the checkout has a zero patch number. Otherwise,
@@ -242,56 +241,55 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 	defer os.RemoveAll(versionProjectCheckout)
 	if err != nil {
 		err = errors.Annotate(err, "local checkout of version project failed").Err()
-		fmt.Fprintf(a.GetErr(), "%s\n", err.Error())
+		logErr("%s\n", err.Error())
 		return 1
 	}
 
 	vinfo, err := repo.GetVersionInfoFromRepo(versionProjectCheckout)
 	if err != nil {
-		fmt.Fprintf(a.GetErr(), errors.Annotate(err, "error reading version").Err().Error())
+		logErr(errors.Annotate(err, "error reading version").Err().Error())
 		return 1
 	}
 	if vinfo.PatchNumber != 0 {
-		fmt.Fprintf(a.GetErr(), "Cannot branch version with nonzero patch number (version %s).",
+		logErr("Cannot branch version with nonzero patch number (version %s).",
 			vinfo.VersionString())
 		return 1
 	}
-	log.Printf("Version found: %s.\n", vinfo.VersionString())
+	logOut("Version found: %s.\n", vinfo.VersionString())
 
 	// Check that we did not already branch from this version.
 	// manifest-internal serves as the sentinel project.
 	manifestInternal, err := workingManifest.GetUniqueProject("chromeos/manifest-internal")
 	if err != nil {
-		fmt.Fprintf(a.GetErr(),
-			errors.Annotate(err, "Could not get chromeos/manifest-internal project.").Err().Error())
+		logErr(errors.Annotate(err, "Could not get chromeos/manifest-internal project.").Err().Error())
 		return 1
 	}
 	pattern := regexp.MustCompile(fmt.Sprintf(`.*-%s.B$`, vinfo.StrippedVersionString()))
 	exists, err := branchExists(manifestInternal, pattern)
 	if err != nil {
-		fmt.Fprintf(a.GetErr(), err.Error())
+		logErr(err.Error())
 		return 1
 	}
 	if exists {
 		if !c.Force {
-			fmt.Fprintf(a.GetErr(), "Already branched %s. Please rerun with --force if you "+
+			logErr("Already branched %s. Please rerun with --force if you "+
 				"would like to proceed.", vinfo.VersionString())
 			return 1
 		} else {
-			log.Printf("Overwriting branch with version %s (--force was set).\n", vinfo.VersionString())
+			logOut("Overwriting branch with version %s (--force was set).\n", vinfo.VersionString())
 		}
 	} else {
-		log.Printf("No branch exists for version %s. Continuing...\n", vinfo.VersionString())
+		logOut("No branch exists for version %s. Continuing...\n", vinfo.VersionString())
 	}
 
 	// Generate branch name.
 	branchName := c.newBranchName(vinfo)
-	log.Printf("Creating branch: %s\n", branchName)
+	logOut("Creating branch: %s\n", branchName)
 
 	// Create branch.
 	componentToBump, err := whichVersionShouldBump(vinfo)
 	if err != nil {
-		fmt.Fprintf(a.GetErr(), err.Error())
+		logErr(err.Error())
 		return 1
 	}
 
@@ -301,27 +299,27 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 	if !c.Force {
 		err = assertBranchesDoNotExist(branches)
 		if err != nil {
-			fmt.Fprintf(a.GetErr(), err.Error())
+			logErr(err.Error())
 			return 1
 		}
 	}
-	log.Printf("Done validating project branches.\n")
+	logOut("Done validating project branches.\n")
 
 	// Create git branches for new branch.
 	if err = createRemoteBranches(branches, !c.Push, c.Force); err != nil {
-		fmt.Fprintf(a.GetErr(), err.Error())
+		logErr(err.Error())
 		return 1
 	}
 	// Repair manifest repositories.
 	if err = repairManifestRepositories(branches, !c.Push, c.Force); err != nil {
-		fmt.Fprintf(a.GetErr(), err.Error())
+		logErr(err.Error())
 		return 1
 	}
 
 	// Bump version.
 	commitMsg := fmt.Sprintf("Bump %s number after creating branch %s.", componentToBump, branchName)
 	if err = c.bumpVersion(componentToBump, branchName, commitMsg, !c.Push); err != nil {
-		fmt.Fprintf(a.GetErr(), err.Error())
+		logErr(err.Error())
 		return 1
 	}
 	// Increment branch/build number for source 'master' branch.
@@ -330,7 +328,7 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 	if c.release {
 		commitMsg = fmt.Sprintf("Bump milestone after creating release branch %s.", branchName)
 		if err = c.bumpVersion(repo.ChromeBranch, "master", commitMsg, !c.Push); err != nil {
-			fmt.Fprintf(a.GetErr(), err.Error())
+			logErr(err.Error())
 			return 1
 		}
 	} else {
@@ -348,7 +346,7 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 		}
 		err = c.bumpVersion(sourceComponentToBump, revision, commitMsg, !c.Push)
 		if err != nil {
-			fmt.Fprintf(a.GetErr(), err.Error())
+			logErr(err.Error())
 			return 1
 		}
 	}

@@ -56,8 +56,9 @@ func (c *renameBranchRun) Run(a subcommands.Application, args []string,
 	if ret != 0 {
 		return ret
 	}
+
 	if err := initWorkingManifest(c, c.old); err != nil {
-		fmt.Fprintf(a.GetErr(), "%s\n", err.Error())
+		logErr("%s\n", err.Error())
 		return 1
 	}
 	defer os.RemoveAll(manifestCheckout)
@@ -68,7 +69,7 @@ func (c *renameBranchRun) Run(a subcommands.Application, args []string,
 
 	// Need to do this for testing, sadly -- don't want to rename real branches.
 	if c.ManifestUrl != defaultManifestUrl {
-		fmt.Fprintf(a.GetOut(), "Warning: --manifest-url should not be used for branch renaming.\n")
+		logErr("Warning: --manifest-url should not be used for branch renaming.\n")
 	}
 
 	// Generate new git branch names.
@@ -78,19 +79,19 @@ func (c *renameBranchRun) Run(a subcommands.Application, args []string,
 	if !c.Force {
 		err := assertBranchesDoNotExist(newBranches)
 		if err != nil {
-			fmt.Fprintf(a.GetErr(), err.Error())
+			logErr(err.Error())
 			return 1
 		}
 	}
 
 	// Create git branches for new branch.
 	if err := createRemoteBranches(newBranches, !c.Push, c.Force); err != nil {
-		fmt.Fprintf(a.GetErr(), err.Error())
+		logErr(err.Error())
 		return 1
 	}
 	// Repair manifest repositories.
 	if err := repairManifestRepositories(newBranches, !c.Push, c.Force); err != nil {
-		fmt.Fprintf(a.GetErr(), err.Error())
+		logErr(err.Error())
 		return 1
 	}
 
@@ -103,7 +104,7 @@ func (c *renameBranchRun) Run(a subcommands.Application, args []string,
 		remote := workingManifest.GetRemoteByName(project.RemoteName)
 		if remote == nil {
 			// Try and delete as many of the branches as possible, even if some fail.
-			fmt.Fprintf(a.GetErr(), "Remote %s does not exist in working manifest.\n", project.RemoteName)
+			logErr("Remote %s does not exist in working manifest.\n", project.RemoteName)
 			retCode = 1
 			continue
 		}
@@ -115,7 +116,7 @@ func (c *renameBranchRun) Run(a subcommands.Application, args []string,
 
 		_, err := git.RunGit(manifestCheckout, cmd)
 		if err != nil {
-			fmt.Fprintf(a.GetErr(), "Failed to delete branch %s in project %s.\n", branch, project.Name)
+			logErr("Failed to delete branch %s in project %s.\n", branch, project.Name)
 			// Try and delete as many of the branches as possible, even if some fail.
 			retCode = 1
 		}

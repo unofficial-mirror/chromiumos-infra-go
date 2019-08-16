@@ -6,6 +6,7 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/url"
 	"path"
 	"path/filepath"
@@ -44,6 +45,8 @@ var (
 	workingManifest  repo.Manifest
 	manifestCheckout string
 	workerCount      int
+	stdoutLog        *log.Logger
+	stderrLog        *log.Logger
 )
 
 func (c *CommonFlags) Init() {
@@ -66,6 +69,18 @@ func (c *CommonFlags) Init() {
 		"URL of the manifest to be checked out. Defaults to googlesource URL "+
 			"for manifest-internal.")
 	c.Flags.IntVar(&workerCount, "j", 1, "Number of jobs to run for parallel operations.")
+}
+
+func logOut(format string, a ...interface{}) {
+	if stdoutLog != nil {
+		stdoutLog.Printf(format, a...)
+	}
+}
+
+func logErr(format string, a ...interface{}) {
+	if stderrLog != nil {
+		stderrLog.Printf(format, a...)
+	}
 }
 
 // projectFetchUrl returns the fetch URL for a remote project.
@@ -171,9 +186,15 @@ func initWorkingManifest(c branchCommand, branch string) error {
 	return nil
 }
 
-func Run(c branchCommand, a subcommands.Application, args []string,
+func Run(c branchCommand, a subcommands.Application, args []string, env subcommands.Env) int {
+	stdoutLog = a.(branchApplication).stdoutLog
+	stderrLog = a.(branchApplication).stderrLog
+	// Set output of standard log in case any packages use it.
+	if stdoutLog != nil {
+		log.SetOutput(stdoutLog.Writer())
+	}
+
 	// Validate flags/arguments.
-	env subcommands.Env) int {
 	ok, errMsg := c.validate(args)
 	if !ok {
 		fmt.Fprintf(a.GetErr(), errMsg+"\n")

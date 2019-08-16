@@ -5,13 +5,11 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"encoding/xml"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -265,16 +263,6 @@ func getDefaultConfig() test.CrosRepoHarnessConfig {
 	return config
 }
 
-func runCommand(cmd []string, stdoutBuf, stderrBuf *bytes.Buffer) error {
-	ctx := context.Background()
-	cmdCtx := exec.CommandContext(ctx, cmd[0], cmd[1:]...)
-	cmdCtx.Stdout = stdoutBuf
-	cmdCtx.Stderr = stderrBuf
-	cmdCtx.Dir, _ = filepath.Abs("/usr/local/google/home/jackneus/chromiumos/chromite")
-	fmt.Printf("%s\n", strings.Join(cmd, " "))
-	return cmdCtx.Run()
-}
-
 func fullManifestPath(r *test.CrosRepoHarness) string {
 	return filepath.Join(r.Harness.HarnessRoot(), "manifest.xml")
 }
@@ -407,7 +395,7 @@ func TestCreate(t *testing.T) {
 	manifestDir := r.Harness.GetRemotePath(manifestInternalProject)
 
 	branch := "new-branch"
-	s := &branchApplication{application, log.New(ioutil.Discard, "", log.LstdFlags|log.Lmicroseconds)}
+	s := branchApplication{application, nil, nil}
 	ret := subcommands.Run(s, []string{
 		"create", "--push", "--root", localRoot,
 		"--manifest-url", manifestDir,
@@ -450,7 +438,7 @@ func TestCreateDryRun(t *testing.T) {
 	manifestDir := r.Harness.GetRemotePath(manifestInternalProject)
 
 	branch := "new-branch"
-	s := &branchApplication{application, log.New(ioutil.Discard, "", log.LstdFlags|log.Lmicroseconds)}
+	s := branchApplication{application, nil, nil}
 	ret := subcommands.Run(s, []string{
 		"create", "--root", localRoot,
 		"--manifest-url", manifestDir,
@@ -473,7 +461,7 @@ func TestCreateRelease(t *testing.T) {
 	manifest := r.Harness.Manifest()
 	manifestDir := r.Harness.GetRemotePath(manifestInternalProject)
 
-	s := &branchApplication{application, log.New(ioutil.Discard, "", log.LstdFlags|log.Lmicroseconds)}
+	s := branchApplication{application, nil, nil}
 	ret := subcommands.Run(s, []string{
 		"create", "--push", "--root", localRoot,
 		"--manifest-url", manifestDir,
@@ -518,7 +506,7 @@ func TestCreateOverwrite(t *testing.T) {
 	manifestDir := r.Harness.GetRemotePath(manifestInternalProject)
 
 	branch := "old-branch"
-	s := &branchApplication{application, log.New(ioutil.Discard, "", log.LstdFlags|log.Lmicroseconds)}
+	s := branchApplication{application, nil, nil}
 	ret := subcommands.Run(s, []string{
 		"create", "--push", "--root", localRoot,
 		"--force",
@@ -563,9 +551,9 @@ func TestCreateOverwriteMissingForce(t *testing.T) {
 	manifestDir := r.Harness.GetRemotePath(manifestInternalProject)
 
 	branch := "old-branch"
-	var stdoutBuf bytes.Buffer
-	branchLog := log.New(&stdoutBuf, "", log.LstdFlags|log.Lmicroseconds)
-	s := &branchApplication{application, branchLog}
+	var stderrBuf bytes.Buffer
+	stderrLog := log.New(&stderrBuf, "", log.LstdFlags|log.Lmicroseconds)
+	s := branchApplication{application, nil, stderrLog}
 	ret := subcommands.Run(s, []string{
 		"create", "--push", "--root", localRoot,
 		"--manifest-url", manifestDir,
@@ -573,8 +561,7 @@ func TestCreateOverwriteMissingForce(t *testing.T) {
 		"--custom", branch,
 	})
 	assert.Assert(t, ret != 0)
-	// TODO(@jackneus): fix logging so that we can make this assert.
-	//assert.Assert(t, strings.Contains(stdoutBuf.String(), "rerun with --force"))
+	assert.Assert(t, strings.Contains(stderrBuf.String(), "rerun with --force"))
 
 	// Sync local checkout before asserts.
 	assert.NilError(t, r.Harness.SyncLocalCheckout())
@@ -610,7 +597,9 @@ func TestCreateExistingVersion(t *testing.T) {
 
 	manifestDir := r.Harness.GetRemotePath(manifestInternalProject)
 
-	s := &branchApplication{application, log.New(ioutil.Discard, "", log.LstdFlags|log.Lmicroseconds)}
+	var stderrBuf bytes.Buffer
+	stderrLog := log.New(&stderrBuf, "", log.LstdFlags|log.Lmicroseconds)
+	s := branchApplication{application, nil, stderrLog}
 	ret := subcommands.Run(s, []string{
 		"create", "--push", "--root", localRoot,
 		"--manifest-url", manifestDir,
@@ -618,8 +607,7 @@ func TestCreateExistingVersion(t *testing.T) {
 		"--stabilize",
 	})
 	assert.Assert(t, ret != 0)
-	// TODO(@jackneus): fix logging so that we can make this assert.
-	//assert.Assert(t, strings.Contains(stdoutBuf.String(), "already branched 3.0.0"))
+	assert.Assert(t, strings.Contains(stderrBuf.String(), "Already branched 3.0.0"))
 	assertNoRemoteDiff(t, r)
 }
 
@@ -636,7 +624,7 @@ func TestRename(t *testing.T) {
 	oldBranch := "old-branch"
 	newBranch := "new-branch"
 
-	s := &branchApplication{application, log.New(ioutil.Discard, "", log.LstdFlags|log.Lmicroseconds)}
+	s := branchApplication{application, nil, nil}
 	ret := subcommands.Run(s, []string{
 		"rename", "--push", "--root", localRoot,
 		"--manifest-url", manifestDir,
@@ -681,7 +669,7 @@ func TestRenameDryRun(t *testing.T) {
 	oldBranch := "old-branch"
 	newBranch := "new-branch"
 
-	s := &branchApplication{application, log.New(ioutil.Discard, "", log.LstdFlags|log.Lmicroseconds)}
+	s := branchApplication{application, nil, nil}
 	ret := subcommands.Run(s, []string{
 		"rename", "--root", localRoot,
 		"--manifest-url", manifestDir,
@@ -709,7 +697,7 @@ func TestRenameOverwrite(t *testing.T) {
 	// Create a branch to rename. To quote the functional tests for `cros branch`:
 	// "This may seem like we depend on the correctness of the code under test, but in practice
 	// the branches to be renamed will be created by `cros branch` anyways."
-	s := &branchApplication{application, log.New(ioutil.Discard, "", log.LstdFlags|log.Lmicroseconds)}
+	s := branchApplication{application, nil, nil}
 	ret := subcommands.Run(s, []string{
 		"create", "--push", "--root", localRoot,
 		"--manifest-url", manifestDir,
@@ -748,7 +736,7 @@ func TestRenameOverwrite(t *testing.T) {
 
 	// Gah! Turns out we actually wanted what's in oldBranch. Let's try force renaming
 	// oldBranch to newBranch, overwriting the existing contents of newBranch in the process.
-	s = &branchApplication{application, log.New(ioutil.Discard, "", log.LstdFlags|log.Lmicroseconds)}
+	s = branchApplication{application, nil, nil}
 	ret = subcommands.Run(s, []string{
 		"rename", "--push", "--force", "--root", localRoot,
 		"--manifest-url", manifestDir,
@@ -787,15 +775,16 @@ func TestRenameOverwriteMissingForce(t *testing.T) {
 
 	oldBranch := "old-branch"
 
-	s := &branchApplication{application, log.New(ioutil.Discard, "", log.LstdFlags|log.Lmicroseconds)}
+	var stderrBuf bytes.Buffer
+	stderrLog := log.New(&stderrBuf, "", log.LstdFlags|log.Lmicroseconds)
+	s := branchApplication{application, nil, stderrLog}
 	ret := subcommands.Run(s, []string{
 		"rename", "--push", "--root", localRoot,
 		"--manifest-url", manifestDir,
 		"master", oldBranch,
 	})
 	assert.Assert(t, ret != 0)
-	// TODO(@jackneus): fix logging so that we can make this assert.
-	//assert.Assert(t,strings.Contains(stdoutBuf.String(), "Must set --force to rename remote branches."))
+	assert.Assert(t, strings.Contains(stderrBuf.String(), "rerun with --force"))
 	assertNoRemoteDiff(t, r)
 }
 
@@ -810,7 +799,7 @@ func TestDelete(t *testing.T) {
 	branchToDelete := "old-branch"
 
 	manifestDir := r.Harness.GetRemotePath(manifestInternalProject)
-	s := &branchApplication{application, log.New(ioutil.Discard, "", log.LstdFlags|log.Lmicroseconds)}
+	s := branchApplication{application, nil, nil}
 	ret := subcommands.Run(s, []string{
 		"delete", "--push", "--force",
 		"--root", localRoot,
@@ -834,7 +823,7 @@ func TestDeleteDryRun(t *testing.T) {
 	branchToDelete := "old-branch"
 
 	manifestDir := r.Harness.GetRemotePath(manifestInternalProject)
-	s := &branchApplication{application, log.New(ioutil.Discard, "", log.LstdFlags|log.Lmicroseconds)}
+	s := branchApplication{application, nil, nil}
 	ret := subcommands.Run(s, []string{
 		"delete", "--force",
 		"--root", localRoot,
@@ -858,7 +847,9 @@ func TestDeleteMissingForce(t *testing.T) {
 	branchToDelete := "old-branch"
 
 	manifestDir := r.Harness.GetRemotePath(manifestInternalProject)
-	s := &branchApplication{application, log.New(ioutil.Discard, "", log.LstdFlags|log.Lmicroseconds)}
+	var stderrBuf bytes.Buffer
+	stderrLog := log.New(&stderrBuf, "", log.LstdFlags|log.Lmicroseconds)
+	s := branchApplication{application, nil, stderrLog}
 	ret := subcommands.Run(s, []string{
 		"delete", "--push",
 		"--root", localRoot,
@@ -866,7 +857,6 @@ func TestDeleteMissingForce(t *testing.T) {
 		branchToDelete,
 	})
 	assert.Assert(t, ret != 0)
-	// TODO(@jackneus): fix logging so that we can make this assert.
-	//assert.Assert(t,strings.Contains(stdoutBuf.String(), "Must set --force to delete remote branches."))
+	assert.Assert(t, strings.Contains(stderrBuf.String(), "Must set --force to delete remote branches."))
 	assertNoRemoteDiff(t, r)
 }

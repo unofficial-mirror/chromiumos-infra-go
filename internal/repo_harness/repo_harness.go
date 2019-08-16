@@ -317,6 +317,10 @@ func (r *RepoHarness) AddFiles(project RemoteProject, branch string, files []Fil
 	if err := r.assertInitialized(); err != nil {
 		return "", err
 	}
+	remote := r.manifest.GetRemoteByName(project.RemoteName)
+	if remote == nil {
+		return "", fmt.Errorf("Remote %s does not exist in manifest.", project.RemoteName)
+	}
 
 	projectLabel := fmt.Sprintf("%s", project.ProjectName)
 

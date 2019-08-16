@@ -71,7 +71,16 @@ var multilevelProjectHarnessConfig = RepoHarnessConfig{
 }
 
 func testGetRemoteProject(t *testing.T) {
-	// TODO(@jackneus): implement
+	project := repo.Project{
+		Name:       "foo",
+		RemoteName: "bar",
+		Path:       "baz",
+	}
+	remoteProject := RemoteProject{
+		RemoteName:  "bar",
+		ProjectName: "foo",
+	}
+	assert.Assert(t, reflect.DeepEqual(remoteProject, GetRemoteProject(project)))
 }
 
 func testInitialize(t *testing.T, config *RepoHarnessConfig) {

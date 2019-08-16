@@ -288,10 +288,14 @@ func TestPushRef(t *testing.T) {
 	pushStr := fmt.Sprintf("%s:%s", localRef, remoteRef.Ref)
 	CommandRunnerImpl = cmd.FakeCommandRunner{
 		ExpectedDir: fakeGitRepo,
-		ExpectedCmd: []string{"git", "push", remoteRef.Remote, pushStr, "--dry-run"},
+		ExpectedCmd: []string{"git", "push", remoteRef.Remote, pushStr, "--dry-run", "--force"},
 	}
 
-	err := PushRef(fakeGitRepo, localRef, true, remoteRef)
+	opts := GitOpts{
+		DryRun: true,
+		Force:  true,
+	}
+	err := PushRef(fakeGitRepo, localRef, remoteRef, opts)
 	assert.NilError(t, err)
 }
 
@@ -459,9 +463,13 @@ func TestRemoteBranches(t *testing.T) {
 		Remote: "remote",
 		Ref:    "foo",
 	}
-	assert.NilError(t, PushRef(local, "HEAD", false, remoteRef))
+	opts := GitOpts{
+		DryRun: false,
+		Force:  true,
+	}
+	assert.NilError(t, PushRef(local, "HEAD", remoteRef, opts))
 	remoteRef.Ref = "bar"
-	assert.NilError(t, PushRef(local, "HEAD", false, remoteRef))
+	assert.NilError(t, PushRef(local, "HEAD", remoteRef, opts))
 
 	branches, err := RemoteBranches(local, "remote")
 	assert.NilError(t, err)

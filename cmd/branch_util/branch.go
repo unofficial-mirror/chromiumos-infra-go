@@ -242,19 +242,17 @@ func repairManifestRepositories(branches []ProjectBranch, dryRun, force bool) er
 			[]string{"commit", "-a", "-m", "commit repaired manifests"}); err != nil {
 			return fmt.Errorf("error committing repaired manifests: %s", output.Stdout)
 		}
-		branchRef := git.NormalizeRef(manifestBranchNames[manifestProject.Name])
-		refspec := fmt.Sprintf("HEAD:%s", branchRef)
 
-		// TODO(@jackneus): Replace with git.Push call after git package is cleaned up.
-		cmd := []string{"push", "origin", refspec}
-		if dryRun {
-			cmd = append(cmd, "--dry-run")
+		remoteRef := git.RemoteRef{
+			Remote: "origin",
+			Ref:    git.NormalizeRef(manifestBranchNames[manifestProject.Name]),
 		}
-		if force {
-			cmd = append(cmd, "--force")
+		gitOpts := git.GitOpts{
+			DryRun: dryRun,
+			Force:  force,
 		}
-		if output, err := git.RunGit(manifestCheckout, cmd); err != nil {
-			return fmt.Errorf("could not push branches to remote: %s", output.Stderr)
+		if err := git.PushRef(manifestCheckout, "HEAD", remoteRef, gitOpts); err != nil {
+			return errors.Annotate(err, "could not push branches to remote").Err()
 		}
 	}
 	return nil

@@ -204,9 +204,13 @@ func (c *createBranchRun) bumpVersion(
 	}
 
 	_, err = git.CommitAll(versionProjectCheckout, commitMsg)
+	gitOpts := git.GitOpts{
+		DryRun: dryRun,
+		Force:  false,
+	}
 	errs := []error{
 		err,
-		git.PushRef(versionProjectCheckout, "HEAD", dryRun, remoteRef),
+		git.PushRef(versionProjectCheckout, "HEAD", remoteRef, gitOpts),
 	}
 	for _, err := range errs {
 		if err != nil {

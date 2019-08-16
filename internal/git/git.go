@@ -30,6 +30,11 @@ type RemoteRef struct {
 	Ref    string
 }
 
+type GitOpts struct {
+	DryRun bool
+	Force  bool
+}
+
 // RunGit the specified git command in the specified repo. It returns
 // stdout and stderr.
 func RunGit(gitRepo string, cmd []string) (CommandOutput, error) {
@@ -221,17 +226,20 @@ func CommitEmpty(gitRepo, commitMsg string) (string, error) {
 	}
 	output, err := RunGit(gitRepo, []string{"rev-parse", "HEAD"})
 	if err != nil {
-		return "", nil
+		return "", err
 	}
 	return strings.TrimSpace(output.Stdout), nil
 }
 
 // PushRef pushes the specified local ref to the specified remote ref.
-func PushRef(gitRepo, localRef string, dryRun bool, pushTo RemoteRef) error {
+func PushRef(gitRepo, localRef string, pushTo RemoteRef, opts GitOpts) error {
 	ref := fmt.Sprintf("%s:%s", localRef, pushTo.Ref)
 	cmd := []string{"push", pushTo.Remote, ref}
-	if dryRun {
+	if opts.DryRun {
 		cmd = append(cmd, "--dry-run")
+	}
+	if opts.Force {
+		cmd = append(cmd, "--force")
 	}
 	_, err := RunGit(gitRepo, cmd)
 	return err

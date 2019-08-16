@@ -16,7 +16,7 @@ import (
 	"go.chromium.org/chromiumos/infra/go/internal/cmd"
 	"go.chromium.org/chromiumos/infra/go/internal/git"
 	"go.chromium.org/chromiumos/infra/go/internal/repo"
-	"go.chromium.org/chromiumos/infra/go/internal/test_util"
+	"go.chromium.org/chromiumos/infra/go/internal/util"
 	"gotest.tools/assert"
 )
 
@@ -104,14 +104,14 @@ func testInitialize(t *testing.T, config *RepoHarnessConfig) {
 		assert.NilError(t, err)
 		branches, err := git.MatchBranchName(projectPath, regexp.MustCompile("master"))
 		assert.NilError(t, err)
-		assert.Assert(t, test_util.UnorderedContains(branches, []string{git.NormalizeRef("master")}))
+		assert.Assert(t, util.UnorderedContains(branches, []string{git.NormalizeRef("master")}))
 
 		// If project has revision set, check that that branch was create too.
 		if project.Revision != "" && project.Revision != "master" {
 			revisionBranch := project.Revision
 			branches, err := git.MatchBranchName(projectPath, regexp.MustCompile(revisionBranch))
 			assert.NilError(t, err)
-			assert.Assert(t, test_util.UnorderedContains(branches, []string{revisionBranch}))
+			assert.Assert(t, util.UnorderedContains(branches, []string{revisionBranch}))
 		}
 	}
 }
@@ -249,7 +249,7 @@ func TestCreateRemoteRef(t *testing.T) {
 		}
 		refs = append(refs, strings.Fields(line)[1])
 	}
-	assert.Assert(t, test_util.UnorderedContains(refs, []string{"refs/heads/ref1", "refs/heads/ref2"}))
+	assert.Assert(t, util.UnorderedContains(refs, []string{"refs/heads/ref1", "refs/heads/ref2"}))
 
 	// Test that an error is thrown if we try to create a remote that already exists.
 	assert.ErrorContains(t, harness.CreateRemoteRef(GetRemoteProject(project), "ref2", ""), "already exists")

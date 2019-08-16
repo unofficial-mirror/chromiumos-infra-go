@@ -13,7 +13,7 @@ import (
 	"testing"
 
 	"go.chromium.org/chromiumos/infra/go/internal/cmd"
-	"go.chromium.org/chromiumos/infra/go/internal/test_util"
+	"go.chromium.org/chromiumos/infra/go/internal/util"
 )
 
 func TestRunGit_success(t *testing.T) {
@@ -465,57 +465,11 @@ func TestRemoteBranches(t *testing.T) {
 
 	branches, err := RemoteBranches(local, "remote")
 	assert.NilError(t, err)
-	assert.Assert(t, test_util.UnorderedEqual(branches, []string{"foo", "bar"}))
+	assert.Assert(t, util.UnorderedEqual(branches, []string{"foo", "bar"}))
 	ok, err := RemoteHasBranch(local, "remote", "foo")
 	assert.NilError(t, err)
 	assert.Assert(t, ok)
 	ok, err = RemoteHasBranch(local, "remote", "baz")
 	assert.NilError(t, err)
 	assert.Assert(t, !ok)
-}
-
-func TestAssertGitBranches_success(t *testing.T) {
-	tmpDir, err := ioutil.TempDir("", "assert_git_branches_test")
-	assert.NilError(t, err)
-	defer os.RemoveAll(tmpDir)
-
-	assert.NilError(t, Init(tmpDir, false))
-
-	branches := []string{"branch1", "branch2", "branch3", "extra"}
-	for _, branch := range branches {
-		assert.NilError(t, CreateBranch(tmpDir, branch))
-		// Empty commit so that branch is not "unborn".
-		_, err := RunGit(tmpDir, []string{"commit", "-m", "init", "--allow-empty"})
-		assert.NilError(t, err)
-	}
-
-	assert.NilError(t, AssertGitBranches(tmpDir, branches[:3]))
-}
-
-func TestAssertGitBranchesExact_success(t *testing.T) {
-	tmpDir, err := ioutil.TempDir("", "assert_git_branches_test")
-	assert.NilError(t, err)
-	defer os.RemoveAll(tmpDir)
-
-	assert.NilError(t, Init(tmpDir, false))
-
-	branches := []string{"branch1", "branch2", "branch3", "branch4"}
-	for _, branch := range branches {
-		assert.NilError(t, CreateBranch(tmpDir, branch))
-		// Empty commit so that branch is not "unborn".
-		_, err := RunGit(tmpDir, []string{"commit", "-m", "init", "--allow-empty"})
-		assert.NilError(t, err)
-	}
-
-	assert.NilError(t, AssertGitBranchesExact(tmpDir, append(branches, "branch2")))
-	assert.ErrorContains(t, AssertGitBranchesExact(tmpDir, branches[:3]), "mismatch")
-}
-
-func TestAssertGitBranches_failure(t *testing.T) {
-	tmpDir, err := ioutil.TempDir("", "assert_git_branches_test")
-	assert.NilError(t, err)
-	defer os.RemoveAll(tmpDir)
-
-	assert.NilError(t, Init(tmpDir, false))
-	assert.ErrorContains(t, AssertGitBranches(tmpDir, []string{"master", "foo"}), "mismatch")
 }

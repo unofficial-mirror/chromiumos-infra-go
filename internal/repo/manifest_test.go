@@ -16,7 +16,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"go.chromium.org/chromiumos/infra/go/internal/gerrit"
-	"go.chromium.org/chromiumos/infra/go/internal/test_util"
+	"go.chromium.org/chromiumos/infra/go/internal/util"
 	gitilespb "go.chromium.org/luci/common/proto/gitiles"
 	"gotest.tools/assert"
 )
@@ -429,5 +429,5 @@ func TestLoadManifestFromFileWithIncludes(t *testing.T) {
 	for i, project := range res.Projects {
 		projectNames[i] = project.Name
 	}
-	assert.Assert(t, test_util.UnorderedEqual(expectedProjectNames, projectNames))
+	assert.Assert(t, util.UnorderedEqual(expectedProjectNames, projectNames))
 }

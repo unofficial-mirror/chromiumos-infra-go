@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	"go.chromium.org/chromiumos/infra/go/internal/cmd"
-	"go.chromium.org/chromiumos/infra/go/internal/test_util"
 	"go.chromium.org/luci/common/errors"
 )
 
@@ -328,38 +327,4 @@ func RemoteHasBranch(gitRepo, remote, branch string) (bool, error) {
 		return false, fmt.Errorf(output.Stderr)
 	}
 	return output.Stdout != "", nil
-}
-
-// AssertGitBranches asserts that the git repo has the given branches (it may have others, too).
-func AssertGitBranches(gitRepo string, branches []string) error {
-	actual, err := MatchBranchNameWithNamespace(gitRepo, regexp.MustCompile(".*"), regexp.MustCompile("refs/heads/"))
-	if err != nil {
-		return errors.Annotate(err, "error getting branches").Err()
-	}
-	if !test_util.UnorderedContains(actual, branches) {
-		return fmt.Errorf("project branch mismatch. expected: %v got %v", branches, actual)
-	}
-	return nil
-}
-
-// AssertGitBranches asserts that the git repo has only the correct branches.
-func AssertGitBranchesExact(gitRepo string, branches []string) error {
-	actual, err := MatchBranchNameWithNamespace(gitRepo, regexp.MustCompile(".*"), regexp.MustCompile("refs/heads/"))
-	if err != nil {
-		return errors.Annotate(err, "error getting branches").Err()
-	}
-	// Remove duplicates from branches. This is OK because branch names are unique identifiers
-	// and so having a branch name twice in branches doesn't mean anything special.
-	branchMap := make(map[string]bool)
-	for _, branch := range branches {
-		branchMap[branch] = true
-	}
-	branches = []string{}
-	for branch := range branchMap {
-		branches = append(branches, branch)
-	}
-	if !test_util.UnorderedEqual(actual, branches) {
-		return fmt.Errorf("project branch mismatch. expected: %v got %v", branches, actual)
-	}
-	return nil
 }

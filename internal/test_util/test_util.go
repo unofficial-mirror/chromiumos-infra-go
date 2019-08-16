@@ -8,47 +8,17 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"reflect"
+	"regexp"
 
 	"go.chromium.org/chromiumos/infra/go/internal/cmd"
+	"go.chromium.org/chromiumos/infra/go/internal/git"
+	"go.chromium.org/chromiumos/infra/go/internal/util"
 	"go.chromium.org/luci/common/errors"
 )
 
 var (
 	CommandRunnerImpl cmd.CommandRunner = cmd.RealCommandRunner{}
 )
-
-// UnorderedEqual checks that the two arrays contain the same elements, but
-// they don't have to be the same order.
-func UnorderedEqual(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	am := make(map[string]int)
-	for _, v := range a {
-		am[v]++
-	}
-	bm := make(map[string]int)
-	for _, v := range b {
-		bm[v]++
-	}
-	return reflect.DeepEqual(am, bm)
-}
-
-// UnorderedContains checks that arr has certain elements.
-func UnorderedContains(arr, has []string) bool {
-	elts := make(map[string]int)
-	for _, v := range arr {
-		elts[v]++
-	}
-	for _, elt := range has {
-		_, ok := elts[elt]
-		if !ok {
-			return false
-		}
-	}
-	return true
-}
 
 // AssertContentsEqual checks that there's no difference between two directories/files.
 func AssertContentsEqual(path_a, path_b string) error {
@@ -79,4 +49,38 @@ func AssertContentsEqual(path_a, path_b string) error {
 		}
 	}
 	return err
+}
+
+// AssertGitBranches asserts that the git repo has the given branches (it may have others, too).
+func AssertGitBranches(gitRepo string, branches []string) error {
+	actual, err := git.MatchBranchNameWithNamespace(gitRepo, regexp.MustCompile(".*"), regexp.MustCompile("refs/heads/"))
+	if err != nil {
+		return errors.Annotate(err, "error getting branches").Err()
+	}
+	if !util.UnorderedContains(actual, branches) {
+		return fmt.Errorf("project branch mismatch. expected: %v got %v", branches, actual)
+	}
+	return nil
+}
+
+// AssertGitBranches asserts that the git repo has only the correct branches.
+func AssertGitBranchesExact(gitRepo string, branches []string) error {
+	actual, err := git.MatchBranchNameWithNamespace(gitRepo, regexp.MustCompile(".*"), regexp.MustCompile("refs/heads/"))
+	if err != nil {
+		return errors.Annotate(err, "error getting branches").Err()
+	}
+	// Remove duplicates from branches. This is OK because branch names are unique identifiers
+	// and so having a branch name twice in branches doesn't mean anything special.
+	branchMap := make(map[string]bool)
+	for _, branch := range branches {
+		branchMap[branch] = true
+	}
+	branches = []string{}
+	for branch := range branchMap {
+		branches = append(branches, branch)
+	}
+	if !util.UnorderedEqual(actual, branches) {
+		return fmt.Errorf("project branch mismatch. expected: %v got %v", branches, actual)
+	}
+	return nil
 }

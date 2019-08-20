@@ -11,7 +11,7 @@ import (
 
 	"github.com/maruel/subcommands"
 	"go.chromium.org/chromiumos/infra/go/internal/git"
-	"go.chromium.org/chromiumos/infra/go/internal/repo"
+	mv "go.chromium.org/chromiumos/infra/go/internal/chromeos_version"
 	"go.chromium.org/luci/common/errors"
 )
 
@@ -151,7 +151,7 @@ func (c *createBranchRun) getManifestUrl() string {
 //
 // Release branches have a slightly different naming scheme. They include
 //  the milestone from which they were created. Example: release-R12-1.2.B
-func (c *createBranchRun) newBranchName(vinfo repo.VersionInfo) string {
+func (c *createBranchRun) newBranchName(vinfo mv.VersionInfo) string {
 	if c.custom != "" {
 		return c.custom
 	}
@@ -168,7 +168,7 @@ func (c *createBranchRun) newBranchName(vinfo repo.VersionInfo) string {
 }
 
 func (c *createBranchRun) bumpVersion(
-	component repo.VersionComponent,
+	component mv.VersionComponent,
 	branch, commitMsg string,
 	dryRun bool) error {
 	// Branch won't exist if running tool with --dry-run.
@@ -187,7 +187,7 @@ func (c *createBranchRun) bumpVersion(
 		return errors.Annotate(err, "local checkout of version project failed").Err()
 	}
 
-	version, err := repo.GetVersionInfoFromRepo(versionProjectCheckout)
+	version, err := mv.GetVersionInfoFromRepo(versionProjectCheckout)
 	if err != nil {
 		return errors.Annotate(err, "failed to read version file").Err()
 	}
@@ -245,7 +245,7 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 		return 1
 	}
 
-	vinfo, err := repo.GetVersionInfoFromRepo(versionProjectCheckout)
+	vinfo, err := mv.GetVersionInfoFromRepo(versionProjectCheckout)
 	if err != nil {
 		logErr(errors.Annotate(err, "error reading version").Err().Error())
 		return 1
@@ -327,16 +327,16 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 	// TODO(@jackneus): refactor
 	if c.release {
 		commitMsg = fmt.Sprintf("Bump milestone after creating release branch %s.", branchName)
-		if err = c.bumpVersion(repo.ChromeBranch, "master", commitMsg, !c.Push); err != nil {
+		if err = c.bumpVersion(mv.ChromeBranch, "master", commitMsg, !c.Push); err != nil {
 			logErr(err.Error())
 			return 1
 		}
 	} else {
-		var sourceComponentToBump repo.VersionComponent
-		if componentToBump == repo.Patch {
-			sourceComponentToBump = repo.Branch
+		var sourceComponentToBump mv.VersionComponent
+		if componentToBump == mv.Patch {
+			sourceComponentToBump = mv.Branch
 		} else {
-			sourceComponentToBump = repo.Build
+			sourceComponentToBump = mv.Build
 		}
 		commitMsg = fmt.Sprintf("Bump %s number for source branch after creating branch %s.",
 			sourceComponentToBump, branchName)

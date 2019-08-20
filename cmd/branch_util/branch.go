@@ -12,6 +12,7 @@ import (
 	"sync"
 
 	"go.chromium.org/chromiumos/infra/go/internal/git"
+	mv "go.chromium.org/chromiumos/infra/go/internal/chromeos_version"
 	"go.chromium.org/chromiumos/infra/go/internal/repo"
 	"go.chromium.org/chromiumos/infra/go/internal/shared"
 	"go.chromium.org/luci/common/errors"
@@ -340,13 +341,13 @@ func createRemoteBranches(branches []ProjectBranch, dryRun, force bool) error {
 }
 
 // whichVersionShouldBump returns which version is incremented by builds on a new branch.
-func whichVersionShouldBump(vinfo repo.VersionInfo) (repo.VersionComponent, error) {
+func whichVersionShouldBump(vinfo mv.VersionInfo) (mv.VersionComponent, error) {
 	if vinfo.PatchNumber != 0 {
-		return repo.Unspecified, fmt.Errorf("cannot bump version with nonzero patch number")
+		return mv.Unspecified, fmt.Errorf("cannot bump version with nonzero patch number")
 	}
 	if vinfo.BranchBuildNumber != 0 {
-		return repo.Patch, nil
+		return mv.Patch, nil
 	} else {
-		return repo.Branch, nil
+		return mv.Branch, nil
 	}
 }

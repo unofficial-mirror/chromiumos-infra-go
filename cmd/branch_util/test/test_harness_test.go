@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"go.chromium.org/chromiumos/infra/go/internal/git"
+	mv "go.chromium.org/chromiumos/infra/go/internal/chromeos_version"
 	"go.chromium.org/chromiumos/infra/go/internal/repo"
 	rh "go.chromium.org/chromiumos/infra/go/internal/repo_harness"
 	"gotest.tools/assert"
@@ -105,7 +106,7 @@ func TestSetVersion(t *testing.T) {
 	assert.NilError(t, err)
 
 	versionFileName := "version.sh"
-	version := repo.VersionInfo{
+	version := mv.VersionInfo{
 		ChromeBranch:      1,
 		BuildNumber:       2,
 		BranchBuildNumber: 3,
@@ -124,9 +125,9 @@ func TestSetVersion(t *testing.T) {
 	assert.NilError(t, git.Clone(versionProjectPath, tmpRepo))
 	contents, err := ioutil.ReadFile(filepath.Join(tmpRepo, versionFileName))
 	assert.NilError(t, err)
-	vinfo, err := repo.ParseVersionInfo(contents)
+	vinfo, err := mv.ParseVersionInfo(contents)
 	assert.NilError(t, err)
-	assert.Assert(t, repo.VersionsEqual(vinfo, version))
+	assert.Assert(t, mv.VersionsEqual(vinfo, version))
 }
 
 func TestTakeSnapshot(t *testing.T) {
@@ -260,7 +261,7 @@ func TestAssertCrosVersion(t *testing.T) {
 	assert.NilError(t, err)
 
 	versionFileName := "version.sh"
-	version := repo.VersionInfo{
+	version := mv.VersionInfo{
 		ChromeBranch:      1,
 		BuildNumber:       2,
 		BranchBuildNumber: 3,

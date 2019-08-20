@@ -4,7 +4,7 @@
 package main
 
 import (
-	"go.chromium.org/chromiumos/infra/go/internal/repo"
+	mv "go.chromium.org/chromiumos/infra/go/internal/chromeos_version"
 	"gotest.tools/assert"
 	"testing"
 )
@@ -13,10 +13,10 @@ func TestNewBranchName_Custom(t *testing.T) {
 	c := &createBranchRun{
 		custom: "custom-name",
 	}
-	assert.Equal(t, c.newBranchName(repo.VersionInfo{}), "custom-name")
+	assert.Equal(t, c.newBranchName(mv.VersionInfo{}), "custom-name")
 }
 
-var vinfo = repo.VersionInfo{
+var vinfo = mv.VersionInfo{
 	ChromeBranch:      77,
 	BuildNumber:       123,
 	BranchBuildNumber: 1,

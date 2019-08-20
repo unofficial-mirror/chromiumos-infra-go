@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"go.chromium.org/chromiumos/infra/go/internal/git"
+	mv "go.chromium.org/chromiumos/infra/go/internal/chromeos_version"
 	"go.chromium.org/chromiumos/infra/go/internal/repo"
 	rh "go.chromium.org/chromiumos/infra/go/internal/repo_harness"
 	"go.chromium.org/luci/common/errors"
@@ -146,7 +147,7 @@ func multicheckoutBranchName(project *repo.Project, branch, sourceBranch string)
 }
 
 // versionFileContents returns the contents of a basic ChromeOS version file.
-func versionFileContents(version repo.VersionInfo) string {
+func versionFileContents(version mv.VersionInfo) string {
 	contents := fmt.Sprintf("#!/bin/sh\n"+
 		"CHROME_BRANCH=%d\nCHROMEOS_BUILD=%d\nCHROMEOS_BRANCH=%d\n,CHROMEOS_PATCH=%d\n",
 		version.ChromeBranch, version.BuildNumber, version.BranchBuildNumber, version.PatchNumber)
@@ -155,13 +156,13 @@ func versionFileContents(version repo.VersionInfo) string {
 
 // SetVersion sets the version file contents for the specified branch.
 // If branch is not set, will use the version project's revision.
-func (r *CrosRepoHarness) SetVersion(branch string, version repo.VersionInfo) error {
+func (r *CrosRepoHarness) SetVersion(branch string, version mv.VersionInfo) error {
 	if err := r.assertInitialized(); err != nil {
 		return err
 	}
 
 	if version.VersionFile == "" {
-		version.VersionFile = repo.VersionFileProjectPath
+		version.VersionFile = mv.VersionFileProjectPath
 	}
 	versionFile := rh.File{
 		Name:     version.VersionFile,
@@ -345,13 +346,13 @@ func (r *CrosRepoHarness) AssertCrosBranchFromManifest(manifest repo.Manifest, b
 }
 
 // AssertCrosVersion asserts that chromeos_version.sh has the expected version numbers.
-func (r *CrosRepoHarness) AssertCrosVersion(branch string, version repo.VersionInfo) error {
+func (r *CrosRepoHarness) AssertCrosVersion(branch string, version mv.VersionInfo) error {
 	if r.versionProject == nil {
 		return fmt.Errorf("VersionProject was not set in config")
 	}
 	if version.VersionFile == "" {
-		log.Printf("null version file, using default %s", repo.VersionFileProjectPath)
-		version.VersionFile = repo.VersionFileProjectPath
+		log.Printf("null version file, using default %s", mv.VersionFileProjectPath)
+		version.VersionFile = mv.VersionFileProjectPath
 	}
 	manifest := r.Harness.Manifest()
 	project, err := manifest.GetProjectByName(r.versionProject.Name)
@@ -363,12 +364,12 @@ func (r *CrosRepoHarness) AssertCrosVersion(branch string, version repo.VersionI
 		return errors.Annotate(err, "could not read version file %s", version.VersionFile).Err()
 	}
 
-	versionInfo, err := repo.ParseVersionInfo(versionFileContents)
+	versionInfo, err := mv.ParseVersionInfo(versionFileContents)
 	if err != nil {
 		return errors.Annotate(err, "could not parse version file %s", version.VersionFile).Err()
 	}
 
-	if !repo.VersionsEqual(versionInfo, version) {
+	if !mv.VersionsEqual(versionInfo, version) {
 		versionInfo.VersionFile = ""
 		version.VersionFile = ""
 		return fmt.Errorf("version mismatch. expected: %v actual %v", version, versionInfo)

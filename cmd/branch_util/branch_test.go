@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"testing"
 
+	mv "go.chromium.org/chromiumos/infra/go/internal/chromeos_version"
 	"go.chromium.org/chromiumos/infra/go/internal/repo"
 	"gotest.tools/assert"
 )
@@ -107,7 +108,7 @@ func TestGetBranchesByPath(t *testing.T) {
 }
 
 func TestWhichVersionShouldBump_successPatch(t *testing.T) {
-	vinfo := repo.VersionInfo{
+	vinfo := mv.VersionInfo{
 		ChromeBranch:      0xfa,
 		BuildNumber:       0xca,
 		BranchBuildNumber: 0xde,
@@ -116,11 +117,11 @@ func TestWhichVersionShouldBump_successPatch(t *testing.T) {
 
 	component, err := whichVersionShouldBump(vinfo)
 	assert.NilError(t, err)
-	assert.Equal(t, component, repo.Patch)
+	assert.Equal(t, component, mv.Patch)
 }
 
 func TestWhichVersionShouldBump_successBranch(t *testing.T) {
-	vinfo := repo.VersionInfo{
+	vinfo := mv.VersionInfo{
 		ChromeBranch:      0xfe,
 		BuildNumber:       0xed,
 		BranchBuildNumber: 0x00,
@@ -129,5 +130,5 @@ func TestWhichVersionShouldBump_successBranch(t *testing.T) {
 
 	component, err := whichVersionShouldBump(vinfo)
 	assert.NilError(t, err)
-	assert.Equal(t, component, repo.Branch)
+	assert.Equal(t, component, mv.Branch)
 }

@@ -17,6 +17,7 @@ import (
 	"github.com/maruel/subcommands"
 	"go.chromium.org/chromiumos/infra/go/cmd/branch_util/test"
 	"go.chromium.org/chromiumos/infra/go/internal/git"
+	mv "go.chromium.org/chromiumos/infra/go/internal/chromeos_version"
 	"go.chromium.org/chromiumos/infra/go/internal/repo"
 	rh "go.chromium.org/chromiumos/infra/go/internal/repo_harness"
 	"go.chromium.org/chromiumos/infra/go/internal/test_util"
@@ -290,7 +291,7 @@ func setUp(t *testing.T) *test.CrosRepoHarness {
 	assert.NilError(t, r.Initialize(&config))
 
 	// Write version.
-	version := repo.VersionInfo{
+	version := mv.VersionInfo{
 		ChromeBranch:      12,
 		BuildNumber:       3,
 		BranchBuildNumber: 0,
@@ -336,7 +337,7 @@ func setUp(t *testing.T) *test.CrosRepoHarness {
 		assert.NilError(t, err)
 	}
 	// Set version file.
-	version = repo.VersionInfo{
+	version = mv.VersionInfo{
 		ChromeBranch:      12,
 		BuildNumber:       2,
 		BranchBuildNumber: 1,
@@ -407,14 +408,14 @@ func TestCreate(t *testing.T) {
 	assert.NilError(t, r.AssertCrosBranches([]string{branch}))
 	assert.NilError(t, r.AssertCrosBranchFromManifest(manifest, branch, ""))
 	assertManifestsRepaired(t, r, branch)
-	newBranchVersion := repo.VersionInfo{
+	newBranchVersion := mv.VersionInfo{
 		ChromeBranch:      12,
 		BuildNumber:       3,
 		BranchBuildNumber: 1,
 		PatchNumber:       0,
 	}
 	assert.NilError(t, r.AssertCrosVersion(branch, newBranchVersion))
-	masterVersion := repo.VersionInfo{
+	masterVersion := mv.VersionInfo{
 		ChromeBranch:      12,
 		BuildNumber:       4,
 		BranchBuildNumber: 0,
@@ -470,14 +471,14 @@ func TestCreateRelease(t *testing.T) {
 	assert.NilError(t, r.AssertCrosBranches([]string{branch}))
 	assert.NilError(t, r.AssertCrosBranchFromManifest(manifest, branch, ""))
 	assertManifestsRepaired(t, r, branch)
-	newBranchVersion := repo.VersionInfo{
+	newBranchVersion := mv.VersionInfo{
 		ChromeBranch:      12,
 		BuildNumber:       3,
 		BranchBuildNumber: 1,
 		PatchNumber:       0,
 	}
 	assert.NilError(t, r.AssertCrosVersion(branch, newBranchVersion))
-	masterVersion := repo.VersionInfo{
+	masterVersion := mv.VersionInfo{
 		ChromeBranch:      13,
 		BuildNumber:       4,
 		BranchBuildNumber: 0,
@@ -512,14 +513,14 @@ func TestCreateOverwrite(t *testing.T) {
 	assert.NilError(t, r.AssertCrosBranches([]string{branch}))
 	assert.NilError(t, r.AssertCrosBranchFromManifest(manifest, branch, ""))
 	assertManifestsRepaired(t, r, branch)
-	newBranchVersion := repo.VersionInfo{
+	newBranchVersion := mv.VersionInfo{
 		ChromeBranch:      12,
 		BuildNumber:       3,
 		BranchBuildNumber: 1,
 		PatchNumber:       0,
 	}
 	assert.NilError(t, r.AssertCrosVersion(branch, newBranchVersion))
-	masterVersion := repo.VersionInfo{
+	masterVersion := mv.VersionInfo{
 		ChromeBranch:      12,
 		BuildNumber:       4,
 		BranchBuildNumber: 0,
@@ -632,7 +633,7 @@ func TestRename(t *testing.T) {
 
 	assert.NilError(t, r.AssertCrosBranchFromManifest(*branchManifest, newBranch, oldBranch))
 	assertManifestsRepaired(t, r, newBranch)
-	newBranchVersion := repo.VersionInfo{
+	newBranchVersion := mv.VersionInfo{
 		ChromeBranch:      12,
 		BuildNumber:       2,
 		BranchBuildNumber: 1,
@@ -693,21 +694,21 @@ func TestRenameOverwrite(t *testing.T) {
 	assert.NilError(t, r.AssertCrosBranches([]string{newBranch}))
 	assert.NilError(t, r.AssertCrosBranchFromManifest(manifest, newBranch, ""))
 	assertManifestsRepaired(t, r, newBranch)
-	newBranchVersion := repo.VersionInfo{
+	newBranchVersion := mv.VersionInfo{
 		ChromeBranch:      12,
 		BuildNumber:       3,
 		BranchBuildNumber: 1,
 		PatchNumber:       0,
 	}
 	assert.NilError(t, r.AssertCrosVersion(newBranch, newBranchVersion))
-	masterVersion := repo.VersionInfo{
+	masterVersion := mv.VersionInfo{
 		ChromeBranch:      12,
 		BuildNumber:       4,
 		BranchBuildNumber: 0,
 		PatchNumber:       0,
 	}
 	assert.NilError(t, r.AssertCrosVersion("master", masterVersion))
-	oldBranchVersion := repo.VersionInfo{
+	oldBranchVersion := mv.VersionInfo{
 		ChromeBranch:      12,
 		BuildNumber:       2,
 		BranchBuildNumber: 1,

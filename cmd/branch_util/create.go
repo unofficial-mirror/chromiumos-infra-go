@@ -12,6 +12,7 @@ import (
 	"github.com/maruel/subcommands"
 	"go.chromium.org/chromiumos/infra/go/internal/git"
 	mv "go.chromium.org/chromiumos/infra/go/internal/chromeos_version"
+	"go.chromium.org/chromiumos/infra/go/internal/repo"
 	"go.chromium.org/luci/common/errors"
 )
 
@@ -38,11 +39,10 @@ var cmdCreateBranch = &subcommands.Command{
 				"target or a device, depending on the nature of the branch. Used "+
 				"to generate the branch name. Cannot be used with --custom.")
 		// Which manifest should be branched?
-		// TODO(@jackneus): Implement version logic
-		//c.Flags.StringVar(&c.version, "version", "",
-		//	"Manifest version to branch off, e.g. '10509.0.0'. You may not branch "+
-		//		"off of the same version twice unless you run "+
-		//		"with --force.")
+		c.Flags.StringVar(&c.version, "version", "",
+			"Manifest version to branch off, e.g. '10509.0.0'. You may not branch "+
+				"off of the same version twice unless you run "+
+				"with --force.")
 		c.Flags.StringVar(&c.file, "file", "", "Path to manifest file to branch off.")
 		// What kind of branch is this?
 		// TODO(@jackneus): Figure out how to group these flags in the
@@ -223,11 +223,19 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 	if ret != 0 {
 		return ret
 	}
-	if err := initWorkingManifest(c, ""); err != nil {
-		logErr("%s\n", err.Error())
-		return 1
+	if c.file != "" {
+		// Branch from file.
+		manifest, err := repo.LoadManifestFromFileWithIncludes(c.file)
+		if err != nil {
+			err = errors.Annotate(err, "failed to load manifests").Err()
+			logErr("%s\n", err.Error())
+			return 1
+		}
+		workingManifest = *manifest
+	} else {
+		// Branch from version. This currently never happens.
+		// TODO(@jackneus)
 	}
-	defer os.RemoveAll(manifestCheckout)
 	logOut("Fetched working manifest.\n")
 
 	// Validate the version.

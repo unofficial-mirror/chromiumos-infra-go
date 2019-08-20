@@ -392,13 +392,10 @@ func TestCreate(t *testing.T) {
 	assert.NilError(t, err)
 
 	manifest := r.Harness.Manifest()
-	manifestDir := r.Harness.GetRemotePath(manifestInternalProject)
-
 	branch := "new-branch"
 	s := branchApplication{application, nil, nil}
 	ret := subcommands.Run(s, []string{
 		"create", "--push", "--root", localRoot,
-		"--manifest-url", manifestDir,
 		"--file", fullManifestPath(r),
 		"--custom", branch,
 		"-j", "2", // Test with two workers for kicks.
@@ -432,13 +429,10 @@ func TestCreateDryRun(t *testing.T) {
 	defer os.RemoveAll(localRoot)
 	assert.NilError(t, err)
 
-	manifestDir := r.Harness.GetRemotePath(manifestInternalProject)
-
 	branch := "new-branch"
 	s := branchApplication{application, nil, nil}
 	ret := subcommands.Run(s, []string{
 		"create", "--root", localRoot,
-		"--manifest-url", manifestDir,
 		"--file", fullManifestPath(r),
 		"--custom", branch,
 	})
@@ -456,12 +450,10 @@ func TestCreateRelease(t *testing.T) {
 	assert.NilError(t, err)
 
 	manifest := r.Harness.Manifest()
-	manifestDir := r.Harness.GetRemotePath(manifestInternalProject)
 
 	s := branchApplication{application, nil, nil}
 	ret := subcommands.Run(s, []string{
 		"create", "--push", "--root", localRoot,
-		"--manifest-url", manifestDir,
 		"--file", fullManifestPath(r),
 		"--release",
 	})
@@ -497,14 +489,12 @@ func TestCreateOverwrite(t *testing.T) {
 	assert.NilError(t, err)
 
 	manifest := r.Harness.Manifest()
-	manifestDir := r.Harness.GetRemotePath(manifestInternalProject)
 
 	branch := "old-branch"
 	s := branchApplication{application, nil, nil}
 	ret := subcommands.Run(s, []string{
 		"create", "--push", "--root", localRoot,
 		"--force",
-		"--manifest-url", manifestDir,
 		"--file", fullManifestPath(r),
 		"--custom", branch,
 	})
@@ -539,7 +529,6 @@ func TestCreateOverwriteMissingForce(t *testing.T) {
 	assert.NilError(t, err)
 
 	manifest := r.Harness.Manifest()
-	manifestDir := r.Harness.GetRemotePath(manifestInternalProject)
 
 	branch := "old-branch"
 	var stderrBuf bytes.Buffer
@@ -547,7 +536,6 @@ func TestCreateOverwriteMissingForce(t *testing.T) {
 	s := branchApplication{application, nil, stderrLog}
 	ret := subcommands.Run(s, []string{
 		"create", "--push", "--root", localRoot,
-		"--manifest-url", manifestDir,
 		"--file", fullManifestPath(r),
 		"--custom", branch,
 	})
@@ -583,14 +571,11 @@ func TestCreateExistingVersion(t *testing.T) {
 	// Snapshot of manifestInternalProject is stale -- need to update.
 	assert.NilError(t, r.TakeSnapshot())
 
-	manifestDir := r.Harness.GetRemotePath(manifestInternalProject)
-
 	var stderrBuf bytes.Buffer
 	stderrLog := log.New(&stderrBuf, "", log.LstdFlags|log.Lmicroseconds)
 	s := branchApplication{application, nil, stderrLog}
 	ret := subcommands.Run(s, []string{
 		"create", "--push", "--root", localRoot,
-		"--manifest-url", manifestDir,
 		"--file", fullManifestPath(r),
 		"--stabilize",
 	})

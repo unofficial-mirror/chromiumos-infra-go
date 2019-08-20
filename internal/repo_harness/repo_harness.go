@@ -62,8 +62,6 @@ type RepoHarness struct {
 	manifest repo.Manifest
 	// Root directory of the whole harness setup.
 	harnessRoot string
-	// Local checkout.
-	LocalRepo string
 	// Git repo that manifest (from config) is stored in.
 	manifestRepo string
 }
@@ -119,13 +117,6 @@ func (r *RepoHarness) Initialize(config *RepoHarnessConfig) error {
 	// an explicit remote listed.
 	r.manifest = *config.Manifest.ResolveImplicitLinks()
 
-	// Create local repository dir.
-	r.LocalRepo = filepath.Join(r.harnessRoot, "local")
-	err = os.Mkdir(r.LocalRepo, dirPerms)
-	if err != nil {
-		return errors.Annotate(err, "failed to create local repo dir").Err()
-	}
-
 	// Initialize remote repositories.
 	for _, remote := range r.manifest.Remotes {
 		remoteName := remote.Name
@@ -179,39 +170,6 @@ func (r *RepoHarness) Initialize(config *RepoHarnessConfig) error {
 			}
 		}
 	}
-
-	// Create local checkout of the project at r.LocalRepo, in case the client would like one.
-	// Specifically, we create a git repo with the manifest and sync using
-	// `repo sync`.
-	r.manifestRepo = filepath.Join(r.harnessRoot, "manifest-repo")
-	if err = os.Mkdir(r.manifestRepo, dirPerms); err != nil {
-		return errors.Annotate(err, "error initializing git repo for manifest").Err()
-	}
-	manifestPath := filepath.Join(r.manifestRepo, "default.xml")
-	errs := []error{
-		git.Init(r.manifestRepo, false),
-		r.manifest.Write(manifestPath),
-	}
-	_, err = git.CommitAll(r.manifestRepo, "commit manifest")
-	errs = append(errs,
-		err,
-		r.runCommand([]string{"repo", "init", "--manifest-url", r.manifestRepo}, r.LocalRepo),
-	)
-
-	for _, err := range errs {
-		if err != nil {
-			return errors.Annotate(err, "failed to initialize local checkout").Err()
-		}
-	}
-	err = r.SyncLocalCheckout()
-	if err != nil {
-		return err
-	}
-
-	// Certain tools can't read from a project unless refs/heads/master exists
-	// ex: repo init --manifest-url
-	err = r.runCommand([]string{"repo", "start", "master", "--all"}, r.LocalRepo)
-
 	return err
 }
 
@@ -229,21 +187,6 @@ func (r *RepoHarness) Teardown() error {
 		return os.RemoveAll(root)
 	}
 	return fmt.Errorf("harness was never initialized")
-}
-
-// SyncLocalCheckout syncs the harness' local checkout to the manifest
-// specified at initialization.
-func (r *RepoHarness) SyncLocalCheckout() error {
-	if err := r.assertInitialized(); err != nil {
-		return err
-	}
-
-	err := r.runCommand([]string{"repo", "sync"}, r.LocalRepo)
-	if err != nil {
-		return errors.Annotate(err, "failed to sync local checkout").Err()
-	}
-
-	return nil
 }
 
 // CreateRemoteRef creates a remote ref for a specific project.
@@ -374,6 +317,9 @@ func (r *RepoHarness) ReadFile(project RemoteProject, branch, filePath string) (
 	}
 	tmpRepo, err := ioutil.TempDir(r.harnessRoot, "tmp-repo")
 	defer os.RemoveAll(tmpRepo)
+	if err != nil {
+		return nil, err
+	}
 
 	remotePath := r.GetRemotePath(project)
 	remoteRef := git.RemoteRef{
@@ -416,11 +362,6 @@ func (r *RepoHarness) Snapshot(path string) (string, error) {
 // GetRemotePath returns the path to the remote project repo.
 func (r *RepoHarness) GetRemotePath(project RemoteProject) string {
 	return filepath.Join(r.harnessRoot, project.RemoteName, project.ProjectName)
-}
-
-// GetLocalPath returns the path to the local project repo.
-func (r *RepoHarness) GetLocalPath(project repo.Project) string {
-	return filepath.Join(r.LocalRepo, project.Path)
 }
 
 // AssertProjectBranches asserts that the remote project has the correct branches.

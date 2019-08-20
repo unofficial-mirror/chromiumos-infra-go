@@ -5,7 +5,9 @@ package test
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -462,25 +464,25 @@ func (r *CrosRepoHarness) AssertProjectRevisionsMatchBranch(manifest repo.Manife
 // This function assumes that r.Harness.SyncLocalCheckout() has just been run.
 func (r *CrosRepoHarness) AssertManifestProjectRepaired(
 	project rh.RemoteProject, branch string, manifestFiles []string) error {
-	manifest := r.Harness.Manifest()
-	// We can't read directly from the remote project because it's a bare repo, so make use of the
-	// local checkout.
-	localProject, err := manifest.GetProjectByName(project.ProjectName)
+	tmpDir, err := ioutil.TempDir(r.Harness.HarnessRoot(), "tmp-repo")
+	defer os.RemoveAll(tmpDir)
 	if err != nil {
-		return errors.Annotate(err, "project does not exist").Err()
+		return err
 	}
-	localProjectPath := filepath.Join(r.Harness.LocalRepo, localProject.Path)
-	err = git.Checkout(localProjectPath, branch)
-	// Detach at the end because we would rather a function that does not explicitly specificy a branch
-	// fail loudly rather than silently use a seemingly-arbitrary branch.
-	defer git.RunGitIgnoreOutput(localProjectPath, []string{"checkout", "--detach"})
 
-	if err != nil {
-		return errors.Annotate(err, "failed to checkout branch %s in project %s", branch, localProjectPath).Err()
+	remotePath := r.Harness.GetRemotePath(project)
+	errs := []error{
+		git.Clone(remotePath, tmpDir),
+		git.Checkout(tmpDir, branch),
+	}
+	for _, err := range errs {
+		if err != nil {
+			return errors.Annotate(err, "failed to checkout branch %s in project %s", branch, project.ProjectName).Err()
+		}
 	}
 
 	for _, file := range manifestFiles {
-		filePath := filepath.Join(localProjectPath, file)
+		filePath := filepath.Join(tmpDir, file)
 		manifest, err := repo.LoadManifestFromFile(filePath)
 		if err != nil {
 			return errors.Annotate(err, "failed to load manifest file %s", file).Err()

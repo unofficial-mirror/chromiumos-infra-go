@@ -85,12 +85,6 @@ func testInitialize(t *testing.T, config *RepoHarnessConfig) {
 	_, err = os.Stat(filepath.Join(harness.harnessRoot, "snapshots"))
 	assert.NilError(t, err)
 
-	// Check that all local repos were created.
-	for _, project := range harnessConfig.Manifest.Projects {
-		_, err := os.Stat(filepath.Join(harness.LocalRepo, project.Path))
-		assert.NilError(t, err)
-	}
-
 	// Check that all remotes were created.
 	for _, remote := range harnessConfig.Manifest.Remotes {
 		_, err := os.Stat(filepath.Join(harness.harnessRoot, remote.Name))
@@ -172,39 +166,6 @@ func TestInitializeDefaultDefault(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Equal(t, r.Manifest().Default.RemoteName, "cros")
 	assert.Equal(t, r.Manifest().Default.Revision, "refs/heads/master")
-}
-
-func TestSyncLocalCheckout_success(t *testing.T) {
-	r := &RepoHarness{
-		harnessRoot: "fake-initialized",
-		LocalRepo:   "foo",
-	}
-
-	CommandRunnerImpl = cmd.FakeCommandRunner{
-		ExpectedCmd: []string{"repo", "sync"},
-		ExpectedDir: r.LocalRepo,
-	}
-	assert.NilError(t, r.SyncLocalCheckout())
-
-	// Reset CommandRunnerImpl to the real one.
-	CommandRunnerImpl = cmd.RealCommandRunner{}
-}
-
-func TestSyncLocalCheckout_error(t *testing.T) {
-	r := &RepoHarness{
-		harnessRoot: "fake-initialized",
-		LocalRepo:   "foo",
-	}
-
-	CommandRunnerImpl = cmd.FakeCommandRunner{
-		ExpectedCmd: []string{"repo", "sync"},
-		ExpectedDir: r.LocalRepo,
-		FailCommand: true,
-	}
-	assert.ErrorContains(t, r.SyncLocalCheckout(), "failed to sync")
-
-	// Reset CommandRunnerImpl to the real one.
-	CommandRunnerImpl = cmd.RealCommandRunner{}
 }
 
 func TestCreateRemoteRef(t *testing.T) {
@@ -402,16 +363,6 @@ func TestGetRemotePath(t *testing.T) {
 	project := simpleHarnessConfig.Manifest.Projects[0]
 	expectedPath := filepath.Join(harness.harnessRoot, project.RemoteName, project.Name)
 	assert.Equal(t, harness.GetRemotePath(GetRemoteProject(project)), expectedPath)
-}
-
-func TestGetLocalPath(t *testing.T) {
-	harness := &RepoHarness{
-		LocalRepo: "foo/",
-	}
-
-	project := simpleHarnessConfig.Manifest.Projects[0]
-	expectedPath := filepath.Join(harness.LocalRepo, project.Path)
-	assert.Equal(t, harness.GetLocalPath(project), expectedPath)
 }
 
 func TestAssertProjectBranches(t *testing.T) {

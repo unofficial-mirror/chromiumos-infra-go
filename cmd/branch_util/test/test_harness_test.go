@@ -390,7 +390,6 @@ func TestAssertManifestProjectRepaired(t *testing.T) {
 	}
 	_, err = r.Harness.AddFile(manifestProject, newBranch, manifestFile)
 	assert.NilError(t, err)
-	assert.NilError(t, r.Harness.SyncLocalCheckout())
 
 	assert.NilError(t, r.AssertManifestProjectRepaired(manifestProject, newBranch, []string{"manifest.xml"}))
 }

@@ -348,7 +348,6 @@ func setUp(t *testing.T) *test.CrosRepoHarness {
 	addManifestFiles(t, &r, manifestInternalProject, branchName, manifestInternalBranchedFiles)
 
 	// Sync local checkout to get manifest.
-	assert.NilError(t, r.Harness.SyncLocalCheckout())
 	assert.NilError(t, r.TakeSnapshot())
 
 	return &r
@@ -404,9 +403,6 @@ func TestCreate(t *testing.T) {
 		"-j", "2", // Test with two workers for kicks.
 	})
 	assert.Assert(t, ret == 0)
-
-	// Sync local checkout before asserts.
-	assert.NilError(t, r.Harness.SyncLocalCheckout())
 
 	assert.NilError(t, r.AssertCrosBranches([]string{branch}))
 	assert.NilError(t, r.AssertCrosBranchFromManifest(manifest, branch, ""))
@@ -470,9 +466,6 @@ func TestCreateRelease(t *testing.T) {
 	})
 	assert.Assert(t, ret == 0)
 
-	// Sync local checkout before asserts.
-	assert.NilError(t, r.Harness.SyncLocalCheckout())
-
 	branch := "release-R12-3.B"
 	assert.NilError(t, r.AssertCrosBranches([]string{branch}))
 	assert.NilError(t, r.AssertCrosBranchFromManifest(manifest, branch, ""))
@@ -515,9 +508,6 @@ func TestCreateOverwrite(t *testing.T) {
 		"--custom", branch,
 	})
 	assert.Assert(t, ret == 0)
-
-	// Sync local checkout before asserts.
-	assert.NilError(t, r.Harness.SyncLocalCheckout())
 
 	assert.NilError(t, r.AssertCrosBranches([]string{branch}))
 	assert.NilError(t, r.AssertCrosBranchFromManifest(manifest, branch, ""))
@@ -562,9 +552,6 @@ func TestCreateOverwriteMissingForce(t *testing.T) {
 	})
 	assert.Assert(t, ret != 0)
 	assert.Assert(t, strings.Contains(stderrBuf.String(), "rerun with --force"))
-
-	// Sync local checkout before asserts.
-	assert.NilError(t, r.Harness.SyncLocalCheckout())
 
 	// Check that no remotes change.
 	for _, remote := range manifest.Remotes {
@@ -631,9 +618,6 @@ func TestRename(t *testing.T) {
 		oldBranch, newBranch,
 	})
 	assert.Assert(t, ret == 0)
-
-	// Sync local checkout before asserts.
-	assert.NilError(t, r.Harness.SyncLocalCheckout())
 
 	assert.NilError(t, r.AssertCrosBranches([]string{newBranch}))
 	assert.NilError(t, r.AssertCrosBranchesMissing([]string{oldBranch}))
@@ -706,9 +690,6 @@ func TestRenameOverwrite(t *testing.T) {
 	})
 	assert.Assert(t, ret == 0)
 
-	// Sync local checkout before asserts.
-	assert.NilError(t, r.Harness.SyncLocalCheckout())
-
 	assert.NilError(t, r.AssertCrosBranches([]string{newBranch}))
 	assert.NilError(t, r.AssertCrosBranchFromManifest(manifest, newBranch, ""))
 	assertManifestsRepaired(t, r, newBranch)
@@ -743,9 +724,6 @@ func TestRenameOverwrite(t *testing.T) {
 		oldBranch, newBranch,
 	})
 	assert.Assert(t, ret == 0)
-
-	// Sync local checkout before asserts.
-	assert.NilError(t, r.Harness.SyncLocalCheckout())
 
 	assert.NilError(t, r.AssertCrosBranches([]string{newBranch}))
 	assert.NilError(t, r.AssertCrosBranchesMissing([]string{oldBranch}))

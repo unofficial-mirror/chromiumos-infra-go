@@ -322,17 +322,14 @@ func (r *RepoHarness) ReadFile(project RemoteProject, branch, filePath string) (
 	}
 
 	remotePath := r.GetRemotePath(project)
-	remoteRef := git.RemoteRef{
-		Remote: "remote",
-		Ref:    branch,
-	}
-	remoteBranch := fmt.Sprintf("%s/%s", remoteRef.Remote, git.StripRefs(remoteRef.Ref))
+	ref := git.StripRefs(branch)
+	refspec := fmt.Sprintf("%s/%s", "remote", ref)
 	// Checkout just the file we need.
 	errs := []error{
 		git.Init(tmpRepo, false),
-		git.AddRemote(tmpRepo, remoteRef.Remote, remotePath),
-		git.RunGitIgnoreOutput(tmpRepo, []string{"fetch", remoteRef.Remote, "--depth", "1"}),
-		git.RunGitIgnoreOutput(tmpRepo, []string{"checkout", remoteBranch, "--", filePath}),
+		git.AddRemote(tmpRepo, "remote", remotePath),
+		git.RunGitIgnoreOutput(tmpRepo, []string{"fetch", "remote", ref, "--depth", "1"}),
+		git.RunGitIgnoreOutput(tmpRepo, []string{"checkout", refspec, "--", filePath}),
 	}
 	contents, err := ioutil.ReadFile(filepath.Join(tmpRepo, filePath))
 	errs = append(errs, err)

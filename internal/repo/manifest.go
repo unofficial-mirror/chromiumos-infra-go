@@ -315,6 +315,10 @@ func (m *Manifest) ResolveImplicitLinks() *Manifest {
 				project.Revision = remote.Revision
 			}
 		}
+		// Path defaults to name.
+		if project.Path == "" {
+			project.Path = project.Name
+		}
 		newManifest.Projects[i] = project
 	}
 	return &newManifest

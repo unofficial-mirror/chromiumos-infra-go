@@ -96,7 +96,7 @@ func TestLoadManifestTree_success(t *testing.T) {
 		Projects: []Project{
 			{Path: "baz/", Name: "baz", Revision: "123", RemoteName: "chromium"},
 			{Path: "fiz/", Name: "fiz", Revision: "124", RemoteName: "chromeos"},
-			{Path: "buz/", Name: "buz", Revision: "125", RemoteName: "google",
+			{Path: "buz", Name: "buz", Revision: "125", RemoteName: "google",
 				Annotations: []Annotation{
 					{Name: "branch-mode", Value: "pin"},
 				},

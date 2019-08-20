@@ -6,7 +6,7 @@
   <remote fetch="https://google.com/remote" name="google" revision="125"/>
   <project name="baz" path="baz/" remote="chromium"/>
   <project name="fiz" path="fiz/" revision="124" />
-  <project name="buz" path="buz/" remote="google">
+  <project name="buz" remote="google">
     <annotation name="branch-mode" value="pin"/>
   </project>
 </manifest>

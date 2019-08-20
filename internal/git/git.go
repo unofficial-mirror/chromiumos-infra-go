@@ -37,7 +37,7 @@ func RunGit(gitRepo string, cmd []string) (CommandOutput, error) {
 	var stdoutBuf, stderrBuf bytes.Buffer
 	err := CommandRunnerImpl.RunCommand(ctx, &stdoutBuf, &stderrBuf, gitRepo, "git", cmd...)
 	cmdOutput := CommandOutput{stdoutBuf.String(), stderrBuf.String()}
-	return cmdOutput, err
+	return cmdOutput, errors.Annotate(err, cmdOutput.Stderr).Err()
 }
 
 // RunGitIgnore the specified git command in the specified repo and returns

@@ -11,8 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"go.chromium.org/chromiumos/infra/go/internal/git"
 	mv "go.chromium.org/chromiumos/infra/go/internal/chromeos_version"
+	"go.chromium.org/chromiumos/infra/go/internal/git"
 	"go.chromium.org/chromiumos/infra/go/internal/repo"
 	rh "go.chromium.org/chromiumos/infra/go/internal/repo_harness"
 	"go.chromium.org/luci/common/errors"

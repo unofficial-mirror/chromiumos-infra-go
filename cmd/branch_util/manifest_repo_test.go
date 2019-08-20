@@ -168,4 +168,6 @@ func TestRepairManifestsOnDisk(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Assert(t,
 		reflect.DeepEqual(officialManifest, *officialManifestMap["official.xml"]))
+
+	git.CommandRunnerImpl = cmd.RealCommandRunner{}
 }

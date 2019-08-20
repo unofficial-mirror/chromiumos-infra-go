@@ -11,8 +11,8 @@ import (
 	"strings"
 	"sync"
 
-	"go.chromium.org/chromiumos/infra/go/internal/git"
 	mv "go.chromium.org/chromiumos/infra/go/internal/chromeos_version"
+	"go.chromium.org/chromiumos/infra/go/internal/git"
 	"go.chromium.org/chromiumos/infra/go/internal/repo"
 	"go.chromium.org/chromiumos/infra/go/internal/shared"
 	"go.chromium.org/luci/common/errors"

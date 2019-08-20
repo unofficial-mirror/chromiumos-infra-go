@@ -10,8 +10,8 @@ import (
 	"strings"
 
 	"github.com/maruel/subcommands"
-	"go.chromium.org/chromiumos/infra/go/internal/git"
 	mv "go.chromium.org/chromiumos/infra/go/internal/chromeos_version"
+	"go.chromium.org/chromiumos/infra/go/internal/git"
 	"go.chromium.org/chromiumos/infra/go/internal/repo"
 	"go.chromium.org/luci/common/errors"
 )
@@ -114,8 +114,8 @@ func (c *createBranchRun) getBranchType() (string, bool) {
 }
 
 func (c *createBranchRun) validate(args []string) (bool, string) {
-	if c.file == "" {
-		return false, "must set --file."
+	if c.file == "" && c.version == "" || c.file != "" && c.version != "" {
+		return false, "must set exactly one of --file or --version."
 	}
 	_, ok := c.getBranchType()
 	if !ok {
@@ -237,8 +237,14 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 		}
 		workingManifest = *manifest
 	} else {
-		// Branch from version. This currently never happens.
-		// TODO(@jackneus)
+		logOut("Downloading and parsing buildspec manifest for %s...\n", c.version)
+		manifest, err := getWorkingManifestForVersion(c.version)
+		if err != nil {
+			err = errors.Annotate(err, "failed to load manifests").Err()
+			logErr("%s\n", err.Error())
+			return 1
+		}
+		workingManifest = *manifest
 	}
 	logOut("Fetched working manifest.\n")
 
@@ -307,6 +313,7 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 
 	// Generate git branch names.
 	branches := projectBranches(branchName, "")
+
 	// If not --force, validate branch names to ensure that they do not already exist.
 	if !c.Force {
 		err = assertBranchesDoNotExist(branches)
@@ -322,6 +329,7 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 		logErr(err.Error())
 		return 1
 	}
+
 	// Repair manifest repositories.
 	if err = repairManifestRepositories(branches, !c.Push, c.Force); err != nil {
 		logErr(err.Error())

@@ -16,8 +16,8 @@ import (
 
 	"github.com/maruel/subcommands"
 	"go.chromium.org/chromiumos/infra/go/cmd/branch_util/test"
-	"go.chromium.org/chromiumos/infra/go/internal/git"
 	mv "go.chromium.org/chromiumos/infra/go/internal/chromeos_version"
+	"go.chromium.org/chromiumos/infra/go/internal/git"
 	"go.chromium.org/chromiumos/infra/go/internal/repo"
 	rh "go.chromium.org/chromiumos/infra/go/internal/repo_harness"
 	"go.chromium.org/chromiumos/infra/go/internal/test_util"
@@ -348,7 +348,6 @@ func setUp(t *testing.T) *test.CrosRepoHarness {
 	addManifestFiles(t, &r, manifestProject, branchName, manifestBranchedFiles)
 	addManifestFiles(t, &r, manifestInternalProject, branchName, manifestInternalBranchedFiles)
 
-	// Sync local checkout to get manifest.
 	assert.NilError(t, r.TakeSnapshot())
 
 	return &r

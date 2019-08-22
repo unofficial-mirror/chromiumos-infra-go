@@ -268,6 +268,10 @@ func fullManifestPath(r *test.CrosRepoHarness) string {
 	return filepath.Join(r.Harness.HarnessRoot(), "manifest.xml")
 }
 
+func fullBranchedManifestPath(r *test.CrosRepoHarness) string {
+	return filepath.Join(r.Harness.HarnessRoot(), "manifest-branched.xml")
+}
+
 func addManifestFiles(t *testing.T,
 	r *test.CrosRepoHarness,
 	project rh.RemoteProject,
@@ -326,6 +330,9 @@ func setUp(t *testing.T) *test.CrosRepoHarness {
 	var branchManifest *repo.Manifest
 	assert.NilError(t, xml.Unmarshal([]byte(fullBranchedXML), &branchManifest))
 	branchManifest = branchManifest.ResolveImplicitLinks()
+	// Write full branched manifest to file so that it can be passed to cros branch in
+	// *NonMaster tests.
+	assert.NilError(t, ioutil.WriteFile(fullBranchedManifestPath(&r), []byte(fullBranchedXML), 0777))
 
 	// Create ref for each project.
 	for _, project := range branchManifest.Projects {
@@ -418,6 +425,54 @@ func TestCreate(t *testing.T) {
 		PatchNumber:       0,
 	}
 	assert.NilError(t, r.AssertCrosVersion("master", masterVersion))
+}
+
+// Branch off of old-branch to make sure that the source version is being
+// bumped in the correct branch.
+// Covers crbug.com/1744928.
+func TestCreateReleaseNonMaster(t *testing.T) {
+	r := setUp(t)
+	defer r.Teardown()
+
+	localRoot, err := ioutil.TempDir("", "test_create")
+	defer os.RemoveAll(localRoot)
+	assert.NilError(t, err)
+
+	manifest := r.Harness.Manifest()
+	branch := "release-R12-2.1.B"
+	s := branchApplication{application, nil, nil}
+	ret := subcommands.Run(s, []string{
+		"create", "--push", "--root", localRoot,
+		"--file", fullBranchedManifestPath(r),
+		"--release",
+	})
+	assert.Assert(t, ret == 0)
+
+	assert.NilError(t, r.AssertCrosBranches([]string{branch}))
+
+	crosFetchVal := manifest.GetRemoteByName("cros").Fetch
+	crosInternalFetchVal := manifest.GetRemoteByName("cros-internal").Fetch
+	_, _, fullBranchedXML := getBranchedManifestFiles(crosFetchVal, crosInternalFetchVal)
+	var branchManifest *repo.Manifest
+	assert.NilError(t, xml.Unmarshal([]byte(fullBranchedXML), &branchManifest))
+	branchManifest = branchManifest.ResolveImplicitLinks()
+
+	assert.NilError(t, r.AssertCrosBranchFromManifest(*branchManifest, branch, "old-branch"))
+	assertManifestsRepaired(t, r, branch)
+	newBranchVersion := mv.VersionInfo{
+		ChromeBranch:      12,
+		BuildNumber:       2,
+		BranchBuildNumber: 1,
+		PatchNumber:       1,
+	}
+	assert.NilError(t, r.AssertCrosVersion(branch, newBranchVersion))
+	sourceVersion := mv.VersionInfo{
+		ChromeBranch:      13,
+		BuildNumber:       3,
+		BranchBuildNumber: 0,
+		PatchNumber:       0,
+	}
+	assert.NilError(t, r.AssertCrosVersion("old-branch", sourceVersion))
 }
 
 func TestCreateDryRun(t *testing.T) {

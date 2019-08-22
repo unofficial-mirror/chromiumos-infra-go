@@ -121,18 +121,22 @@ func findValue(re *regexp.Regexp, line string) string {
 }
 
 func (v *VersionInfo) IncrementVersion(incrType VersionComponent) string {
+	// Milestone exists somewhat separately from the other three components
+	// (which are used in things like buildspec naming), so we don't
+	// zero the other version components when we increment this.
+	//
+	// Note that this can lead to issues like crbug.com/213075.
+	// It is up to the caller to ensure that this doesn't happen.
+	// This function is meant to be as dumb as possible.
 	if incrType == ChromeBranch {
 		v.ChromeBranch += 1
-	}
-
-	// Increment build_number for ChromeBranch incrType to avoid
-	// crbug.com/213075.
-	if incrType == ChromeBranch || incrType == Build {
+	} else if incrType == Build {
 		v.BuildNumber += 1
 		v.BranchBuildNumber = 0
 		v.PatchNumber = 0
-	} else if incrType == Branch && v.PatchNumber == 0 {
+	} else if incrType == Branch {
 		v.BranchBuildNumber += 1
+		v.PatchNumber = 0
 	} else {
 		v.PatchNumber += 1
 	}

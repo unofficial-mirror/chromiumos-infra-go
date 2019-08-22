@@ -429,7 +429,7 @@ func (r *RepoHarness) AssertProjectBranchHasAncestor(project RemoteProject, bran
 		return err
 	}
 	if !ok {
-		return fmt.Errorf("branch %s does not descend from snapshot at %s", branch, snapshotPath)
+		return fmt.Errorf("branch %s does not descend from snapshot at %s:%s", branch, snapshotPath, snapshotBranch)
 	}
 	return nil
 }

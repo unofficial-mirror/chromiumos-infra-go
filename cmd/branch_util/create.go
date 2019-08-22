@@ -175,6 +175,9 @@ func (c *createBranchRun) bumpVersion(
 	if dryRun {
 		return nil
 	}
+	if component == mv.Unspecified {
+		return fmt.Errorf("component was unspecified")
+	}
 
 	// Get checkout of versionProjectPath, which has chromeos_version.sh.
 	opts := &checkoutOptions{
@@ -248,12 +251,29 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 	}
 	logOut("Fetched working manifest.\n")
 
+	// Use manifest-internal as a sentinel repository to get the appropriate branch name.
+	// We know that manifest-internal is a single-checkout so its revision should be
+	// master or the name of the Chrome OS branch.
+	// TODO(@jackneus): write test for this.
+	manifestInternal, err := workingManifest.GetUniqueProject("chromeos/manifest-internal")
+	if err != nil {
+		logErr(errors.Annotate(err, "Could not get chromeos/manifest-internal project.").Err().Error())
+		return 1
+	}
+	sourceRevision := manifestInternal.Revision
+
 	// Validate the version.
 	// Double check that the checkout has a zero patch number. Otherwise,
 	// we cannot branch from it.
+	versionProject, err := workingManifest.GetProjectByPath(versionProjectPath)
+	if err != nil {
+		err = errors.Annotate(err, "could not get project %s from manifest", versionProjectPath).Err()
+		logErr("%s\n", err)
+		return 1
+	}
 	opts := &checkoutOptions{
 		depth: 1,
-		ref:   "master",
+		ref:   git.StripRefs(versionProject.Revision),
 	}
 	versionProjectCheckout, err := getProjectCheckout(versionProjectPath, opts)
 	defer os.RemoveAll(versionProjectCheckout)
@@ -277,11 +297,6 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 
 	// Check that we did not already branch from this version.
 	// manifest-internal serves as the sentinel project.
-	manifestInternal, err := workingManifest.GetUniqueProject("chromeos/manifest-internal")
-	if err != nil {
-		logErr(errors.Annotate(err, "Could not get chromeos/manifest-internal project.").Err().Error())
-		return 1
-	}
 	pattern := regexp.MustCompile(fmt.Sprintf(`.*-%s.B$`, vinfo.StrippedVersionString()))
 	exists, err := branchExists(manifestInternal, pattern)
 	if err != nil {
@@ -302,8 +317,6 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 
 	// Generate branch name.
 	branchName := c.newBranchName(vinfo)
-	logOut("Creating branch: %s\n", branchName)
-
 	// Create branch.
 	componentToBump, err := whichVersionShouldBump(vinfo)
 	if err != nil {
@@ -312,7 +325,8 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 	}
 
 	// Generate git branch names.
-	branches := projectBranches(branchName, "")
+	branches := projectBranches(branchName, git.StripRefs(sourceRevision))
+	logOut("Creating branch: %s\n", branchName)
 
 	// If not --force, validate branch names to ensure that they do not already exist.
 	if !c.Force {
@@ -342,16 +356,31 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 		logErr(err.Error())
 		return 1
 	}
-	// Increment branch/build number for source 'master' branch.
-	// crbug.com/965164
-	// TODO(@jackneus): refactor
+
 	if c.release {
+		// Bump milestone after creating release branch.
 		commitMsg = fmt.Sprintf("Bump milestone after creating release branch %s.", branchName)
-		if err = c.bumpVersion(mv.ChromeBranch, "master", commitMsg, !c.Push); err != nil {
+		if err = c.bumpVersion(mv.ChromeBranch, sourceRevision, commitMsg, !c.Push); err != nil {
+			logErr(err.Error())
+			return 1
+		}
+		// Also need to bump the build number, otherwise two release will have conflicting versions.
+		// See crbug.com/213075.
+		commitMsg = fmt.Sprintf("Bump build number after creating release branch %s.", branchName)
+		if err = c.bumpVersion(mv.Build, sourceRevision, commitMsg, !c.Push); err != nil {
 			logErr(err.Error())
 			return 1
 		}
 	} else {
+		// For non-release branches, we also have to bump some component of the source branch.
+		// This is so that subsequent branches created from the source branch do not conflict
+		// with the branch we just created.
+		// Example:
+		// Say we just branched off of our source branch (version 1.2.0). The newly-created branch
+		// has version 1.2.1. If later on somebody tries to branch off of the source branch again,
+		// a second branch will be created with version 1.2.0. This is problematic.
+		// To avoid this, we bump the source branch. So in this case, we would bump 1.2.0 --> 1.3.0.
+		// See crbug.com/965164 for context.
 		var sourceComponentToBump mv.VersionComponent
 		if componentToBump == mv.Patch {
 			sourceComponentToBump = mv.Branch
@@ -360,11 +389,7 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 		}
 		commitMsg = fmt.Sprintf("Bump %s number for source branch after creating branch %s.",
 			sourceComponentToBump, branchName)
-		revision := workingManifest.Default.Revision
-		if revision == "" {
-			revision = git.NormalizeRef("master")
-		}
-		err = c.bumpVersion(sourceComponentToBump, revision, commitMsg, !c.Push)
+		err = c.bumpVersion(sourceComponentToBump, sourceRevision, commitMsg, !c.Push)
 		if err != nil {
 			logErr(err.Error())
 			return 1

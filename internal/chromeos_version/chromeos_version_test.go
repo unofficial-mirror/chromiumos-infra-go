@@ -94,7 +94,7 @@ func TestIncrementVersion_ChromeBranch(t *testing.T) {
 	versionInfo, err := GetVersionInfoFromRepo("test_data")
 	versionInfo.IncrementVersion(ChromeBranch)
 	assert.NilError(t, err)
-	assertVersionEqual(t, versionInfo, []int{78, 12303, 0, 0})
+	assertVersionEqual(t, versionInfo, []int{78, 12302, 1, 0})
 }
 
 func TestIncrementVersion_Build(t *testing.T) {
@@ -119,7 +119,7 @@ func TestIncrementVersion_Branch_nonzero(t *testing.T) {
 	versionInfo.PatchNumber = 1
 	versionInfo.IncrementVersion(Branch)
 	assert.NilError(t, err)
-	assertVersionEqual(t, versionInfo, []int{77, 12302, 1, 2})
+	assertVersionEqual(t, versionInfo, []int{77, 12302, 2, 0})
 }
 
 func TestIncrementVersion_Patch(t *testing.T) {

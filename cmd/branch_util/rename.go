@@ -84,18 +84,20 @@ func (c *renameBranchRun) Run(a subcommands.Application, args []string,
 		}
 	}
 
-	// Create git branches for new branch.
-	if err := createRemoteBranches(newBranches, !c.Push, c.Force); err != nil {
-		logErr(err.Error())
-		return 1
-	}
 	// Repair manifest repositories.
 	if err := repairManifestRepositories(newBranches, !c.Push, c.Force); err != nil {
 		logErr(err.Error())
 		return 1
 	}
+	// Create git branches for new branch.
+	if err := createRemoteBranches(newBranches, !c.Push, c.Force); err != nil {
+		logErr(err.Error())
+		return 1
+	}
 
 	// Delete old branches.
+	// TODO(@owner): Consider parallelizing this. It's not super important
+	// because rename is seldom used.
 	oldBranches := projectBranches(c.old, c.old)
 	retCode := 0
 	for _, projectBranch := range oldBranches {

@@ -73,6 +73,8 @@ func (c *deleteBranchRun) Run(a subcommands.Application, args []string,
 	branches := projectBranches(c.branchName, "")
 
 	// Delete branches on remote.
+	// TODO(@owner): Consider parallelizing this. It's not super important
+	// because delete is seldom used.
 	retCode := 0
 	for _, projectBranch := range branches {
 		project := projectBranch.project

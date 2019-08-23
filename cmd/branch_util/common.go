@@ -59,12 +59,7 @@ func (c *CommonFlags) Init() {
 		"Required for any remote operation that would delete an existing "+
 			"branch. Also required when trying to branch from a previously "+
 			"branched manifest version.")
-	// Sync options
-	c.Flags.StringVar(&c.Root, "root", "",
-		"Repo root of local checkout to branch. If the root does not "+
-			"exist, this tool will create it. If the root is not initialized, "+
-			"this tool will initialize it. If --root is not specificed, this "+
-			"tool will branch a fresh checkout in a temporary directory.")
+	// Sync checkoutOptions
 	c.Flags.StringVar(&c.ManifestUrl, "manifest-url", defaultManifestUrl,
 		"URL of the manifest to be checked out. Defaults to googlesource URL "+
 			"for manifest-internal.")

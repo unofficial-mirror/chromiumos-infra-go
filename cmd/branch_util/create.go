@@ -31,8 +31,6 @@ var cmdCreateBranch = &subcommands.Command{
 	CommandRun: func() subcommands.CommandRun {
 		c := &createBranchRun{}
 		c.Init()
-		c.Flags.BoolVar(&c.yes, "yes", false,
-			"If set, disables the boolean prompt confirming the branch name.")
 		// Arguments for determining branch name.
 		c.Flags.StringVar(&c.descriptor, "descriptor", "",
 			"Optional descriptor for this branch. Typically, this is a build "+
@@ -45,7 +43,7 @@ var cmdCreateBranch = &subcommands.Command{
 				"with --force.")
 		c.Flags.StringVar(&c.file, "file", "", "Path to manifest file to branch off.")
 		// What kind of branch is this?
-		// TODO(@jackneus): Figure out how to group these flags in the
+		// TODO(@owner): Figure out how to group these flags in the
 		// help dialog. Right now all flags are displayed in alphabetic
 		// order, which is less helpful.
 		c.Flags.BoolVar(&c.release, "release", false,
@@ -338,14 +336,13 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 	}
 	logOut("Done validating project branches.\n")
 
-	// Create git branches for new branch.
-	if err = createRemoteBranches(branches, !c.Push, c.Force); err != nil {
+	// Repair manifest repositories.
+	if err = repairManifestRepositories(branches, !c.Push, c.Force); err != nil {
 		logErr(err.Error())
 		return 1
 	}
-
-	// Repair manifest repositories.
-	if err = repairManifestRepositories(branches, !c.Push, c.Force); err != nil {
+	// Create git branches for new branch.
+	if err = createRemoteBranches(branches, !c.Push, c.Force); err != nil {
 		logErr(err.Error())
 		return 1
 	}

@@ -72,7 +72,11 @@ func (m *ManifestRepo) RepairManifest(path string, branchesByPath map[string]str
 	for i, project := range manifest.Projects {
 		workingProject, err := workingManifest.GetProjectByPath(project.Path)
 		if err != nil {
-			return nil, fmt.Errorf("project %s does not exist in working manifest", project.Path)
+			// We don't really know what to do with a project that doesn't exist in the working manifest,
+			// which is our source of truth. Our best bet is to just use what we have in the manifest
+			// we're repairing.
+			logErr("Warning: project %s does not exist in working manifest. Using it as it exists in %s.", project.Path, path)
+			continue
 		}
 
 		switch branchMode := workingManifest.ProjectBranchMode(project); branchMode {

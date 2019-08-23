@@ -187,8 +187,8 @@ func initWorkingManifest(c branchCommand, branch string) error {
 }
 
 func Run(c branchCommand, a subcommands.Application, args []string, env subcommands.Env) int {
-	stdoutLog = a.(branchApplication).stdoutLog
-	stderrLog = a.(branchApplication).stderrLog
+	stdoutLog = a.(*branchApplication).stdoutLog
+	stderrLog = a.(*branchApplication).stderrLog
 	// Set output of standard log in case any packages use it.
 	if stdoutLog != nil {
 		log.SetOutput(stdoutLog.Writer())

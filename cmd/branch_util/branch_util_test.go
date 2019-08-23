@@ -392,7 +392,7 @@ func TestCreate(t *testing.T) {
 
 	manifest := r.Harness.Manifest()
 	branch := "new-branch"
-	s := branchApplication{application, nil, nil}
+	s := &branchApplication{application, nil, nil}
 	ret := subcommands.Run(s, []string{
 		"create", "--push", "--root", localRoot,
 		"--file", fullManifestPath(r),
@@ -429,7 +429,7 @@ func TestCreateDryRun(t *testing.T) {
 	assert.NilError(t, err)
 
 	branch := "new-branch"
-	s := branchApplication{application, nil, nil}
+	s := &branchApplication{application, nil, nil}
 	ret := subcommands.Run(s, []string{
 		"create", "--root", localRoot,
 		"--file", fullManifestPath(r),
@@ -450,7 +450,7 @@ func TestCreateRelease(t *testing.T) {
 
 	manifest := r.Harness.Manifest()
 
-	s := branchApplication{application, nil, nil}
+	s := &branchApplication{application, nil, nil}
 	ret := subcommands.Run(s, []string{
 		"create", "--push", "--root", localRoot,
 		"--file", fullManifestPath(r),
@@ -490,7 +490,7 @@ func TestCreateOverwrite(t *testing.T) {
 	manifest := r.Harness.Manifest()
 
 	branch := "old-branch"
-	s := branchApplication{application, nil, nil}
+	s := &branchApplication{application, nil, nil}
 	ret := subcommands.Run(s, []string{
 		"create", "--push", "--root", localRoot,
 		"--force",
@@ -532,7 +532,7 @@ func TestCreateOverwriteMissingForce(t *testing.T) {
 	branch := "old-branch"
 	var stderrBuf bytes.Buffer
 	stderrLog := log.New(&stderrBuf, "", log.LstdFlags|log.Lmicroseconds)
-	s := branchApplication{application, nil, stderrLog}
+	s := &branchApplication{application, nil, stderrLog}
 	ret := subcommands.Run(s, []string{
 		"create", "--push", "--root", localRoot,
 		"--file", fullManifestPath(r),
@@ -572,7 +572,7 @@ func TestCreateExistingVersion(t *testing.T) {
 
 	var stderrBuf bytes.Buffer
 	stderrLog := log.New(&stderrBuf, "", log.LstdFlags|log.Lmicroseconds)
-	s := branchApplication{application, nil, stderrLog}
+	s := &branchApplication{application, nil, stderrLog}
 	ret := subcommands.Run(s, []string{
 		"create", "--push", "--root", localRoot,
 		"--file", fullManifestPath(r),
@@ -596,7 +596,7 @@ func TestRename(t *testing.T) {
 	oldBranch := "old-branch"
 	newBranch := "new-branch"
 
-	s := branchApplication{application, nil, nil}
+	s := &branchApplication{application, nil, nil}
 	ret := subcommands.Run(s, []string{
 		"rename", "--push", "--root", localRoot,
 		"--manifest-url", manifestDir,
@@ -638,7 +638,7 @@ func TestRenameDryRun(t *testing.T) {
 	oldBranch := "old-branch"
 	newBranch := "new-branch"
 
-	s := branchApplication{application, nil, nil}
+	s := &branchApplication{application, nil, nil}
 	ret := subcommands.Run(s, []string{
 		"rename", "--root", localRoot,
 		"--manifest-url", manifestDir,
@@ -666,7 +666,7 @@ func TestRenameOverwrite(t *testing.T) {
 	// Create a branch to rename. To quote the functional tests for `cros branch`:
 	// "This may seem like we depend on the correctness of the code under test, but in practice
 	// the branches to be renamed will be created by `cros branch` anyways."
-	s := branchApplication{application, nil, nil}
+	s := &branchApplication{application, nil, nil}
 	ret := subcommands.Run(s, []string{
 		"create", "--push", "--root", localRoot,
 		"--manifest-url", manifestDir,
@@ -702,7 +702,7 @@ func TestRenameOverwrite(t *testing.T) {
 
 	// Gah! Turns out we actually wanted what's in oldBranch. Let's try force renaming
 	// oldBranch to newBranch, overwriting the existing contents of newBranch in the process.
-	s = branchApplication{application, nil, nil}
+	s = &branchApplication{application, nil, nil}
 	ret = subcommands.Run(s, []string{
 		"rename", "--push", "--force", "--root", localRoot,
 		"--manifest-url", manifestDir,
@@ -740,7 +740,7 @@ func TestRenameOverwriteMissingForce(t *testing.T) {
 
 	var stderrBuf bytes.Buffer
 	stderrLog := log.New(&stderrBuf, "", log.LstdFlags|log.Lmicroseconds)
-	s := branchApplication{application, nil, stderrLog}
+	s := &branchApplication{application, nil, stderrLog}
 	ret := subcommands.Run(s, []string{
 		"rename", "--push", "--root", localRoot,
 		"--manifest-url", manifestDir,
@@ -762,7 +762,7 @@ func TestDelete(t *testing.T) {
 	branchToDelete := "old-branch"
 
 	manifestDir := r.Harness.GetRemotePath(manifestInternalProject)
-	s := branchApplication{application, nil, nil}
+	s := &branchApplication{application, nil, nil}
 	ret := subcommands.Run(s, []string{
 		"delete", "--push", "--force",
 		"--root", localRoot,
@@ -786,7 +786,7 @@ func TestDeleteDryRun(t *testing.T) {
 	branchToDelete := "old-branch"
 
 	manifestDir := r.Harness.GetRemotePath(manifestInternalProject)
-	s := branchApplication{application, nil, nil}
+	s := &branchApplication{application, nil, nil}
 	ret := subcommands.Run(s, []string{
 		"delete", "--force",
 		"--root", localRoot,
@@ -812,7 +812,7 @@ func TestDeleteMissingForce(t *testing.T) {
 	manifestDir := r.Harness.GetRemotePath(manifestInternalProject)
 	var stderrBuf bytes.Buffer
 	stderrLog := log.New(&stderrBuf, "", log.LstdFlags|log.Lmicroseconds)
-	s := branchApplication{application, nil, stderrLog}
+	s := &branchApplication{application, nil, stderrLog}
 	ret := subcommands.Run(s, []string{
 		"delete", "--push",
 		"--root", localRoot,

@@ -287,7 +287,7 @@ func createRemoteBranchesWorker(
 		if force {
 			cmd = append(cmd, "--force")
 		}
-		logOut("Pushing ref %s for project %s.\n", branchName, projectBranch.project.Path)
+		logOut("Pushing ref %s for project %s\n", branchName, projectBranch.project.Path)
 
 		ctx, cancel := context.WithTimeout(context.Background(), gitTimeout)
 		defer cancel()

@@ -16,7 +16,7 @@ var (
 )
 
 var application = &subcommands.DefaultApplication{
-	Name:  "cros branch",
+	Name:  "branch_util",
 	Title: "cros branch tool",
 	Commands: []*subcommands.Command{
 		subcommands.CmdHelp,

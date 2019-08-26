@@ -238,7 +238,7 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 		}
 		workingManifest = *manifest
 	} else {
-		logOut("Downloading and parsing buildspec manifest for %s...\n", c.version)
+		logOut("Downloading and parsing buildspec manifest for %s. This may take a few minutes.\n", c.version)
 		manifest, err := getWorkingManifestForVersion(c.version)
 		if err != nil {
 			err = errors.Annotate(err, "failed to load manifests").Err()

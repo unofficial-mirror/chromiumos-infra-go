@@ -61,7 +61,8 @@ const (
 	projectsInternalXML = `
   <project name="chromeos/manifest-internal"
            path="manifest-internal"
-           remote="cros-internal"/>
+           remote="cros-internal"
+           upstream="refs/heads/master"/>
 
   <project name="chromeos/explicit-pinned"
            path="src/explicit-pinned"
@@ -123,7 +124,8 @@ const (
   <project name="chromeos/manifest-internal"
            path="manifest-internal"
            remote="cros-internal"
-           revision="refs/heads/old-branch"/>
+           revision="refs/heads/old-branch"
+           upstream="refs/heads/old-branch"/>
 
   <project name="chromeos/explicit-pinned"
            path="src/explicit-pinned"
@@ -402,7 +404,7 @@ func TestCreate(t *testing.T) {
 		"--custom", branch,
 		"-j", "2", // Test with two workers for kicks.
 	})
-	assert.Assert(t, ret == 0)
+	assert.Assert(t, ret == 0, "Got return code %d", ret)
 
 	assert.NilError(t, r.AssertCrosBranches([]string{branch}))
 	assert.NilError(t, r.AssertCrosBranchFromManifest(manifest, branch, ""))
@@ -438,7 +440,7 @@ func TestCreateReleaseNonMaster(t *testing.T) {
 		"--file", fullBranchedManifestPath(r),
 		"--release",
 	})
-	assert.Assert(t, ret == 0)
+	assert.Assert(t, ret == 0, "Got return code %d", ret)
 
 	assert.NilError(t, r.AssertCrosBranches([]string{branch}))
 
@@ -478,7 +480,7 @@ func TestCreateDryRun(t *testing.T) {
 		"--file", fullManifestPath(r),
 		"--custom", branch,
 	})
-	assert.Assert(t, ret == 0)
+	assert.Assert(t, ret == 0, "Got return code %d", ret)
 	assertNoRemoteDiff(t, r)
 }
 
@@ -495,7 +497,7 @@ func TestCreateRelease(t *testing.T) {
 		"--file", fullManifestPath(r),
 		"--release",
 	})
-	assert.Assert(t, ret == 0)
+	assert.Assert(t, ret == 0, "Got return code %d", ret)
 
 	branch := "release-R12-3.B"
 	assert.NilError(t, r.AssertCrosBranches([]string{branch}))
@@ -532,7 +534,7 @@ func TestCreateOverwrite(t *testing.T) {
 		"--file", fullManifestPath(r),
 		"--custom", branch,
 	})
-	assert.Assert(t, ret == 0)
+	assert.Assert(t, ret == 0, "Got return code %d", ret)
 
 	assert.NilError(t, r.AssertCrosBranches([]string{branch}))
 	assert.NilError(t, r.AssertCrosBranchFromManifest(manifest, branch, ""))
@@ -629,7 +631,7 @@ func TestRename(t *testing.T) {
 		"--manifest-url", manifestDir,
 		oldBranch, newBranch,
 	})
-	assert.Assert(t, ret == 0)
+	assert.Assert(t, ret == 0, "Got return code %d", ret)
 
 	assert.NilError(t, r.AssertCrosBranches([]string{newBranch}))
 	assert.NilError(t, r.AssertCrosBranchesMissing([]string{oldBranch}))
@@ -671,7 +673,7 @@ func TestRenameDryRun(t *testing.T) {
 		"--manifest-url", manifestDir,
 		oldBranch, newBranch,
 	})
-	assert.Assert(t, ret == 0)
+	assert.Assert(t, ret == 0, "Got return code %d", ret)
 
 	assertNoRemoteDiff(t, r)
 }
@@ -700,7 +702,7 @@ func TestRenameOverwrite(t *testing.T) {
 		"--file", fullManifestPath(r),
 		"--custom", newBranch,
 	})
-	assert.Assert(t, ret == 0)
+	assert.Assert(t, ret == 0, "Got return code %d", ret)
 
 	assert.NilError(t, r.AssertCrosBranches([]string{newBranch}))
 	assert.NilError(t, r.AssertCrosBranchFromManifest(manifest, newBranch, ""))
@@ -735,7 +737,7 @@ func TestRenameOverwrite(t *testing.T) {
 		"--manifest-url", manifestDir,
 		oldBranch, newBranch,
 	})
-	assert.Assert(t, ret == 0)
+	assert.Assert(t, ret == 0, "Got return code %d", ret)
 
 	assert.NilError(t, r.AssertCrosBranches([]string{newBranch}))
 	assert.NilError(t, r.AssertCrosBranchesMissing([]string{oldBranch}))
@@ -795,7 +797,7 @@ func TestDelete(t *testing.T) {
 		"--manifest-url", manifestDir,
 		branchToDelete,
 	})
-	assert.Assert(t, ret == 0)
+	assert.Assert(t, ret == 0, "Got return code %d", ret)
 
 	assert.NilError(t, r.AssertCrosBranchesMissing([]string{branchToDelete}))
 }
@@ -818,7 +820,7 @@ func TestDeleteDryRun(t *testing.T) {
 		"--manifest-url", manifestDir,
 		branchToDelete,
 	})
-	assert.Assert(t, ret == 0)
+	assert.Assert(t, ret == 0, "Got return code %d", ret)
 
 	assertNoRemoteDiff(t, r)
 }

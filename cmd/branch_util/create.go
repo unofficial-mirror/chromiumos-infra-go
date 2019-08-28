@@ -185,7 +185,7 @@ func (c *createBranchRun) bumpVersion(
 	versionProjectCheckout, err := getProjectCheckout(versionProjectPath, opts)
 	defer os.RemoveAll(versionProjectCheckout)
 	if err != nil {
-		return errors.Annotate(err, "local checkout of version project failed").Err()
+		return errors.Annotate(err, "bumpVersion: local checkout of version project failed").Err()
 	}
 
 	version, err := mv.GetVersionInfoFromRepo(versionProjectCheckout)
@@ -243,7 +243,7 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 		if err != nil {
 			err = errors.Annotate(err, "failed to load manifests").Err()
 			logErr("%s\n", err.Error())
-			return 1
+			return 2
 		}
 		workingManifest = *manifest
 	}
@@ -256,9 +256,12 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 	manifestInternal, err := workingManifest.GetUniqueProject("chromeos/manifest-internal")
 	if err != nil {
 		logErr(errors.Annotate(err, "Could not get chromeos/manifest-internal project.").Err().Error())
-		return 1
+		return 3
 	}
 	sourceRevision := manifestInternal.Revision
+	sourceUpstream := git.StripRefs(manifestInternal.Upstream)
+	logErr("Using sourceRevision %s for manifestInternal", sourceRevision)
+	logErr("Using sourceUpstream %s for manifestInternal", sourceUpstream)
 
 	// Validate the version.
 	// Double check that the checkout has a zero patch number. Otherwise,
@@ -267,7 +270,7 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 	if err != nil {
 		err = errors.Annotate(err, "could not get project %s from manifest", versionProjectPath).Err()
 		logErr("%s\n", err)
-		return 1
+		return 4
 	}
 	opts := &checkoutOptions{
 		depth: 1,
@@ -278,18 +281,18 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 	if err != nil {
 		err = errors.Annotate(err, "local checkout of version project failed").Err()
 		logErr("%s\n", err.Error())
-		return 1
+		return 5
 	}
 
 	vinfo, err := mv.GetVersionInfoFromRepo(versionProjectCheckout)
 	if err != nil {
 		logErr(errors.Annotate(err, "error reading version").Err().Error())
-		return 1
+		return 6
 	}
 	if vinfo.PatchNumber != 0 {
 		logErr("Cannot branch version with nonzero patch number (version %s).",
 			vinfo.VersionString())
-		return 1
+		return 7
 	}
 	logOut("Version found: %s.\n", vinfo.VersionString())
 
@@ -299,13 +302,13 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 	exists, err := branchExists(manifestInternal, pattern)
 	if err != nil {
 		logErr(err.Error())
-		return 1
+		return 8
 	}
 	if exists {
 		if !c.Force {
 			logErr("Already branched %s. Please rerun with --force if you "+
 				"would like to proceed.", vinfo.VersionString())
-			return 1
+			return 9
 		} else {
 			logOut("Overwriting branch with version %s (--force was set).\n", vinfo.VersionString())
 		}
@@ -319,7 +322,7 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 	componentToBump, err := whichVersionShouldBump(vinfo)
 	if err != nil {
 		logErr(err.Error())
-		return 1
+		return 10
 	}
 
 	// Generate git branch names.
@@ -331,7 +334,7 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 		err = assertBranchesDoNotExist(branches)
 		if err != nil {
 			logErr(err.Error())
-			return 1
+			return 11
 		}
 	}
 	logOut("Done validating project branches.\n")
@@ -339,34 +342,37 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 	// Repair manifest repositories.
 	if err = repairManifestRepositories(branches, !c.Push, c.Force); err != nil {
 		logErr(err.Error())
-		return 1
+		return 12
 	}
 	// Create git branches for new branch.
 	if err = createRemoteBranches(branches, !c.Push, c.Force); err != nil {
 		logErr(err.Error())
-		return 1
+		return 13
 	}
 
 	// Bump version.
-	commitMsg := fmt.Sprintf("Bump %s number after creating branch %s.", componentToBump, branchName)
+	commitMsg := fmt.Sprintf("Bump %s number after creating branch %s", componentToBump, branchName)
+	logErr(commitMsg)
 	if err = c.bumpVersion(componentToBump, branchName, commitMsg, !c.Push); err != nil {
 		logErr(err.Error())
-		return 1
+		return 14
 	}
 
 	if c.release {
 		// Bump milestone after creating release branch.
-		commitMsg = fmt.Sprintf("Bump milestone after creating release branch %s.", branchName)
-		if err = c.bumpVersion(mv.ChromeBranch, sourceRevision, commitMsg, !c.Push); err != nil {
+		commitMsg = fmt.Sprintf("Bump milestone after creating release branch %s", branchName)
+		logErr(commitMsg)
+		if err = c.bumpVersion(mv.ChromeBranch, sourceUpstream, commitMsg, !c.Push); err != nil {
 			logErr(err.Error())
-			return 1
+			return 15
 		}
 		// Also need to bump the build number, otherwise two release will have conflicting versions.
 		// See crbug.com/213075.
-		commitMsg = fmt.Sprintf("Bump build number after creating release branch %s.", branchName)
-		if err = c.bumpVersion(mv.Build, sourceRevision, commitMsg, !c.Push); err != nil {
+		commitMsg = fmt.Sprintf("Bump build number after creating release branch %s", branchName)
+		logErr(commitMsg)
+		if err = c.bumpVersion(mv.Build, sourceUpstream, commitMsg, !c.Push); err != nil {
 			logErr(err.Error())
-			return 1
+			return 16
 		}
 	} else {
 		// For non-release branches, we also have to bump some component of the source branch.
@@ -384,12 +390,13 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 		} else {
 			sourceComponentToBump = mv.Build
 		}
-		commitMsg = fmt.Sprintf("Bump %s number for source branch after creating branch %s.",
-			sourceComponentToBump, branchName)
-		err = c.bumpVersion(sourceComponentToBump, sourceRevision, commitMsg, !c.Push)
+		commitMsg = fmt.Sprintf("Bump %s number for source branch %s after creating branch %s",
+			sourceComponentToBump, sourceUpstream, branchName)
+		logErr(commitMsg)
+		err = c.bumpVersion(sourceComponentToBump, sourceUpstream, commitMsg, !c.Push)
 		if err != nil {
 			logErr(err.Error())
-			return 1
+			return 17
 		}
 	}
 

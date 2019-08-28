@@ -4,6 +4,8 @@
 package generator
 
 import (
+	"testing"
+
 	_struct "github.com/golang/protobuf/ptypes/struct"
 	"github.com/golang/protobuf/ptypes/wrappers"
 	"github.com/google/go-cmp/cmp"
@@ -12,7 +14,6 @@ import (
 	"go.chromium.org/chromiumos/infra/proto/go/chromiumos"
 	"go.chromium.org/chromiumos/infra/proto/go/testplans"
 	bbproto "go.chromium.org/luci/buildbucket/proto"
-	"testing"
 )
 
 const (
@@ -72,8 +73,9 @@ func makeBuildbucketBuild(buildTarget string, status bbproto.Status, changes []*
 func TestCreateCombinedTestPlan_oneUnitSuccess(t *testing.T) {
 	kevinHWTestCfg := &testplans.HwTestCfg{HwTest: []*testplans.HwTestCfg_HwTest{
 		{
-			Suite:       "HW kevin",
-			SkylabBoard: "kev",
+			Suite:           "HW kevin",
+			SkylabBoard:     "kev",
+			HwTestSuiteType: testplans.HwTestCfg_AUTOTEST,
 		},
 	}}
 	testReqs := &testplans.TargetTestRequirementsCfg{
@@ -129,7 +131,7 @@ func TestCreateCombinedTestPlan_manyUnitSuccess(t *testing.T) {
 		{SuiteName: "Tast kevin"},
 	}}
 	kevinVMTestCfg := &testplans.VmTestCfg{VmTest: []*testplans.VmTestCfg_VmTest{
-		{TestType: "VM kevin"},
+		{TestSuite: "VM kevin"},
 	}}
 	testReqs := &testplans.TargetTestRequirementsCfg{
 		PerTargetTestRequirements: []*testplans.PerTargetTestRequirements{
@@ -225,10 +227,11 @@ func TestCreateCombinedTestPlan_successDespiteOneFailedBuilder(t *testing.T) {
 	// for kevin.
 
 	reefHwTestCfg := &testplans.HwTestCfg{HwTest: []*testplans.HwTestCfg_HwTest{
-		{SkylabBoard: "some reef"},
+		{SkylabBoard: "some reef",
+			HwTestSuiteType: testplans.HwTestCfg_AUTOTEST},
 	}}
 	kevinVMTestCfg := &testplans.VmTestCfg{VmTest: []*testplans.VmTestCfg_VmTest{
-		{TestType: "VM kevin"},
+		{TestSuite: "VM kevin"},
 	}}
 	testReqs := &testplans.TargetTestRequirementsCfg{
 		PerTargetTestRequirements: []*testplans.PerTargetTestRequirements{
@@ -291,8 +294,9 @@ func TestCreateCombinedTestPlan_successDespiteOneFailedBuilder(t *testing.T) {
 func TestCreateCombinedTestPlan_skipsUnnecessaryHardwareTest(t *testing.T) {
 	kevinHWTestCfg := &testplans.HwTestCfg{HwTest: []*testplans.HwTestCfg_HwTest{
 		{
-			Suite:       "HW kevin",
-			SkylabBoard: "kev",
+			Suite:           "HW kevin",
+			SkylabBoard:     "kev",
+			HwTestSuiteType: testplans.HwTestCfg_AUTOTEST,
 		},
 	}}
 	testReqs := &testplans.TargetTestRequirementsCfg{
@@ -340,14 +344,16 @@ func TestCreateCombinedTestPlan_skipsUnnecessaryHardwareTest(t *testing.T) {
 func TestCreateCombinedTestPlan_doesOnlyTest(t *testing.T) {
 	kevinHWTestCfg := &testplans.HwTestCfg{HwTest: []*testplans.HwTestCfg_HwTest{
 		{
-			Suite:       "HW kevin",
-			SkylabBoard: "kev",
+			Suite:           "HW kevin",
+			SkylabBoard:     "kev",
+			HwTestSuiteType: testplans.HwTestCfg_AUTOTEST,
 		},
 	}}
 	bobHWTestCfg := &testplans.HwTestCfg{HwTest: []*testplans.HwTestCfg_HwTest{
 		{
-			Suite:       "HW bob",
-			SkylabBoard: "bob board",
+			Suite:           "HW bob",
+			SkylabBoard:     "bob board",
+			HwTestSuiteType: testplans.HwTestCfg_AUTOTEST,
 		},
 	}}
 	testReqs := &testplans.TargetTestRequirementsCfg{
@@ -431,8 +437,9 @@ func TestCreateCombinedTestPlan_inputMissingTargetType(t *testing.T) {
 func TestCreateCombinedTestPlan_skipsPointlessBuild(t *testing.T) {
 	kevinHWTestCfg := &testplans.HwTestCfg{HwTest: []*testplans.HwTestCfg_HwTest{
 		{
-			Suite:       "HW kevin",
-			SkylabBoard: "kev",
+			Suite:           "HW kevin",
+			SkylabBoard:     "kev",
+			HwTestSuiteType: testplans.HwTestCfg_AUTOTEST,
 		},
 	}}
 	testReqs := &testplans.TargetTestRequirementsCfg{
@@ -497,7 +504,8 @@ func TestCreateCombinedTestPlan_skipsNonCritical(t *testing.T) {
 	// In this test, the build is not critical, so no test unit will be produced.
 
 	reefHwTestCfg := &testplans.HwTestCfg{HwTest: []*testplans.HwTestCfg_HwTest{
-		{SkylabBoard: "my reef"},
+		{SkylabBoard: "my reef",
+			HwTestSuiteType: testplans.HwTestCfg_AUTOTEST},
 	}}
 	testReqs := &testplans.TargetTestRequirementsCfg{
 		PerTargetTestRequirements: []*testplans.PerTargetTestRequirements{
@@ -545,8 +553,9 @@ func TestCreateCombinedTestPlan_skipsNonCritical(t *testing.T) {
 func TestCreateCombinedTestPlan_ignoresNonArtifactBuild(t *testing.T) {
 	kevinHWTestCfg := &testplans.HwTestCfg{HwTest: []*testplans.HwTestCfg_HwTest{
 		{
-			Suite:       "HW kevin",
-			SkylabBoard: "kev",
+			Suite:           "HW kevin",
+			SkylabBoard:     "kev",
+			HwTestSuiteType: testplans.HwTestCfg_AUTOTEST,
 		},
 	}}
 	testReqs := &testplans.TargetTestRequirementsCfg{
@@ -577,6 +586,62 @@ func TestCreateCombinedTestPlan_ignoresNonArtifactBuild(t *testing.T) {
 	}
 
 	expectedTestPlan := &testplans.GenerateTestPlanResponse{}
+	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, cmpopts.EquateEmpty()); diff != "" {
+		t.Errorf("CreateCombinedTestPlan bad result (-want/+got)\n%s", diff)
+	}
+}
+
+func TestCreateCombinedTestPlan_skipsNonTastTest(t *testing.T) {
+	kevinHWTestCfg := &testplans.HwTestCfg{HwTest: []*testplans.HwTestCfg_HwTest{
+		{
+			Suite:           "HW kevin",
+			SkylabBoard:     "kev",
+			HwTestSuiteType: testplans.HwTestCfg_AUTOTEST,
+		},
+	}}
+	kevinVmTestCfg := &testplans.VmTestCfg{VmTest: []*testplans.VmTestCfg_VmTest{
+		{
+			TestSuite: "some sweet VM suite",
+		},
+	}}
+	testReqs := &testplans.TargetTestRequirementsCfg{
+		PerTargetTestRequirements: []*testplans.PerTargetTestRequirements{
+			{TargetCriteria: &testplans.TargetCriteria{
+				TargetType: &testplans.TargetCriteria_BuildTarget{BuildTarget: "kevin"}},
+				HwTestCfg: kevinHWTestCfg,
+				VmTestCfg: kevinVmTestCfg},
+		},
+	}
+	sourceTreeTestCfg := &testplans.SourceTreeTestCfg{
+		SourceTreeTestRestriction: []*testplans.SourceTreeTestRestriction{
+			{SourceTree: &testplans.SourceTree{Path: "no/tast/tests/here/some/file"},
+				TestRestriction: &testplans.TestRestriction{DisableNonTastTests: true}}}}
+	bbBuilds := []*bbproto.Build{
+		makeBuildbucketBuild("kevin", bbproto.Status_SUCCESS, []*bbproto.GerritChange{
+			{Host: "test-review.googlesource.com", Change: 123, Patchset: 2},
+		}, true),
+	}
+	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{
+		{
+			ChangeRevKey: gerrit.ChangeRevKey{
+				Host:      "test-review.googlesource.com",
+				ChangeNum: 123,
+				Revision:  2,
+			},
+			Branch:  "refs/heads/master",
+			Project: "chromiumos/test/repo/name",
+			Files:   []string{"some/file"},
+		},
+	})
+	repoToBranchToSrcRoot := map[string]map[string]string{"chromiumos/test/repo/name": {"refs/heads/master": "no/tast/tests/here"}}
+
+	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, chRevData, repoToBranchToSrcRoot)
+	if err != nil {
+		t.Error(err)
+	}
+
+	expectedTestPlan := &testplans.GenerateTestPlanResponse{}
+
 	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, cmpopts.EquateEmpty()); diff != "" {
 		t.Errorf("CreateCombinedTestPlan bad result (-want/+got)\n%s", diff)
 	}

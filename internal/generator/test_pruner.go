@@ -18,12 +18,14 @@ type testType int
 const (
 	hw testType = iota
 	vm
+	nonTast
 )
 
 var (
 	testTypeFilter = map[testType]func(testReqs *testplans.TestRestriction) bool{
-		hw: func(testReqs *testplans.TestRestriction) bool { return testReqs.DisableHwTests },
-		vm: func(testReqs *testplans.TestRestriction) bool { return testReqs.DisableVmTests },
+		hw:      func(testReqs *testplans.TestRestriction) bool { return testReqs.DisableHwTests },
+		vm:      func(testReqs *testplans.TestRestriction) bool { return testReqs.DisableVmTests },
+		nonTast: func(testReqs *testplans.TestRestriction) bool { return testReqs.DisableNonTastTests },
 	}
 )
 
@@ -34,6 +36,7 @@ func (tt testType) String() string {
 type testPruneResult struct {
 	disableHWTests       bool
 	disableVMTests       bool
+	disableNonTastTests  bool
 	onlyTestBuildTargets map[BuildTarget]bool
 }
 
@@ -96,6 +99,19 @@ func extractPruneResult(
 			}
 		}
 	}
+	disableNonTastTests := true
+	for _, fileSrcPath := range srcPaths {
+		if disableNonTastTests {
+			disableNonTastTestsForPath, err := canDisableTestingForPath(fileSrcPath, sourceTreeCfg, nonTast)
+			if err != nil {
+				return result, err
+			}
+			if !disableNonTastTestsForPath {
+				log.Printf("cannot disable non-Tast testing due to file %s", fileSrcPath)
+				disableNonTastTests = false
+			}
+		}
+	}
 	canOnlyTestSomeBuildTargets := true
 	onlyTestBuildTargets := make(map[BuildTarget]bool)
 	for _, fileSrcPath := range srcPaths {
@@ -118,6 +134,7 @@ func extractPruneResult(
 	return &testPruneResult{
 			disableHWTests:       disableHW,
 			disableVMTests:       disableVM,
+			disableNonTastTests:  disableNonTastTests,
 			onlyTestBuildTargets: onlyTestBuildTargets},
 		nil
 }

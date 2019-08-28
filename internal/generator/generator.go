@@ -172,21 +172,37 @@ targetLoop:
 			} else if pruneResult.canSkipForOnlyTestRule(tbr.buildTarget) {
 				log.Printf("Using OnlyTest rule to skip HW testing for %s", tbr.buildTarget)
 			} else {
-				for _, hw := range pttr.HwTestCfg.HwTest {
-					hw.Common = withCritical(hw.Common, critical)
+				if pruneResult.disableNonTastTests {
+					log.Printf("Pruning non-Tast HW tests for %s", tbr.buildTarget)
+					tastTests := make([]*testplans.HwTestCfg_HwTest, 0)
+					for _, t := range pttr.HwTestCfg.HwTest {
+						if t.HwTestSuiteType == testplans.HwTestCfg_TAST {
+							tastTests = append(tastTests, t)
+						}
+					}
+					pttr.HwTestCfg.HwTest = tastTests
 				}
-				resp.HwTestUnits = append(resp.HwTestUnits, &testplans.HwTestUnit{
-					Common:    tuc,
-					HwTestCfg: pttr.HwTestCfg})
+				if len(pttr.HwTestCfg.HwTest) != 0 {
+					for _, hw := range pttr.HwTestCfg.HwTest {
+						hw.Common = withCritical(hw.Common, critical)
+					}
+					resp.HwTestUnits = append(resp.HwTestUnits, &testplans.HwTestUnit{
+						Common:    tuc,
+						HwTestCfg: pttr.HwTestCfg})
+				}
 			}
 		}
 		if pttr.MoblabVmTestCfg != nil {
-			for _, moblab := range pttr.MoblabVmTestCfg.MoblabTest {
-				moblab.Common = withCritical(moblab.Common, critical)
+			if pruneResult.disableNonTastTests {
+				log.Printf("Pruning moblab tests for %s due to non-Tast rule", tbr.buildTarget)
+			} else {
+				for _, moblab := range pttr.MoblabVmTestCfg.MoblabTest {
+					moblab.Common = withCritical(moblab.Common, critical)
+				}
+				resp.MoblabVmTestUnits = append(resp.MoblabVmTestUnits, &testplans.MoblabVmTestUnit{
+					Common:          tuc,
+					MoblabVmTestCfg: pttr.MoblabVmTestCfg})
 			}
-			resp.MoblabVmTestUnits = append(resp.MoblabVmTestUnits, &testplans.MoblabVmTestUnit{
-				Common:          tuc,
-				MoblabVmTestCfg: pttr.MoblabVmTestCfg})
 		}
 		if pttr.TastVmTestCfg != nil {
 			for _, tastVm := range pttr.TastVmTestCfg.TastVmTest {
@@ -199,6 +215,8 @@ targetLoop:
 		if pttr.VmTestCfg != nil {
 			if pruneResult.disableVMTests {
 				log.Printf("No VM testing needed for %s", tbr.buildTarget)
+			} else if pruneResult.disableNonTastTests {
+				log.Printf("Pruning non-Tast VM tests for %s due to non-Tast rule", tbr.buildTarget)
 			} else {
 				for _, vm := range pttr.VmTestCfg.VmTest {
 					vm.Common = withCritical(vm.Common, critical)

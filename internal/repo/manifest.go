@@ -25,46 +25,62 @@ var (
 
 // Manifest is a top-level Repo definition file.
 type Manifest struct {
-	XMLName  xml.Name  `xml:"manifest"`
-	Includes []Include `xml:"include"`
-	Projects []Project `xml:"project"`
-	Remotes  []Remote  `xml:"remote"`
-	Default  Default   `xml:"default"`
+	XMLName   xml.Name    `xml:"manifest"`
+	Includes  []Include   `xml:"include"`
+	Remotes   []Remote    `xml:"remote"`
+	Default   Default     `xml:"default"`
+	Notice    string      `xml:"notice,omitempty"`
+	RepoHooks []RepoHooks `xml:"repo-hooks"`
+	Projects  []Project   `xml:"project"`
 }
 
 // Project is an element of a manifest containing a Gerrit project to source path definition.
 type Project struct {
-	Path        string       `xml:"path,attr"`
-	Name        string       `xml:"name,attr"`
-	Revision    string       `xml:"revision,attr"`
-	Upstream    string       `xml:"upstream,attr"`
-	RemoteName  string       `xml:"remote,attr"`
+	Path        string       `xml:"path,attr,omitempty"`
+	Name        string       `xml:"name,attr,omitempty"`
+	Revision    string       `xml:"revision,attr,omitempty"`
+	Upstream    string       `xml:"upstream,attr,omitempty"`
+	RemoteName  string       `xml:"remote,attr,omitempty"`
 	Annotations []Annotation `xml:"annotation"`
+	Groups      string       `xml:"groups,attr,omitempty"`
+	SyncC       string       `xml:"sync-c,attr,omitempty"`
+	CopyFiles   []CopyFile   `xml:"copyfile"`
 }
 
 // Annotation is an element of a manifest annotating the parent element.
 type Annotation struct {
-	Name  string `xml:"name,attr"`
-	Value string `xml:"value,attr"`
+	Name  string `xml:"name,attr,omitempty"`
+	Value string `xml:"value,attr,omitempty"`
 }
 
 // Include is a manifest element that imports another manifest file.
 type Include struct {
-	Name string `xml:"name,attr"`
+	Name string `xml:"name,attr,omitempty"`
 }
 
 // Remote is a manifest element that lists a remote.
 type Remote struct {
-	Fetch    string `xml:"fetch,attr"`
-	Name     string `xml:"name,attr"`
-	Revision string `xml:"revision,attr"`
-	Alias    string `xml:"alias,attr"`
+	Fetch    string `xml:"fetch,attr,omitempty"`
+	Name     string `xml:"name,attr,omitempty"`
+	Revision string `xml:"revision,attr,omitempty"`
+	Alias    string `xml:"alias,attr,omitempty"`
 }
 
 // Default is a manifest element that lists the default.
 type Default struct {
-	RemoteName string `xml:"remote,attr"`
-	Revision   string `xml:"revision,attr"`
+	RemoteName string `xml:"remote,attr,omitempty"`
+	Revision   string `xml:"revision,attr,omitempty"`
+	SyncJ      string `xml:"sync-j,attr,omitempty"`
+}
+
+type CopyFile struct {
+	Dest string `xml:"dest,attr,omitempty"`
+	Src  string `xml:"src,attr,omitempty"`
+}
+
+type RepoHooks struct {
+	EnabledList string `xml:"enabled-list,attr,omitempty"`
+	InProject   string `xml:"in-project,attr,omitempty"`
 }
 
 // GitName returns the git name of the remote, which
@@ -439,11 +455,11 @@ func (m *Manifest) GetUniqueProject(name string) (Project, error) {
 
 // Write writes the manifest to the given path.
 func (m *Manifest) Write(path string) error {
-	data, err := xml.Marshal(m)
+	data, err := xml.MarshalIndent(m, "", "  ")
 	if err != nil {
 		return errors.Annotate(err, "failed to write manifest").Err()
 	}
-	err = ioutil.WriteFile(path, data, 0644)
+	err = ioutil.WriteFile(path, []byte(xml.Header+string(data)), 0644)
 	if err != nil {
 		return errors.Annotate(err, "failed to write manifest").Err()
 	}

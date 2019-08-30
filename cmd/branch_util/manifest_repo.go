@@ -136,7 +136,7 @@ func (m *ManifestRepo) listManifests(rootPaths []string) ([]string, error) {
 // RepairManifestsOnDisk repairs the revision and upstream attributes of
 // manifest elements on disk for the given projects.
 func (m *ManifestRepo) RepairManifestsOnDisk(branchesByPath map[string]string) error {
-	log.Printf("Repairing manifest project %s.", m.Project.Name)
+	log.Printf("Repairing manifest project %s", m.Project.Name)
 	manifestPaths, err := m.listManifests([]string{defaultManifest, officialManifest})
 
 	if err != nil {

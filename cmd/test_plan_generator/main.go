@@ -78,7 +78,16 @@ func (c *getTestPlanRun) Run(a subcommands.Application, args []string, env subco
 		return 8
 	}
 
-	changeRevs, err := c.fetchGerritData(bbBuilds)
+	// TODO(crbug/1001689): Remove this after 2019-09-10, as all new orchestrator
+	// runs will provide the GerritChanges via input. We just need to wait for
+	// pre-2019-09-09 AM CQ runs to conclude.
+	for _, b := range bbBuilds {
+		for _, gc := range b.Input.GerritChanges {
+			gerritChanges = append(gerritChanges, gc)
+		}
+	}
+
+	changeRevs, err := c.fetchGerritData(gerritChanges)
 	if err != nil {
 		log.Print(err)
 		return 4
@@ -184,7 +193,7 @@ func readGerritChanges(changesBytes []*testplans.ProtoBytes) ([]*bbproto.GerritC
 	return changes, nil
 }
 
-func (c *getTestPlanRun) fetchGerritData(bbBuilds []*bbproto.Build) (*igerrit.ChangeRevData, error) {
+func (c *getTestPlanRun) fetchGerritData(changes []*bbproto.GerritChange) (*igerrit.ChangeRevData, error) {
 	// Create an authenticated client for Gerrit RPCs, then fetch all required CL data from Gerrit.
 	ctx := context.Background()
 	authOpts, err := c.authFlags.Options()
@@ -196,15 +205,13 @@ func (c *getTestPlanRun) fetchGerritData(bbBuilds []*bbproto.Build) (*igerrit.Ch
 		return nil, err
 	}
 	changeIds := make([]igerrit.ChangeRevKey, 0)
-	for _, build := range bbBuilds {
-		for _, ch := range build.Input.GerritChanges {
-			changeIds = append(changeIds, igerrit.ChangeRevKey{Host: ch.Host, ChangeNum: ch.Change, Revision: int32(ch.Patchset)})
-		}
+	for _, c := range changes {
+		changeIds = append(changeIds, igerrit.ChangeRevKey{Host: c.Host, ChangeNum: c.Change, Revision: int32(c.Patchset)})
 	}
 	chRevData, err := igerrit.GetChangeRevData(authedClient, ctx, changeIds)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fetch CL data from Gerrit. "+
-			"Note that a NotFound error may indicate authorization issues.\n%v", err)
+				"Note that a NotFound error may indicate authorization issues.\n%v", err)
 	}
 	return chRevData, nil
 }

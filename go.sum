@@ -134,6 +134,8 @@ go.chromium.org/chromiumos/infra/proto/go v0.0.0-20190628172914-1bda6bfdc865 h1:
 go.chromium.org/chromiumos/infra/proto/go v0.0.0-20190628172914-1bda6bfdc865/go.mod h1:Y1AiM5bpNKKecKy3wgiBwF9q1PJ/f57z86DpkNrMehk=
 go.chromium.org/chromiumos/infra/proto/go v0.0.0-20190827223950-fc8c687309fa h1:xLC877PMuEV8O6ipfu81UgUWZdFzcWSCg1qH+Xz0PqU=
 go.chromium.org/chromiumos/infra/proto/go v0.0.0-20190827223950-fc8c687309fa/go.mod h1:Y1AiM5bpNKKecKy3wgiBwF9q1PJ/f57z86DpkNrMehk=
+go.chromium.org/chromiumos/infra/proto/go v0.0.0-20190909153709-e45135542414 h1:rRWF38HCxBTyRNQWaf60ilh9DsgX3DGzIqHsxp+bgek=
+go.chromium.org/chromiumos/infra/proto/go v0.0.0-20190909153709-e45135542414/go.mod h1:Y1AiM5bpNKKecKy3wgiBwF9q1PJ/f57z86DpkNrMehk=
 go.chromium.org/luci v0.0.0-20190404171609-14fb4fbce8ea h1:qf3Ri7sv3yJPL4E0iq4hBYn3AFSf2dNNJpuZDBXAT2E=
 go.chromium.org/luci v0.0.0-20190404171609-14fb4fbce8ea/go.mod h1:MIQewVTLvOvc0UioV0JNqTNO/RspKFS0XEeoKrOxsdM=
 go.opencensus.io v0.18.0/go.mod h1:vKdFvxhtzZ9onBp9VKHK8z/sRpBMnKAsufL7wlDrCOA=

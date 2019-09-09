@@ -72,6 +72,12 @@ func (c *getTestPlanRun) Run(a subcommands.Application, args []string, env subco
 		return 3
 	}
 
+	gerritChanges, err := readGerritChanges(req.GerritChanges)
+	if err != nil {
+		log.Print(err)
+		return 8
+	}
+
 	changeRevs, err := c.fetchGerritData(bbBuilds)
 	if err != nil {
 		log.Print(err)
@@ -83,7 +89,7 @@ func (c *getTestPlanRun) Run(a subcommands.Application, args []string, env subco
 		return 5
 	}
 
-	testPlan, err := generator.CreateTestPlan(testReqsConfig, sourceTreeConfig, bbBuilds, changeRevs, *repoToSrcRoot)
+	testPlan, err := generator.CreateTestPlan(testReqsConfig, sourceTreeConfig, bbBuilds, gerritChanges, changeRevs, *repoToSrcRoot)
 	if err != nil {
 		log.Printf("Error creating test plan:\n%v", err)
 		return 6
@@ -161,6 +167,21 @@ func readBuildbucketBuilds(bbBuildsBytes []*testplans.ProtoBytes) ([]*bbproto.Bu
 		log.Printf("Sample buildbucket proto:\n%s", proto.MarshalTextString(bbBuilds[0]))
 	}
 	return bbBuilds, nil
+}
+
+func readGerritChanges(changesBytes []*testplans.ProtoBytes) ([]*bbproto.GerritChange, error) {
+	changes := make([]*bbproto.GerritChange, 0)
+	for _, changeBytes := range changesBytes {
+		change := &bbproto.GerritChange{}
+		if err := proto.Unmarshal(changeBytes.SerializedProto, change); err != nil {
+			return changes, fmt.Errorf("Couldn't decode %s as a GerritChange\n%v", changeBytes.String(), err)
+		}
+		changes = append(changes, change)
+	}
+	if len(changes) > 0 {
+		log.Printf("Sample GerritChange proto:\n%s", proto.MarshalTextString(changes[0]))
+	}
+	return changes, nil
 }
 
 func (c *getTestPlanRun) fetchGerritData(bbBuilds []*bbproto.Build) (*igerrit.ChangeRevData, error) {

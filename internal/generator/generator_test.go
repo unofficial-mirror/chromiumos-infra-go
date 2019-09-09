@@ -28,9 +28,10 @@ var (
 		},
 	}}}
 	simpleFilesByArtifact = _struct.Struct{Fields: simpleFilesByArtifactValue.GetStructValue().Fields}
+	emptyGerritChanges    []*bbproto.GerritChange
 )
 
-func makeBuildbucketBuild(buildTarget string, status bbproto.Status, changes []*bbproto.GerritChange, critical bool) *bbproto.Build {
+func makeBuildbucketBuild(buildTarget string, status bbproto.Status, critical bool) *bbproto.Build {
 	var criticalVal bbproto.Trinary
 	if critical {
 		criticalVal = bbproto.Trinary_YES
@@ -64,9 +65,6 @@ func makeBuildbucketBuild(buildTarget string, status bbproto.Status, changes []*
 		},
 		Status: status,
 	}
-	for _, c := range changes {
-		b.Input.GerritChanges = append(b.Input.GerritChanges, c)
-	}
 	return b
 }
 
@@ -90,12 +88,12 @@ func TestCreateCombinedTestPlan_oneUnitSuccess(t *testing.T) {
 			{SourceTree: &testplans.SourceTree{Path: "hw/tests/not/needed/here"},
 				TestRestriction: &testplans.TestRestriction{DisableHwTests: true}}}}
 	bbBuilds := []*bbproto.Build{
-		makeBuildbucketBuild("kevin", bbproto.Status_SUCCESS, []*bbproto.GerritChange{}, true),
+		makeBuildbucketBuild("kevin", bbproto.Status_SUCCESS, true),
 	}
 	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{})
 	repoToBranchToSrcRoot := map[string]map[string]string{"chromiumos/repo/name": {"refs/heads/master": "src/to/file"}}
 
-	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, chRevData, repoToBranchToSrcRoot)
+	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, emptyGerritChanges, chRevData, repoToBranchToSrcRoot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -150,12 +148,8 @@ func TestCreateCombinedTestPlan_manyUnitSuccess(t *testing.T) {
 			{SourceTree: &testplans.SourceTree{Path: "hw/tests/not/needed/here"},
 				TestRestriction: &testplans.TestRestriction{DisableHwTests: true}}}}
 	bbBuilds := []*bbproto.Build{
-		makeBuildbucketBuild("kevin", bbproto.Status_SUCCESS, []*bbproto.GerritChange{
-			{Host: "test-review.googlesource.com", Change: 123, Patchset: 2},
-		}, true),
-		makeBuildbucketBuild("reef", bbproto.Status_SUCCESS, []*bbproto.GerritChange{
-			{Host: "test-review.googlesource.com", Change: 123, Patchset: 2},
-		}, true),
+		makeBuildbucketBuild("kevin", bbproto.Status_SUCCESS, true),
+		makeBuildbucketBuild("reef", bbproto.Status_SUCCESS, true),
 	}
 	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{
 		{
@@ -170,8 +164,9 @@ func TestCreateCombinedTestPlan_manyUnitSuccess(t *testing.T) {
 		},
 	})
 	repoToBranchToSrcRoot := map[string]map[string]string{"chromiumos/repo/name": {"refs/heads/master": "src/to/file"}}
-
-	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, chRevData, repoToBranchToSrcRoot)
+	gerritChanges := []*bbproto.GerritChange{
+		{Host: "test-review.googlesource.com", Change: 123, Patchset: 2}}
+	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, gerritChanges, chRevData, repoToBranchToSrcRoot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -248,12 +243,8 @@ func TestCreateCombinedTestPlan_successDespiteOneFailedBuilder(t *testing.T) {
 			{SourceTree: &testplans.SourceTree{Path: "hw/tests/not/needed/here"},
 				TestRestriction: &testplans.TestRestriction{DisableHwTests: true}}}}
 	bbBuilds := []*bbproto.Build{
-		makeBuildbucketBuild("kevin", bbproto.Status_FAILURE, []*bbproto.GerritChange{
-			{Host: "test-review.googlesource.com", Change: 123, Patchset: 2},
-		}, true),
-		makeBuildbucketBuild("reef", bbproto.Status_SUCCESS, []*bbproto.GerritChange{
-			{Host: "test-review.googlesource.com", Change: 123, Patchset: 2},
-		}, true),
+		makeBuildbucketBuild("kevin", bbproto.Status_FAILURE, true),
+		makeBuildbucketBuild("reef", bbproto.Status_SUCCESS, true),
 	}
 	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{
 		{
@@ -268,8 +259,11 @@ func TestCreateCombinedTestPlan_successDespiteOneFailedBuilder(t *testing.T) {
 		},
 	})
 	repoToBranchToSrcRoot := map[string]map[string]string{"chromiumos/repo/name": {"refs/heads/master": "src/to/file"}}
+	gerritChanges := []*bbproto.GerritChange{
+		{Host: "test-review.googlesource.com", Change: 123, Patchset: 2},
+	}
 
-	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, chRevData, repoToBranchToSrcRoot)
+	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, gerritChanges, chRevData, repoToBranchToSrcRoot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -311,9 +305,7 @@ func TestCreateCombinedTestPlan_skipsUnnecessaryHardwareTest(t *testing.T) {
 			{SourceTree: &testplans.SourceTree{Path: "no/hw/tests/here/some/file"},
 				TestRestriction: &testplans.TestRestriction{DisableHwTests: true}}}}
 	bbBuilds := []*bbproto.Build{
-		makeBuildbucketBuild("kevin", bbproto.Status_SUCCESS, []*bbproto.GerritChange{
-			{Host: "test-review.googlesource.com", Change: 123, Patchset: 2},
-		}, true),
+		makeBuildbucketBuild("kevin", bbproto.Status_SUCCESS, true),
 	}
 	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{
 		{
@@ -328,8 +320,11 @@ func TestCreateCombinedTestPlan_skipsUnnecessaryHardwareTest(t *testing.T) {
 		},
 	})
 	repoToBranchToSrcRoot := map[string]map[string]string{"chromiumos/test/repo/name": {"refs/heads/master": "no/hw/tests/here"}}
+	gerritChanges := []*bbproto.GerritChange{
+		{Host: "test-review.googlesource.com", Change: 123, Patchset: 2},
+	}
 
-	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, chRevData, repoToBranchToSrcRoot)
+	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, gerritChanges, chRevData, repoToBranchToSrcRoot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -374,12 +369,8 @@ func TestCreateCombinedTestPlan_doesOnlyTest(t *testing.T) {
 						{Name: "kevin"}},
 				}}}}
 	bbBuilds := []*bbproto.Build{
-		makeBuildbucketBuild("kevin", bbproto.Status_SUCCESS, []*bbproto.GerritChange{
-			{Host: "test-review.googlesource.com", Change: 123, Patchset: 2},
-		}, true),
-		makeBuildbucketBuild("bob", bbproto.Status_SUCCESS, []*bbproto.GerritChange{
-			{Host: "test-review.googlesource.com", Change: 123, Patchset: 2},
-		}, true),
+		makeBuildbucketBuild("kevin", bbproto.Status_SUCCESS, true),
+		makeBuildbucketBuild("bob", bbproto.Status_SUCCESS, true),
 	}
 	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{
 		{
@@ -394,8 +385,11 @@ func TestCreateCombinedTestPlan_doesOnlyTest(t *testing.T) {
 		},
 	})
 	repoToBranchToSrcRoot := map[string]map[string]string{"chromiumos/test/repo/name": {"refs/heads/master": "no/hw/tests/here"}}
+	gerritChanges := []*bbproto.GerritChange{
+		{Host: "test-review.googlesource.com", Change: 123, Patchset: 2},
+	}
 
-	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, chRevData, repoToBranchToSrcRoot)
+	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, gerritChanges, chRevData, repoToBranchToSrcRoot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -429,7 +423,7 @@ func TestCreateCombinedTestPlan_inputMissingTargetType(t *testing.T) {
 	}
 	sourceTreeTestCfg := &testplans.SourceTreeTestCfg{}
 	bbBuilds := []*bbproto.Build{}
-	if _, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, &gerrit.ChangeRevData{}, map[string]map[string]string{}); err == nil {
+	if _, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, emptyGerritChanges, &gerrit.ChangeRevData{}, map[string]map[string]string{}); err == nil {
 		t.Errorf("Expected an error to be returned")
 	}
 }
@@ -453,9 +447,7 @@ func TestCreateCombinedTestPlan_skipsPointlessBuild(t *testing.T) {
 		SourceTreeTestRestriction: []*testplans.SourceTreeTestRestriction{
 			{SourceTree: &testplans.SourceTree{Path: "hw/tests/not/needed/here"},
 				TestRestriction: &testplans.TestRestriction{DisableHwTests: true}}}}
-	bbBuild := makeBuildbucketBuild("kevin", bbproto.Status_SUCCESS, []*bbproto.GerritChange{
-		{Host: "test-review.googlesource.com", Change: 123, Patchset: 2},
-	}, true)
+	bbBuild := makeBuildbucketBuild("kevin", bbproto.Status_SUCCESS, true)
 	bbBuild.Output.Properties.Fields["pointless_build"] = &_struct.Value{Kind: &_struct.Value_BoolValue{BoolValue: true}}
 	bbBuilds := []*bbproto.Build{bbBuild}
 	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{
@@ -471,8 +463,11 @@ func TestCreateCombinedTestPlan_skipsPointlessBuild(t *testing.T) {
 		},
 	})
 	repoToBranchToSrcRoot := map[string]map[string]string{"chromiumos/repo/name": {"refs/heads/master": "src/to/file"}}
+	gerritChanges := []*bbproto.GerritChange{
+		{Host: "test-review.googlesource.com", Change: 123, Patchset: 2},
+	}
 
-	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, chRevData, repoToBranchToSrcRoot)
+	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, gerritChanges, chRevData, repoToBranchToSrcRoot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -489,12 +484,12 @@ func TestCreateTestPlan_succeedsOnNoBuildTarget(t *testing.T) {
 	sourceTreeTestCfg := &testplans.SourceTreeTestCfg{}
 	bbBuilds := []*bbproto.Build{
 		// build target is empty.
-		makeBuildbucketBuild("", bbproto.Status_FAILURE, []*bbproto.GerritChange{}, true),
+		makeBuildbucketBuild("", bbproto.Status_FAILURE, true),
 	}
 	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{})
 	repoToBranchToSrcRoot := map[string]map[string]string{}
 
-	_, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, chRevData, repoToBranchToSrcRoot)
+	_, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, emptyGerritChanges, chRevData, repoToBranchToSrcRoot)
 	if err != nil {
 		t.Errorf("expected no error, but got %v", err)
 	}
@@ -519,9 +514,7 @@ func TestCreateCombinedTestPlan_skipsNonCritical(t *testing.T) {
 			{SourceTree: &testplans.SourceTree{Path: "hw/tests/not/needed/here"},
 				TestRestriction: &testplans.TestRestriction{DisableHwTests: true}}}}
 	bbBuilds := []*bbproto.Build{
-		makeBuildbucketBuild("reef", bbproto.Status_SUCCESS, []*bbproto.GerritChange{
-			{Host: "test-review.googlesource.com", Change: 123, Patchset: 2},
-		}, false),
+		makeBuildbucketBuild("reef", bbproto.Status_SUCCESS, false),
 	}
 	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{
 		{
@@ -536,8 +529,11 @@ func TestCreateCombinedTestPlan_skipsNonCritical(t *testing.T) {
 		},
 	})
 	repoToBranchToSrcRoot := map[string]map[string]string{"chromiumos/repo/name": {"refs/heads/master": "src/to/file"}}
+	gerritChanges := []*bbproto.GerritChange{
+		{Host: "test-review.googlesource.com", Change: 123, Patchset: 2},
+	}
 
-	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, chRevData, repoToBranchToSrcRoot)
+	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, gerritChanges, chRevData, repoToBranchToSrcRoot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -569,7 +565,7 @@ func TestCreateCombinedTestPlan_ignoresNonArtifactBuild(t *testing.T) {
 		SourceTreeTestRestriction: []*testplans.SourceTreeTestRestriction{
 			{SourceTree: &testplans.SourceTree{Path: "hw/tests/not/needed/here"},
 				TestRestriction: &testplans.TestRestriction{DisableHwTests: true}}}}
-	build := makeBuildbucketBuild("kevin", bbproto.Status_SUCCESS, []*bbproto.GerritChange{}, true)
+	build := makeBuildbucketBuild("kevin", bbproto.Status_SUCCESS, true)
 
 	// Remove the AUTOTEST_FILES files_by_artifact key, thus making this whole
 	// build unusable for testing.
@@ -580,7 +576,7 @@ func TestCreateCombinedTestPlan_ignoresNonArtifactBuild(t *testing.T) {
 	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{})
 	repoToBranchToSrcRoot := map[string]map[string]string{"chromiumos/repo/name": {"refs/heads/master": "src/to/file"}}
 
-	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, chRevData, repoToBranchToSrcRoot)
+	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, emptyGerritChanges, chRevData, repoToBranchToSrcRoot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -617,9 +613,7 @@ func TestCreateCombinedTestPlan_skipsNonTastTest(t *testing.T) {
 			{SourceTree: &testplans.SourceTree{Path: "no/tast/tests/here/some/file"},
 				TestRestriction: &testplans.TestRestriction{DisableNonTastTests: true}}}}
 	bbBuilds := []*bbproto.Build{
-		makeBuildbucketBuild("kevin", bbproto.Status_SUCCESS, []*bbproto.GerritChange{
-			{Host: "test-review.googlesource.com", Change: 123, Patchset: 2},
-		}, true),
+		makeBuildbucketBuild("kevin", bbproto.Status_SUCCESS, true),
 	}
 	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{
 		{
@@ -634,8 +628,11 @@ func TestCreateCombinedTestPlan_skipsNonTastTest(t *testing.T) {
 		},
 	})
 	repoToBranchToSrcRoot := map[string]map[string]string{"chromiumos/test/repo/name": {"refs/heads/master": "no/tast/tests/here"}}
+	gerritChanges := []*bbproto.GerritChange{
+		{Host: "test-review.googlesource.com", Change: 123, Patchset: 2},
+	}
 
-	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, chRevData, repoToBranchToSrcRoot)
+	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, gerritChanges, chRevData, repoToBranchToSrcRoot)
 	if err != nil {
 		t.Error(err)
 	}

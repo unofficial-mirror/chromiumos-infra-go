@@ -52,17 +52,6 @@ func CreateTestPlan(
 		}
 	}
 
-	// If no GerritChanges were provided as input to the program, get changes
-	// instead from the first build.
-	// TODO(crbug/1001689): Remove this after 2019-09-10, as all new orchestrator
-	// runs will provide the proper input.
-	if len(gerritChanges) == 0 {
-		gerritChanges = make([]*bbproto.GerritChange, 0)
-		if len(filteredBbBuilds) > 0 {
-			gerritChanges = append(gerritChanges, filteredBbBuilds[0].Input.GerritChanges...)
-		}
-	}
-
 	// For those changes, what pruning optimizations can be done?
 	pruneResult, err := extractPruneResult(sourceTreeCfg, gerritChanges, changeRevs, repoToBranchToSrcRoot)
 	if err != nil {

@@ -78,15 +78,6 @@ func (c *getTestPlanRun) Run(a subcommands.Application, args []string, env subco
 		return 8
 	}
 
-	// TODO(crbug/1001689): Remove this after 2019-09-10, as all new orchestrator
-	// runs will provide the GerritChanges via input. We just need to wait for
-	// pre-2019-09-09 AM CQ runs to conclude.
-	for _, b := range bbBuilds {
-		for _, gc := range b.Input.GerritChanges {
-			gerritChanges = append(gerritChanges, gc)
-		}
-	}
-
 	changeRevs, err := c.fetchGerritData(gerritChanges)
 	if err != nil {
 		log.Print(err)

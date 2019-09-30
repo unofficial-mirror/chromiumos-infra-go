@@ -12,13 +12,13 @@ import (
 	bbproto "go.chromium.org/luci/buildbucket/proto"
 )
 
-func makeBuilderConfig(name string, isImageBuilder bool, rwMode cros_pb.BuilderConfig_Build_RunWhen_Mode, rwPatterns []string) *cros_pb.BuilderConfig {
+func makeBuilderConfig(name string, isImageBuilder bool, rwMode cros_pb.BuilderConfig_General_RunWhen_Mode, rwPatterns []string) *cros_pb.BuilderConfig {
 	b := &cros_pb.BuilderConfig{
 		Id: &cros_pb.BuilderConfig_Id{
 			Name: name,
 		},
-		Build: &cros_pb.BuilderConfig_Build{
-			RunWhen: &cros_pb.BuilderConfig_Build_RunWhen{
+		General: &cros_pb.BuilderConfig_General{
+			RunWhen: &cros_pb.BuilderConfig_General_RunWhen{
 				Mode:         rwMode,
 				FilePatterns: rwPatterns,
 			},
@@ -59,8 +59,8 @@ func TestCheckBuilders_imageBuilderFiltering(t *testing.T) {
 	}
 
 	b := []*cros_pb.BuilderConfig{
-		makeBuilderConfig("my_image_builder", true, cros_pb.BuilderConfig_Build_RunWhen_ALWAYS_RUN, []string{}),
-		makeBuilderConfig("not_an_image_builder", false, cros_pb.BuilderConfig_Build_RunWhen_ALWAYS_RUN, []string{}),
+		makeBuilderConfig("my_image_builder", true, cros_pb.BuilderConfig_General_RunWhen_ALWAYS_RUN, []string{}),
+		makeBuilderConfig("not_an_image_builder", false, cros_pb.BuilderConfig_General_RunWhen_ALWAYS_RUN, []string{}),
 	}
 
 	res, err := CheckBuilders(b, changes, chRevData, repoToBranchToSrcRoot, cfg)
@@ -84,7 +84,7 @@ func TestCheckBuilders_imageBuilderFiltering(t *testing.T) {
 	}
 }
 
-func TestCheckBuilders_runWhenFilePatternsFiltering(t *testing.T) {
+func TestCheckBuilders_onlyRunOnFileMatch(t *testing.T) {
 	changes := []*bbproto.GerritChange{
 		{Host: "test-review.googlesource.com", Change: 123, Patchset: 2, Project: "chromiumos/public/example"}}
 	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{
@@ -108,8 +108,58 @@ func TestCheckBuilders_runWhenFilePatternsFiltering(t *testing.T) {
 	cfg := testplans_pb.BuildIrrelevanceCfg{}
 
 	b := []*cros_pb.BuilderConfig{
-		makeBuilderConfig("board_to_run", true, cros_pb.BuilderConfig_Build_RunWhen_ONLY_RUN_ON_FILE_MATCH, []string{"**/match_me.txt"}),
-		makeBuilderConfig("board_to_skip", true, cros_pb.BuilderConfig_Build_RunWhen_ONLY_RUN_ON_FILE_MATCH, []string{"not/a/real/dir"}),
+		makeBuilderConfig("board_to_run", true, cros_pb.BuilderConfig_General_RunWhen_ONLY_RUN_ON_FILE_MATCH, []string{"**/match_me.txt"}),
+		makeBuilderConfig("board_to_skip", true, cros_pb.BuilderConfig_General_RunWhen_ONLY_RUN_ON_FILE_MATCH, []string{"not/a/real/dir"}),
+	}
+
+	res, err := CheckBuilders(b, changes, chRevData, repoToBranchToSrcRoot, cfg)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(res.BuildsToRun) != 1 {
+		t.Errorf("Expected BuildsToRun to have 1 element. Instead, %v", res.BuildsToRun)
+	}
+	if res.BuildsToRun[0].GetName() != "board_to_run" {
+		t.Errorf("Expected res.BuildsToRun[0].GetName() == \"board_to_run\". Instead, %v", res.BuildsToRun[0].GetName())
+	}
+	if len(res.SkipForGlobalBuildIrrelevance) != 0 {
+		t.Errorf("Expected SkipForGlobalBuildIrrelevance to be empty. Instead, %v", res.SkipForGlobalBuildIrrelevance)
+	}
+	if len(res.SkipForRunWhenRules) != 1 {
+		t.Errorf("Expected SkipForRunWhenRules to have 1 element. Instead, %v", res.SkipForRunWhenRules)
+	}
+	if res.SkipForRunWhenRules[0].GetName() != "board_to_skip" {
+		t.Errorf("Expected SkipForRunWhenRules[0].GetName() == \"board_to_skip\", instead %v", res.SkipForRunWhenRules[0].GetName())
+	}
+}
+
+func TestCheckBuilders_NoRunOnFileMatch(t *testing.T) {
+	changes := []*bbproto.GerritChange{
+		{Host: "test-review.googlesource.com", Change: 123, Patchset: 2, Project: "chromiumos/public/example"}}
+	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{
+		{
+			ChangeRevKey: gerrit.ChangeRevKey{
+				Host:      "test-review.googlesource.com",
+				ChangeNum: 123,
+				Revision:  2,
+			},
+			Branch:  "refs/heads/master",
+			Project: "chromiumos/public/example",
+			Files: []string{
+				"chromite-maybe/somedir/match_me_1.txt",
+				"chromite-maybe/someotherdir/match_me_2.txt",
+			},
+		},
+	})
+	repoToBranchToSrcRoot := map[string]map[string]string{
+		"chromiumos/public/example": {"refs/heads/master": "src/pub/ex"},
+	}
+
+	cfg := testplans_pb.BuildIrrelevanceCfg{}
+
+	b := []*cros_pb.BuilderConfig{
+		makeBuilderConfig("board_to_skip", true, cros_pb.BuilderConfig_General_RunWhen_NO_RUN_ON_FILE_MATCH, []string{"**/match_me_1.txt", "**/match_me_2.txt"}),
+		makeBuilderConfig("board_to_run", true, cros_pb.BuilderConfig_General_RunWhen_NO_RUN_ON_FILE_MATCH, []string{"not/a/real/dir"}),
 	}
 
 	res, err := CheckBuilders(b, changes, chRevData, repoToBranchToSrcRoot, cfg)

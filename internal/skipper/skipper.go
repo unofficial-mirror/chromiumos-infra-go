@@ -41,17 +41,21 @@ builderLoop:
 			response.SkipForGlobalBuildIrrelevance = append(response.SkipForGlobalBuildIrrelevance, b.GetId())
 			continue builderLoop
 		}
-		switch b.GetBuild().GetRunWhen().GetMode() {
-		case cros_pb.BuilderConfig_Build_RunWhen_ONLY_RUN_ON_FILE_MATCH:
+		switch b.GetGeneral().GetRunWhen().GetMode() {
+		case cros_pb.BuilderConfig_General_RunWhen_ONLY_RUN_ON_FILE_MATCH:
 			if hasAffectedFiles && ignoreByOnlyRunOnFileMatch(affectedFiles, b) {
-				log.Printf("For %v, there's a file required by OnlyRunOnFileMatch rules", b.GetId().GetName())
+				log.Printf("For %v, no files match OnlyRunOnFileMatch rules", b.GetId().GetName())
 				response.SkipForRunWhenRules = append(response.SkipForRunWhenRules, b.GetId())
 				continue builderLoop
 			}
-		case cros_pb.BuilderConfig_Build_RunWhen_ALWAYS_RUN:
-			log.Printf("Builder %v has ALWAYS_RUN RunWhen mode", b.GetId().GetName())
-		case cros_pb.BuilderConfig_Build_RunWhen_MODE_UNSPECIFIED:
-			log.Printf("Builder %v has MODE_UNSPECIFIED RunWhen mode", b.GetId().GetName())
+		case cros_pb.BuilderConfig_General_RunWhen_NO_RUN_ON_FILE_MATCH:
+			if hasAffectedFiles && ignoreByNoRunOnFileMatch(affectedFiles, b) {
+				log.Printf("For %v, all files match NoRunOnFileMatch rules", b.GetId().GetName())
+				response.SkipForRunWhenRules = append(response.SkipForRunWhenRules, b.GetId())
+				continue builderLoop
+			}
+		case cros_pb.BuilderConfig_General_RunWhen_ALWAYS_RUN, cros_pb.BuilderConfig_General_RunWhen_MODE_UNSPECIFIED:
+			log.Printf("Builder %v has %v RunWhen mode", b.GetId().GetName(), b.GetGeneral().GetRunWhen().GetMode())
 		}
 		log.Printf("Must run builder %v", b.GetId().GetName())
 		response.BuildsToRun = append(response.BuildsToRun, b.GetId())
@@ -88,8 +92,8 @@ func ignoreImageBuilders(affectedFiles []string, cfg testplans_pb.BuildIrrelevan
 }
 
 func ignoreByOnlyRunOnFileMatch(affectedFiles []string, b *cros_pb.BuilderConfig) bool {
-	rw := b.GetBuild().GetRunWhen()
-	if rw.GetMode() != cros_pb.BuilderConfig_Build_RunWhen_ONLY_RUN_ON_FILE_MATCH {
+	rw := b.GetGeneral().GetRunWhen()
+	if rw.GetMode() != cros_pb.BuilderConfig_General_RunWhen_ONLY_RUN_ON_FILE_MATCH {
 		log.Printf("Can't apply OnlyRunOnFileMatch rule to %v, since it has mode %v", b.GetId().GetName(), rw.GetMode())
 		return false
 	}
@@ -97,13 +101,47 @@ func ignoreByOnlyRunOnFileMatch(affectedFiles []string, b *cros_pb.BuilderConfig
 		log.Printf("Can't apply OnlyRunOnFileMatch rule to %v, since it has empty FilePatterns", b.GetId().GetName())
 		return false
 	}
-	affectedFiles = findFilesMatchingPatterns(affectedFiles, b.GetBuild().GetRunWhen().GetFilePatterns())
+	affectedFiles = findFilesMatchingPatterns(affectedFiles, b.GetGeneral().GetRunWhen().GetFilePatterns())
 	if len(affectedFiles) == 0 {
 		return true
 	}
 	log.Printf("After considering OnlyRunOnFileMatch rules, the following files require builder %v:\n%v",
 		b.GetId().GetName(), strings.Join(affectedFiles, "\n"))
 	return false
+}
+
+func ignoreByNoRunOnFileMatch(affectedFiles []string, b *cros_pb.BuilderConfig) bool {
+	rw := b.GetGeneral().GetRunWhen()
+	if rw.GetMode() != cros_pb.BuilderConfig_General_RunWhen_NO_RUN_ON_FILE_MATCH {
+		log.Printf("Can't apply NoRunOnFileMatch rule to %v, since it has mode %v", b.GetId().GetName(), rw.GetMode())
+		return false
+	}
+	if len(rw.GetFilePatterns()) == 0 {
+		log.Printf("Can't apply OnlyRunOnFileMatch rule to %v, since it has empty FilePatterns", b.GetId().GetName())
+		return false
+	}
+	matchedFiles := findFilesMatchingPatterns(affectedFiles, b.GetGeneral().GetRunWhen().GetFilePatterns())
+	// If every file matched at least one pattern, we can ignore this builder.
+	if len(affectedFiles) == len(matchedFiles) {
+		return true
+	}
+	log.Printf("After considering NoRunOnFileMatch rules, the following files require builder %v:\n%v",
+		b.GetId().GetName(), strings.Join(sliceDiff(affectedFiles, matchedFiles), "\n"))
+	return false
+}
+
+func sliceDiff(a, b []string) []string {
+	bm := make(map[string]bool)
+	for _, be := range b {
+		bm[be] = true
+	}
+	var diff []string
+	for _, ae := range a {
+		if !bm[ae] {
+			diff = append(diff, ae)
+		}
+	}
+	return diff
 }
 
 func extractAffectedFiles(changes []*bbproto.GerritChange, changeRevs *gerrit.ChangeRevData, repoToSrcRoot map[string]map[string]string) ([]string, error) {

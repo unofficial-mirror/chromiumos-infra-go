@@ -202,7 +202,7 @@ func (c *getTestPlanRun) fetchGerritData(changes []*bbproto.GerritChange) (*iger
 	chRevData, err := igerrit.GetChangeRevData(authedClient, ctx, changeIds)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fetch CL data from Gerrit. "+
-				"Note that a NotFound error may indicate authorization issues.\n%v", err)
+			"Note that a NotFound error may indicate authorization issues.\n%v", err)
 	}
 	return chRevData, nil
 }

@@ -30,7 +30,7 @@ func CreateTestPlan(
 	targetTestReqs *testplans.TargetTestRequirementsCfg,
 	sourceTreeCfg *testplans.SourceTreeTestCfg,
 	unfilteredBbBuilds []*bbproto.Build,
-	gerritChanges	[]*bbproto.GerritChange,
+	gerritChanges []*bbproto.GerritChange,
 	changeRevs *gerrit.ChangeRevData,
 	repoToBranchToSrcRoot map[string]map[string]string) (*testplans.GenerateTestPlanResponse, error) {
 	testPlan := &testplans.GenerateTestPlanResponse{}

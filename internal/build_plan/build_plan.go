@@ -1,7 +1,7 @@
 // Copyright 2019 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-package skipper
+package build_plan
 
 import (
 	"fmt"
@@ -22,9 +22,9 @@ func CheckBuilders(
 	changes []*bbproto.GerritChange,
 	changeRevs *gerrit.ChangeRevData,
 	repoToBranchToSrcRoot map[string]map[string]string,
-	cfg testplans_pb.BuildIrrelevanceCfg) (*cros_pb.BuildSkipperResponse, error) {
+	cfg testplans_pb.BuildIrrelevanceCfg) (*cros_pb.GenerateBuildPlanResponse, error) {
 
-	response := &cros_pb.BuildSkipperResponse{}
+	response := &cros_pb.GenerateBuildPlanResponse{}
 
 	// Get all of the files referenced by each GerritCommit in the Build.
 	affectedFiles, err := extractAffectedFiles(changes, changeRevs, repoToBranchToSrcRoot)

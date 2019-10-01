@@ -13,9 +13,9 @@ import (
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/golang/protobuf/proto"
 	"github.com/maruel/subcommands"
+	"go.chromium.org/chromiumos/infra/go/internal/build_plan"
 	igerrit "go.chromium.org/chromiumos/infra/go/internal/gerrit"
 	"go.chromium.org/chromiumos/infra/go/internal/repo"
-	"go.chromium.org/chromiumos/infra/go/internal/skipper"
 	cros_pb "go.chromium.org/chromiumos/infra/proto/go/chromiumos"
 	testplans_pb "go.chromium.org/chromiumos/infra/proto/go/testplans"
 	"go.chromium.org/luci/auth"
@@ -36,17 +36,17 @@ var (
 
 func cmdCheckSkip(authOpts auth.Options) *subcommands.Command {
 	return &subcommands.Command{
-		UsageLine: "check-skip --input_json=/path/to/input.json --output_json=/path/to/output.json",
-		ShortDesc: "Checks if the which of the provided BuilderConfigs can be skipped",
-		LongDesc:  "Checks if the which of the provided BuilderConfigs can be skipped.",
+		UsageLine: "generate-plan --input_json=/path/to/input.json --output_json=/path/to/output.json",
+		ShortDesc: "Checks which of the provided BuilderConfigs must be run",
+		LongDesc:  "Checks which of the provided BuilderConfigs must be run.",
 		CommandRun: func() subcommands.CommandRun {
 			c := &checkBuild{}
 			c.authFlags = authcli.Flags{}
 			c.authFlags.Register(c.GetFlags(), authOpts)
 			c.Flags.StringVar(&c.inputJson, "input_json", "",
-				"Path to JSON proto representing a BuildSkipperRequest")
+				"Path to JSON proto representing a GenerateBuildPlanRequest")
 			c.Flags.StringVar(&c.outputJson, "output_json", "",
-				"Path to file to write output BuildSkipperResponse JSON proto")
+				"Path to file to write output GenerateBuildPlanResponse JSON proto")
 			return c
 		}}
 }
@@ -83,7 +83,7 @@ func (c *checkBuild) Run(a subcommands.Application, args []string, env subcomman
 		return 5
 	}
 
-	resp, err := skipper.CheckBuilders(req.BuilderConfigs, changes, changeRevs, *repoToSrcRoot, *cfg)
+	resp, err := build_plan.CheckBuilders(req.BuilderConfigs, changes, changeRevs, *repoToSrcRoot, *cfg)
 	if err != nil {
 		log.Printf("Error checking which builds can be skipped:\n%v", err)
 		return 6
@@ -103,15 +103,15 @@ type checkBuild struct {
 	outputJson string
 }
 
-func (c *checkBuild) readInputJson() (*cros_pb.BuildSkipperRequest, error) {
+func (c *checkBuild) readInputJson() (*cros_pb.GenerateBuildPlanRequest, error) {
 	inputBytes, err := ioutil.ReadFile(c.inputJson)
 	log.Printf("Request is:\n%s", string(inputBytes))
 	if err != nil {
 		return nil, fmt.Errorf("Failed reading input_json\n%v", err)
 	}
-	req := &cros_pb.BuildSkipperRequest{}
+	req := &cros_pb.GenerateBuildPlanRequest{}
 	if err := unmarshaler.Unmarshal(bytes.NewReader(inputBytes), req); err != nil {
-		return nil, fmt.Errorf("Couldn't decode %s as a chromiumos.BuildSkipperRequest\n%v", c.inputJson, err)
+		return nil, fmt.Errorf("Couldn't decode %s as a chromiumos.GenerateBuildPlanRequest\n%v", c.inputJson, err)
 	}
 	return req, nil
 }
@@ -200,7 +200,7 @@ func (c *checkBuild) getRepoToSourceRoot(manifestCommit string) (*map[string]map
 	return &repoToRemoteBranchToSrcRoot, nil
 }
 
-func (c *checkBuild) writeOutputJson(resp *cros_pb.BuildSkipperResponse) error {
+func (c *checkBuild) writeOutputJson(resp *cros_pb.GenerateBuildPlanResponse) error {
 	marshal := &jsonpb.Marshaler{EmitDefaults: true, Indent: "  "}
 	jsonOutput, err := marshal.MarshalToString(resp)
 	if err != nil {
@@ -216,7 +216,7 @@ func (c *checkBuild) writeOutputJson(resp *cros_pb.BuildSkipperResponse) error {
 
 func GetApplication(authOpts auth.Options) *cli.Application {
 	return &cli.Application{
-		Name: "build_skipper",
+		Name: "build_plan_generator",
 
 		Context: func(ctx context.Context) context.Context {
 			return ctx

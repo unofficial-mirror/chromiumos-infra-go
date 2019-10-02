@@ -85,7 +85,7 @@ func TestCreateCombinedTestPlan_oneUnitSuccess(t *testing.T) {
 	}
 	sourceTreeTestCfg := &testplans.SourceTreeTestCfg{
 		SourceTreeTestRestriction: []*testplans.SourceTreeTestRestriction{
-			{SourceTree: &testplans.SourceTree{Path: "hw/tests/not/needed/here"},
+			{FilePattern: &testplans.FilePattern{Pattern: "hw/tests/not/needed/here/**"},
 				TestRestriction: &testplans.TestRestriction{DisableHwTests: true}}}}
 	bbBuilds := []*bbproto.Build{
 		makeBuildbucketBuild("kevin", bbproto.Status_SUCCESS, true),
@@ -145,7 +145,7 @@ func TestCreateCombinedTestPlan_manyUnitSuccess(t *testing.T) {
 	}
 	sourceTreeTestCfg := &testplans.SourceTreeTestCfg{
 		SourceTreeTestRestriction: []*testplans.SourceTreeTestRestriction{
-			{SourceTree: &testplans.SourceTree{Path: "hw/tests/not/needed/here"},
+			{FilePattern: &testplans.FilePattern{Pattern: "hw/tests/not/needed/here/**"},
 				TestRestriction: &testplans.TestRestriction{DisableHwTests: true}}}}
 	bbBuilds := []*bbproto.Build{
 		makeBuildbucketBuild("kevin", bbproto.Status_SUCCESS, true),
@@ -240,7 +240,7 @@ func TestCreateCombinedTestPlan_successDespiteOneFailedBuilder(t *testing.T) {
 	}
 	sourceTreeTestCfg := &testplans.SourceTreeTestCfg{
 		SourceTreeTestRestriction: []*testplans.SourceTreeTestRestriction{
-			{SourceTree: &testplans.SourceTree{Path: "hw/tests/not/needed/here"},
+			{FilePattern: &testplans.FilePattern{Pattern: "hw/tests/not/needed/here/**"},
 				TestRestriction: &testplans.TestRestriction{DisableHwTests: true}}}}
 	bbBuilds := []*bbproto.Build{
 		makeBuildbucketBuild("kevin", bbproto.Status_FAILURE, true),
@@ -302,7 +302,7 @@ func TestCreateCombinedTestPlan_skipsUnnecessaryHardwareTest(t *testing.T) {
 	}
 	sourceTreeTestCfg := &testplans.SourceTreeTestCfg{
 		SourceTreeTestRestriction: []*testplans.SourceTreeTestRestriction{
-			{SourceTree: &testplans.SourceTree{Path: "no/hw/tests/here/some/file"},
+			{FilePattern: &testplans.FilePattern{Pattern: "no/hw/tests/here/some/**"},
 				TestRestriction: &testplans.TestRestriction{DisableHwTests: true}}}}
 	bbBuilds := []*bbproto.Build{
 		makeBuildbucketBuild("kevin", bbproto.Status_SUCCESS, true),
@@ -363,7 +363,7 @@ func TestCreateCombinedTestPlan_doesOnlyTest(t *testing.T) {
 	}
 	sourceTreeTestCfg := &testplans.SourceTreeTestCfg{
 		SourceTreeTestRestriction: []*testplans.SourceTreeTestRestriction{
-			{SourceTree: &testplans.SourceTree{Path: "no/hw/tests/here/some/file"},
+			{FilePattern: &testplans.FilePattern{Pattern: "no/hw/tests/here/some/**"},
 				TestRestriction: &testplans.TestRestriction{
 					OnlyTestBuildTargets: []*chromiumos.BuildTarget{
 						{Name: "kevin"}},
@@ -445,7 +445,7 @@ func TestCreateCombinedTestPlan_skipsPointlessBuild(t *testing.T) {
 	}
 	sourceTreeTestCfg := &testplans.SourceTreeTestCfg{
 		SourceTreeTestRestriction: []*testplans.SourceTreeTestRestriction{
-			{SourceTree: &testplans.SourceTree{Path: "hw/tests/not/needed/here"},
+			{FilePattern: &testplans.FilePattern{Pattern: "hw/tests/not/needed/here/**"},
 				TestRestriction: &testplans.TestRestriction{DisableHwTests: true}}}}
 	bbBuild := makeBuildbucketBuild("kevin", bbproto.Status_SUCCESS, true)
 	bbBuild.Output.Properties.Fields["pointless_build"] = &_struct.Value{Kind: &_struct.Value_BoolValue{BoolValue: true}}
@@ -511,7 +511,7 @@ func TestCreateCombinedTestPlan_skipsNonCritical(t *testing.T) {
 	}
 	sourceTreeTestCfg := &testplans.SourceTreeTestCfg{
 		SourceTreeTestRestriction: []*testplans.SourceTreeTestRestriction{
-			{SourceTree: &testplans.SourceTree{Path: "hw/tests/not/needed/here"},
+			{FilePattern: &testplans.FilePattern{Pattern: "hw/tests/not/needed/here/**"},
 				TestRestriction: &testplans.TestRestriction{DisableHwTests: true}}}}
 	bbBuilds := []*bbproto.Build{
 		makeBuildbucketBuild("reef", bbproto.Status_SUCCESS, false),
@@ -563,7 +563,7 @@ func TestCreateCombinedTestPlan_ignoresNonArtifactBuild(t *testing.T) {
 	}
 	sourceTreeTestCfg := &testplans.SourceTreeTestCfg{
 		SourceTreeTestRestriction: []*testplans.SourceTreeTestRestriction{
-			{SourceTree: &testplans.SourceTree{Path: "hw/tests/not/needed/here"},
+			{FilePattern: &testplans.FilePattern{Pattern: "hw/tests/not/needed/here/**"},
 				TestRestriction: &testplans.TestRestriction{DisableHwTests: true}}}}
 	build := makeBuildbucketBuild("kevin", bbproto.Status_SUCCESS, true)
 
@@ -610,7 +610,7 @@ func TestCreateCombinedTestPlan_skipsNonTastTest(t *testing.T) {
 	}
 	sourceTreeTestCfg := &testplans.SourceTreeTestCfg{
 		SourceTreeTestRestriction: []*testplans.SourceTreeTestRestriction{
-			{SourceTree: &testplans.SourceTree{Path: "no/tast/tests/here/some/file"},
+			{FilePattern: &testplans.FilePattern{Pattern: "no/tast/tests/here/some/**"},
 				TestRestriction: &testplans.TestRestriction{DisableNonTastTests: true}}}}
 	bbBuilds := []*bbproto.Build{
 		makeBuildbucketBuild("kevin", bbproto.Status_SUCCESS, true),

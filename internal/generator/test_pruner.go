@@ -6,6 +6,7 @@ package generator
 
 import (
 	"fmt"
+	"github.com/bmatcuk/doublestar"
 	"go.chromium.org/chromiumos/infra/go/internal/gerrit"
 	"go.chromium.org/chromiumos/infra/proto/go/testplans"
 	bbproto "go.chromium.org/luci/buildbucket/proto"
@@ -169,11 +170,15 @@ func srcPaths(
 // only-test rule, which would allow us to exclude testing for all other
 // build targets.
 func checkOnlyTestBuildTargets(
-	sourceTreePath string,
+	sourcePath string,
 	sourceTreeCfg *testplans.SourceTreeTestCfg) (map[BuildTarget]bool, error) {
 	result := make(map[BuildTarget]bool)
 	for _, sourceTreeRestriction := range sourceTreeCfg.SourceTreeTestRestriction {
-		if hasPathPrefix(sourceTreePath, sourceTreeRestriction.SourceTree.Path) {
+		match, err := doublestar.Match(sourceTreeRestriction.GetFilePattern().GetPattern(), sourcePath)
+		if err != nil {
+			return result, err
+		}
+		if match {
 			for _, otbt := range sourceTreeRestriction.TestRestriction.OnlyTestBuildTargets {
 				result[BuildTarget(otbt.Name)] = true
 			}
@@ -184,14 +189,18 @@ func checkOnlyTestBuildTargets(
 
 // canDisableTestingForPath determines whether a particular testing type is unnecessary for
 // a given file, based on source tree test restrictions.
-func canDisableTestingForPath(sourceTreePath string, sourceTreeCfg *testplans.SourceTreeTestCfg, tt testType) (bool, error) {
+func canDisableTestingForPath(sourcePath string, sourceTreeCfg *testplans.SourceTreeTestCfg, tt testType) (bool, error) {
 	for _, sourceTreeRestriction := range sourceTreeCfg.SourceTreeTestRestriction {
 		testFilter, ok := testTypeFilter[tt]
 		if !ok {
 			return false, fmt.Errorf("Missing test filter for %v", tt)
 		}
 		if testFilter(sourceTreeRestriction.TestRestriction) {
-			if hasPathPrefix(sourceTreePath, sourceTreeRestriction.SourceTree.Path) {
+			match, err := doublestar.Match(sourceTreeRestriction.GetFilePattern().GetPattern(), sourcePath)
+			if err != nil {
+				return false, err
+			}
+			if match {
 				return true, nil
 			}
 		}

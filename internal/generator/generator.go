@@ -213,7 +213,9 @@ targetLoop:
 				log.Printf("Pruning non-Tast VM tests for %s due to non-Tast rule", tbr.buildTarget)
 			} else {
 				for _, vm := range pttr.VmTestCfg.VmTest {
-					vm.Common = withCritical(vm.Common, critical)
+					// TODO(crbug.com/1017807): make autotest VM tests critical again once
+					// Alex's fix is confirmed.
+					vm.Common = withCritical(vm.Common, &wrappers.BoolValue{Value: false})
 				}
 				resp.VmTestUnits = append(resp.VmTestUnits, &testplans.VmTestUnit{
 					Common:    tuc,

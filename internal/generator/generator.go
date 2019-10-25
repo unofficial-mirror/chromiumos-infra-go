@@ -13,6 +13,7 @@ import (
 	"go.chromium.org/chromiumos/infra/proto/go/testplans"
 	bbproto "go.chromium.org/luci/buildbucket/proto"
 	"log"
+	"strings"
 )
 
 // BuildTarget is an OS build target, such as "kevin" or "eve".
@@ -46,6 +47,9 @@ func CreateTestPlan(
 			log.Printf("filtering out because marked as pointless: %s", bb.GetBuilder().GetBuilder())
 		} else if !hasTestArtifacts(bb) {
 			log.Printf("filtering out with missing test artifacts: %s", bb.GetBuilder().GetBuilder())
+		} else if strings.Contains(bb.GetBuilder().GetBuilder(), "kernel-v") {
+			// TODO(crbug.com/1016536): Find a better way, using the existence of test artifacts.
+			log.Printf("filtering out because it's a kernel builder (see https://crbug.com/1016536): %s", bb.GetBuilder().GetBuilder())
 		} else {
 			btBuildReports[BuildTarget(bt)] = *bb
 			filteredBbBuilds = append(filteredBbBuilds, bb)

@@ -158,12 +158,11 @@ targetLoop:
 		pttr := tbr.perTargetTestReqs
 		bt := chromiumos.BuildTarget{Name: string(tbr.buildTarget)}
 		tuc := &testplans.TestUnitCommon{BuildTarget: &bt, BuildPayload: bp}
-		isCritical := tbr.buildReport.Critical != bbproto.Trinary_NO
-		if !isCritical {
+		isBuildCritical := tbr.buildReport.Critical != bbproto.Trinary_NO
+		if !isBuildCritical {
 			log.Printf("Build target %s is not critical. Skipping...", tbr.buildTarget)
 			continue targetLoop
 		}
-		critical := &wrappers.BoolValue{Value: isCritical}
 		if pttr.HwTestCfg != nil {
 			if pruneResult.disableHWTests {
 				log.Printf("No HW testing needed for %s", tbr.buildTarget)
@@ -182,7 +181,7 @@ targetLoop:
 				}
 				if len(pttr.HwTestCfg.HwTest) != 0 {
 					for _, hw := range pttr.HwTestCfg.HwTest {
-						hw.Common = withCritical(hw.Common, critical)
+						hw.Common = withCritical(hw.Common, isBuildCritical)
 					}
 					resp.HwTestUnits = append(resp.HwTestUnits, &testplans.HwTestUnit{
 						Common:    tuc,
@@ -195,7 +194,7 @@ targetLoop:
 				log.Printf("Pruning moblab tests for %s due to non-Tast rule", tbr.buildTarget)
 			} else {
 				for _, moblab := range pttr.MoblabVmTestCfg.MoblabTest {
-					moblab.Common = withCritical(moblab.Common, critical)
+					moblab.Common = withCritical(moblab.Common, isBuildCritical)
 				}
 				resp.MoblabVmTestUnits = append(resp.MoblabVmTestUnits, &testplans.MoblabVmTestUnit{
 					Common:          tuc,
@@ -204,7 +203,7 @@ targetLoop:
 		}
 		if pttr.TastVmTestCfg != nil {
 			for _, tastVm := range pttr.TastVmTestCfg.TastVmTest {
-				tastVm.Common = withCritical(tastVm.Common, critical)
+				tastVm.Common = withCritical(tastVm.Common, isBuildCritical)
 			}
 			resp.TastVmTestUnits = append(resp.TastVmTestUnits, &testplans.TastVmTestUnit{
 				Common:        tuc,
@@ -217,9 +216,7 @@ targetLoop:
 				log.Printf("Pruning non-Tast VM tests for %s due to non-Tast rule", tbr.buildTarget)
 			} else {
 				for _, vm := range pttr.VmTestCfg.VmTest {
-					// TODO(crbug.com/1017807): make autotest VM tests critical again once
-					// Alex's fix is confirmed.
-					vm.Common = withCritical(vm.Common, &wrappers.BoolValue{Value: false})
+					vm.Common = withCritical(vm.Common, isBuildCritical)
 				}
 				resp.VmTestUnits = append(resp.VmTestUnits, &testplans.VmTestUnit{
 					Common:    tuc,
@@ -230,12 +227,20 @@ targetLoop:
 	return resp, nil
 }
 
-func withCritical(tsc *testplans.TestSuiteCommon, critical *wrappers.BoolValue) *testplans.TestSuiteCommon {
+func withCritical(tsc *testplans.TestSuiteCommon, buildCritical bool) *testplans.TestSuiteCommon {
 	if tsc == nil {
 		tsc = &testplans.TestSuiteCommon{}
 	}
-	tsc.Critical = critical
-	if !critical.Value {
+	suiteCritical := true
+	if tsc.Critical != nil {
+		suiteCritical = tsc.Critical.Value
+	}
+	// If either the build was noncritical or the suite is configured to be
+	// noncritical, then make the suite noncritical. As of now we don't even
+	// schedule suites for noncritical builders, but if we ever change that logic,
+	// this seems like the right way to set suite criticality.
+	tsc.Critical = &wrappers.BoolValue{Value: buildCritical && suiteCritical}
+	if !tsc.Critical.Value {
 		log.Printf("Marking %s as not critical", tsc.DisplayName)
 	}
 	return tsc

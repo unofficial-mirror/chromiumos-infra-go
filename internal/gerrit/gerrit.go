@@ -10,6 +10,7 @@ import (
 	"go.chromium.org/luci/common/api/gerrit"
 	gerritpb "go.chromium.org/luci/common/proto/gerrit"
 	"net/http"
+	"strconv"
 	"time"
 )
 
@@ -74,6 +75,16 @@ func GetChangeRev(authedClient *http.Client, ctx context.Context, changeNum int6
 	change := <-ch
 	for _, v := range change.GetRevisions() {
 		if v.Number == revision {
+			files := v.Files
+			// In some cases (e.g. merge commit), GetChange doesn't return a file list.
+			// We thus call into the ListFiles endpoint instead.
+			if len(files) == 0 {
+				listFiles, err := fetchFileList(host, change.Number, v.Number, ctx, authedClient)
+				if err != nil {
+					return nil, err
+				}
+				files = listFiles.Files
+			}
 			return &ChangeRev{
 				ChangeRevKey: ChangeRevKey{
 					Host:      host,
@@ -82,12 +93,36 @@ func GetChangeRev(authedClient *http.Client, ctx context.Context, changeNum int6
 				},
 				Branch:  change.Ref,
 				Project: change.Project,
-				Files:   getKeys(v.Files),
+				Files:   getKeys(files),
 			}, nil
 		}
 	}
 	return nil, fmt.Errorf("found no revision %d for change %d on host %s", revision, changeNum, host)
 }
+
+func fetchFileList(host string, change int64, revision int32, ctx context.Context, httpClient *http.Client) (*gerritpb.ListFilesResponse, error) {
+	rest, err := gerrit.NewRESTClient(httpClient, host, true)
+	if err != nil {
+		return nil, err
+	}
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	defer cancel()
+	ch := make(chan *gerritpb.ListFilesResponse, 1)
+	shared.DoWithRetry(ctx, shared.DefaultOpts, func() error {
+		// The "Parent: 1" is what makes ListFiles able to get file lists for merge commits.
+		// It's a 1-indexed way to reference parent commits, and we always want a value of 1
+		// in order to get the target branch ref.
+		resp, err := rest.ListFiles(ctx, &gerritpb.ListFilesRequest{Number: int64(change), RevisionId: strconv.Itoa(int(revision)), Parent: 1})
+		if err != nil {
+			return err
+		}
+		ch <- resp
+		return nil
+	})
+	results := <-ch
+	return results, nil
+}
+
 
 // ChangeRevData encapsulates a bunch of Gerrit change revisions.
 type ChangeRevData struct {

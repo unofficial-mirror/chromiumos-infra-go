@@ -47,6 +47,8 @@ func cmdGenTestPlan(authOpts auth.Options) *subcommands.Command {
 			c.authFlags.Register(c.GetFlags(), authOpts)
 			c.Flags.StringVar(&c.inputJson, "input_json", "", "Path to JSON proto representing a GenerateTestPlanRequest")
 			c.Flags.StringVar(&c.outputJson, "output_json", "", "Path to file to write output GenerateTestPlanResponse JSON proto")
+			c.Flags.StringVar(&c.inputBinaryPb, "input_binary_pb", "", "Path to binaryproto file representing a GenerateTestPlanRequest")
+			c.Flags.StringVar(&c.outputBinaryPb, "output_binary_pb", "", "Path to file to write output GenerateTestPlanResponse binaryproto")
 			return c
 		}}
 }
@@ -54,7 +56,7 @@ func cmdGenTestPlan(authOpts auth.Options) *subcommands.Command {
 func (c *getTestPlanRun) Run(a subcommands.Application, args []string, env subcommands.Env) int {
 	flag.Parse()
 
-	req, err := c.readInputJson()
+	req, err := c.readInput()
 	if err != nil {
 		log.Print(err)
 		return 1
@@ -95,7 +97,7 @@ func (c *getTestPlanRun) Run(a subcommands.Application, args []string, env subco
 		return 6
 	}
 
-	if err = c.writeOutputJson(testPlan); err != nil {
+	if err = c.writeOutput(testPlan); err != nil {
 		log.Print(err)
 		return 7
 	}
@@ -104,21 +106,37 @@ func (c *getTestPlanRun) Run(a subcommands.Application, args []string, env subco
 
 type getTestPlanRun struct {
 	subcommands.CommandRunBase
-	authFlags  authcli.Flags
-	inputJson  string
-	outputJson string
+	authFlags      authcli.Flags
+	inputJson      string
+	outputJson     string
+	inputBinaryPb  string
+	outputBinaryPb string
 }
 
-func (c *getTestPlanRun) readInputJson() (*testplans.GenerateTestPlanRequest, error) {
-	inputBytes, err := ioutil.ReadFile(c.inputJson)
-	if err != nil {
-		return nil, fmt.Errorf("Failed reading input_json\n%v", err)
+func (c *getTestPlanRun) readInput() (*testplans.GenerateTestPlanRequest, error) {
+	// use input_binary_pb if it's specified
+	if len(c.inputBinaryPb) > 0 {
+		inputPb, err := ioutil.ReadFile(c.inputBinaryPb)
+		if err != nil {
+			return nil, fmt.Errorf("Failed reason input_binary_pb\n%v", err)
+		}
+		req := &testplans.GenerateTestPlanRequest{}
+		if err := proto.Unmarshal(inputPb, req); err != nil {
+			return nil, fmt.Errorf("Failed parsing input_binary_pb as proto\n%v", err)
+		}
+		return req, nil
+		// otherwise use input_json
+	} else {
+		inputBytes, err := ioutil.ReadFile(c.inputJson)
+		if err != nil {
+			return nil, fmt.Errorf("Failed reading input_json\n%v", err)
+		}
+		req := &testplans.GenerateTestPlanRequest{}
+		if err := unmarshaler.Unmarshal(bytes.NewReader(inputBytes), req); err != nil {
+			return nil, fmt.Errorf("Couldn't decode %s as a GenerateTestPlanRequest\n%v", c.inputJson, err)
+		}
+		return req, nil
 	}
-	req := &testplans.GenerateTestPlanRequest{}
-	if err := unmarshaler.Unmarshal(bytes.NewReader(inputBytes), req); err != nil {
-		return nil, fmt.Errorf("Couldn't decode %s as a GenerateTestPlanRequest\n%v", c.inputJson, err)
-	}
-	return req, nil
 }
 
 func (c *getTestPlanRun) fetchConfigFromGitiles() (*testplans.SourceTreeTestCfg, *testplans.TargetTestRequirementsCfg, error) {
@@ -202,7 +220,7 @@ func (c *getTestPlanRun) fetchGerritData(changes []*bbproto.GerritChange) (*iger
 	chRevData, err := igerrit.GetChangeRevData(authedClient, ctx, changeIds)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fetch CL data from Gerrit. "+
-			"Note that a NotFound error may indicate authorization issues.\n%v", err)
+				"Note that a NotFound error may indicate authorization issues.\n%v", err)
 	}
 	return chRevData, nil
 }
@@ -228,16 +246,30 @@ func (c *getTestPlanRun) getRepoToSourceRoot(manifestCommit string) (*map[string
 	return &repoToSrcRoot, nil
 }
 
-func (c *getTestPlanRun) writeOutputJson(tp *testplans.GenerateTestPlanResponse) error {
-	marshal := &jsonpb.Marshaler{EmitDefaults: true, Indent: "  "}
-	jsonOutput, err := marshal.MarshalToString(tp)
-	if err != nil {
-		return fmt.Errorf("Failed to marshal %v\n%v", tp, err)
+func (c *getTestPlanRun) writeOutput(tp *testplans.GenerateTestPlanResponse) error {
+	if len(c.outputJson) > 0 {
+		marshal := &jsonpb.Marshaler{EmitDefaults: true, Indent: "  "}
+		jsonOutput, err := marshal.MarshalToString(tp)
+		if err != nil {
+			return fmt.Errorf("Failed to marshal JSON %v\n%v", tp, err)
+		}
+		if err = ioutil.WriteFile(c.outputJson, []byte(jsonOutput), 0644); err != nil {
+			return fmt.Errorf("Failed to write output JSON!\n%v", err)
+		}
+		log.Printf("Wrote output JSON to %s", c.outputJson)
 	}
-	if err = ioutil.WriteFile(c.outputJson, []byte(jsonOutput), 0644); err != nil {
-		return fmt.Errorf("Failed to write output JSON!\n%v", err)
+
+	if len(c.outputBinaryPb) > 0 {
+		binaryOutput, err := proto.Marshal(tp)
+		if err != nil {
+			return fmt.Errorf("Failed to marshal binaryproto %v\n%v", tp, err)
+		}
+		if err = ioutil.WriteFile(c.outputBinaryPb, binaryOutput, 0644); err != nil {
+			return fmt.Errorf("Failed to write output binary proto!\n%v", err)
+		}
+		log.Printf("Wrote output binary proto to %s", c.outputBinaryPb)
 	}
-	log.Printf("Wrote output to %s", c.outputJson)
+
 	return nil
 }
 

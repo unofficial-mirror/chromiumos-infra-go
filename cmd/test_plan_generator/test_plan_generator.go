@@ -8,6 +8,10 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io/ioutil"
+	"log"
+	"os"
+
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/golang/protobuf/proto"
 	"github.com/maruel/subcommands"
@@ -21,15 +25,11 @@ import (
 	"go.chromium.org/luci/common/api/gerrit"
 	"go.chromium.org/luci/common/cli"
 	"go.chromium.org/luci/hardcoded/chromeinfra"
-	"io/ioutil"
-	"log"
-	"os"
-	"strings"
 )
 
 const (
-	sourceTreeTestConfigPath   = "testingconfig/generated/source_tree_test_config.cfg"
-	targetTestRequirementsPath = "testingconfig/generated/target_test_requirements.cfg"
+	sourceTreeTestConfigPath   = "testingconfig/generated/source_tree_test_config.binaryproto"
+	targetTestRequirementsPath = "testingconfig/generated/target_test_requirements.binaryproto"
 )
 
 var (
@@ -159,15 +159,14 @@ func (c *getTestPlanRun) fetchConfigFromGitiles() (*testplans.SourceTreeTestCfg,
 		return nil, nil, err
 	}
 	sourceTreeConfig := &testplans.SourceTreeTestCfg{}
-	if err := unmarshaler.Unmarshal(strings.NewReader((*m)[sourceTreeTestConfigPath]), sourceTreeConfig); err != nil {
+	if err := proto.Unmarshal([]byte((*m)[sourceTreeTestConfigPath]), sourceTreeConfig); err != nil {
 		return nil, nil, fmt.Errorf("Couldn't decode %s as a SourceTreeTestCfg\n%v", (*m)[sourceTreeTestConfigPath], err)
 	}
 	testReqsConfig := &testplans.TargetTestRequirementsCfg{}
-	if err := unmarshaler.Unmarshal(strings.NewReader((*m)[targetTestRequirementsPath]), testReqsConfig); err != nil {
-		return nil, nil, fmt.Errorf("Couldn't decode %s as a TargetTestRequirementsCfg\n%s",
-			targetTestRequirementsPath, err)
+	if err := proto.Unmarshal([]byte((*m)[targetTestRequirementsPath]), testReqsConfig); err != nil {
+		return nil, nil, fmt.Errorf("Couldn't decode %s as a TargetTestRequirementsCfg\n%v", (*m)[targetTestRequirementsPath], err)
 	}
-	log.Printf("Fetched config from Gitiles: %s\n\n%s",
+	log.Printf("Fetched config from Gitiles:\n%s\n\n%s",
 		proto.MarshalTextString(sourceTreeConfig), proto.MarshalTextString(testReqsConfig))
 	return sourceTreeConfig, testReqsConfig, nil
 }
@@ -220,7 +219,7 @@ func (c *getTestPlanRun) fetchGerritData(changes []*bbproto.GerritChange) (*iger
 	chRevData, err := igerrit.GetChangeRevData(authedClient, ctx, changeIds)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fetch CL data from Gerrit. "+
-				"Note that a NotFound error may indicate authorization issues.\n%v", err)
+			"Note that a NotFound error may indicate authorization issues.\n%v", err)
 	}
 	return chRevData, nil
 }

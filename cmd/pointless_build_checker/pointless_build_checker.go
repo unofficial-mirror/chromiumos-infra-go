@@ -8,6 +8,10 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io/ioutil"
+	"log"
+	"os"
+
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/golang/protobuf/proto"
 	"github.com/maruel/subcommands"
@@ -21,14 +25,10 @@ import (
 	"go.chromium.org/luci/common/api/gerrit"
 	"go.chromium.org/luci/common/cli"
 	"go.chromium.org/luci/hardcoded/chromeinfra"
-	"io/ioutil"
-	"log"
-	"os"
-	"strings"
 )
 
 const (
-	buildIrrelevanceConfigPath = "testingconfig/generated/build_irrelevance_config.cfg"
+	buildIrrelevanceConfigPath = "testingconfig/generated/build_irrelevance_config.binaryproto"
 )
 
 var (
@@ -158,10 +158,10 @@ func (c *checkBuild) fetchConfigFromGitiles() (*testplans_pb.BuildIrrelevanceCfg
 		return nil, err
 	}
 	buildIrrelevanceConfig := &testplans_pb.BuildIrrelevanceCfg{}
-	if err := unmarshaler.Unmarshal(strings.NewReader((*m)[buildIrrelevanceConfigPath]), buildIrrelevanceConfig); err != nil {
+	if err := proto.Unmarshal([]byte((*m)[buildIrrelevanceConfigPath]), buildIrrelevanceConfig); err != nil {
 		return nil, fmt.Errorf("Couldn't decode %s as a BuildIrrelevanceCfg\n%v", (*m)[buildIrrelevanceConfigPath], err)
 	}
-	log.Printf("Fetched config from Gitiles: %s\n", proto.MarshalTextString(buildIrrelevanceConfig))
+	log.Printf("Fetched config from Gitiles:\n%s\n", proto.MarshalTextString(buildIrrelevanceConfig))
 	return buildIrrelevanceConfig, nil
 }
 

@@ -9,11 +9,12 @@ require (
 	github.com/golang/protobuf v1.3.1
 	github.com/google/go-cmp v0.2.0
 	github.com/kr/pretty v0.1.0 // indirect
+	github.com/luci/gtreap v0.0.0-20161228054646-35df89791e8f // indirect
 	github.com/maruel/subcommands v0.0.0-20181220013616-967e945be48b
 	github.com/maruel/ut v1.0.0 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
-	github.com/mvo5/goconfigparser v0.0.0-20190308092147-6a365a5a3f41
 	github.com/otiai10/copy v1.0.1
+	github.com/otiai10/curr v0.0.0-20190513014714-f5a3d24e5776 // indirect
 	github.com/smartystreets/assertions v0.0.0-20190401211740-f487f9de1cd3 // indirect
 	github.com/smartystreets/goconvey v0.0.0-20190330032615-68dc04aab96a // indirect
 	github.com/texttheater/golang-levenshtein v0.0.0-20180516184445-d188e65d659e // indirect

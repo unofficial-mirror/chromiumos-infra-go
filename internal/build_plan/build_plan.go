@@ -64,6 +64,11 @@ builderLoop:
 }
 
 func isImageBuilder(b *cros_pb.BuilderConfig) bool {
+	// consider grunt-unittest-only builds to be image builders, since we want
+	// to rule these builds out by build irrelevance rules.
+	if strings.Contains(b.GetId().GetName(), "grunt-unittest-only") {
+		return true
+	}
 	for _, art := range b.GetArtifacts().GetArtifactTypes() {
 		if art == cros_pb.BuilderConfig_Artifacts_IMAGE_ZIP {
 			return true

@@ -41,15 +41,23 @@ func CreateTestPlan(
 	filteredBbBuilds := make([]*bbproto.Build, 0)
 	for _, bb := range unfilteredBbBuilds {
 		bt := getBuildTarget(bb)
-		if len(bt) == 0 {
+
+		// TODO(crbug.com/1016536): Make testingconfig rooted on builder name
+		// rather than build target. That will remove the need for this hack.
+		// The current problem is that the test plan generator can't tell which
+		// of the potentially several builders with a given build target is the
+		// one to test.
+		strippedBuilderName := strings.TrimSuffix(bb.GetBuilder().GetBuilder(), "-cq")
+		strippedBuilderName = strings.TrimSuffix(strippedBuilderName, "-postsubmit")
+		strippedBuilderName = strings.TrimSuffix(strippedBuilderName, "-snapshot")
+		if strippedBuilderName != bt {
+			log.Printf("filtering out build %v that's indirectly based on its build target %v", bb.GetBuilder().GetBuilder(), bt)
+		} else if len(bt) == 0 {
 			log.Printf("filtering out build without a build target: %s", bb.GetBuilder().GetBuilder())
 		} else if isPointlessBuild(bb) {
 			log.Printf("filtering out because marked as pointless: %s", bb.GetBuilder().GetBuilder())
 		} else if !hasTestArtifacts(bb) {
 			log.Printf("filtering out with missing test artifacts: %s", bb.GetBuilder().GetBuilder())
-		} else if strings.Contains(bb.GetBuilder().GetBuilder(), "kernel-v") {
-			// TODO(crbug.com/1016536): Find a better way, using the existence of test artifacts.
-			log.Printf("filtering out because it's a kernel builder (see https://crbug.com/1016536): %s", bb.GetBuilder().GetBuilder())
 		} else {
 			btBuildReports[BuildTarget(bt)] = *bb
 			filteredBbBuilds = append(filteredBbBuilds, bb)

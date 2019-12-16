@@ -39,6 +39,7 @@ func makeBuildbucketBuild(buildTarget string, status bbproto.Status, critical bo
 		criticalVal = bbproto.Trinary_NO
 	}
 	b := &bbproto.Build{
+		Builder: &bbproto.BuilderID{Builder: buildTarget + "-cq"},
 		Critical: criticalVal,
 		Input:    &bbproto.Build_Input{},
 		Output: &bbproto.Build_Output{

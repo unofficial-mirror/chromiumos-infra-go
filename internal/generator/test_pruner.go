@@ -38,19 +38,19 @@ type testPruneResult struct {
 	disableHWTests       bool
 	disableVMTests       bool
 	disableNonTastTests  bool
-	onlyTestBuildTargets map[BuildTarget]bool
+	onlyTestBuilderNames map[string]bool
 }
 
-// canSkipForOnlyTestRule identifies whether testing for a provided build target
+// canSkipForOnlyTestRule identifies whether testing for a provided buildId
 // can be skipped due to the only-test rules. e.g. if we only need to test on
 // "reef", this will return false for all non-reef build targets.
-func (tpr testPruneResult) canSkipForOnlyTestRule(bt BuildTarget) bool {
-	// If no only-test build targets were specified, we can't skip testing for
-	// any build targets by only-test rules.
-	if len(tpr.onlyTestBuildTargets) == 0 {
+func (tpr testPruneResult) canSkipForOnlyTestRule(bt buildId) bool {
+	// If no only-test builders were specified, we can't skip testing for
+	// any builders by only-test rules.
+	if len(tpr.onlyTestBuilderNames) == 0 {
 		return false
 	}
-	isAnOnlyTestTarget, _ := tpr.onlyTestBuildTargets[bt]
+	isAnOnlyTestTarget, _ := tpr.onlyTestBuilderNames[bt.builderName]
 	return !isAnOnlyTestTarget
 }
 
@@ -113,21 +113,21 @@ func extractPruneResult(
 			}
 		}
 	}
-	canOnlyTestSomeBuildTargets := true
-	onlyTestBuildTargets := make(map[BuildTarget]bool)
+	canOnlyTestSomeBuilders := true
+	onlyTestBuilderNames := make(map[string]bool)
 	for _, fileSrcPath := range srcPaths {
-		if canOnlyTestSomeBuildTargets {
-			fileOnlyTestBuildTargets, err := checkOnlyTestBuildTargets(fileSrcPath, sourceTreeCfg)
+		if canOnlyTestSomeBuilders {
+			fileOnlyTestBuilders, err := checkOnlyTestBuilders(fileSrcPath, sourceTreeCfg)
 			if err != nil {
 				return result, err
 			}
-			if len(fileOnlyTestBuildTargets) == 0 {
-				log.Printf("cannot limit set of build targets for testing due to %s", fileSrcPath)
-				canOnlyTestSomeBuildTargets = false
-				onlyTestBuildTargets = make(map[BuildTarget]bool)
+			if len(fileOnlyTestBuilders) == 0 {
+				log.Printf("cannot limit set of builders for testing due to %s", fileSrcPath)
+				canOnlyTestSomeBuilders = false
+				onlyTestBuilderNames = make(map[string]bool)
 			} else {
-				for k, v := range fileOnlyTestBuildTargets {
-					onlyTestBuildTargets[k] = v
+				for k, v := range fileOnlyTestBuilders {
+					onlyTestBuilderNames[k] = v
 				}
 			}
 		}
@@ -136,7 +136,7 @@ func extractPruneResult(
 			disableHWTests:       disableHW,
 			disableVMTests:       disableVM,
 			disableNonTastTests:  disableNonTastTests,
-			onlyTestBuildTargets: onlyTestBuildTargets},
+			onlyTestBuilderNames: onlyTestBuilderNames},
 		nil
 }
 
@@ -166,21 +166,21 @@ func srcPaths(
 	return srcPaths, nil
 }
 
-// checkOnlyTestBuildTargets checks if the provided path is covered by an
+// checkOnlyTestBuilders checks if the provided path is covered by an
 // only-test rule, which would allow us to exclude testing for all other
-// build targets.
-func checkOnlyTestBuildTargets(
+// builders.
+func checkOnlyTestBuilders(
 	sourcePath string,
-	sourceTreeCfg *testplans.SourceTreeTestCfg) (map[BuildTarget]bool, error) {
-	result := make(map[BuildTarget]bool)
+	sourceTreeCfg *testplans.SourceTreeTestCfg) (map[string]bool, error) {
+	result := make(map[string]bool)
 	for _, sourceTreeRestriction := range sourceTreeCfg.SourceTreeTestRestriction {
 		match, err := doublestar.Match(sourceTreeRestriction.GetFilePattern().GetPattern(), sourcePath)
 		if err != nil {
 			return result, err
 		}
 		if match {
-			for _, otbt := range sourceTreeRestriction.TestRestriction.OnlyTestBuildTargets {
-				result[BuildTarget(otbt.Name)] = true
+			for _, otbt := range sourceTreeRestriction.TestRestriction.CqOnlyTestBuilders {
+				result[otbt.BuilderName] = true
 			}
 		}
 	}

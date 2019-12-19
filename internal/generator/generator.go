@@ -7,21 +7,23 @@ package generator
 import (
 	"errors"
 	"fmt"
+	"log"
+
 	"github.com/golang/protobuf/ptypes/wrappers"
 	"go.chromium.org/chromiumos/infra/go/internal/gerrit"
 	"go.chromium.org/chromiumos/infra/proto/go/chromiumos"
 	"go.chromium.org/chromiumos/infra/proto/go/testplans"
 	bbproto "go.chromium.org/luci/buildbucket/proto"
-	"log"
-	"strings"
 )
 
-// BuildTarget is an OS build target, such as "kevin" or "eve".
-type BuildTarget string
+type buildId struct {
+	buildTarget string
+	builderName string
+}
 
-// targetBuildResult is a conglomeration of data about a build and how to test it.
-type targetBuildResult struct {
-	buildTarget       BuildTarget
+// buildResult is a conglomeration of data about a build and how to test it.
+type buildResult struct {
+	buildId buildId
 	buildReport       bbproto.Build
 	perTargetTestReqs testplans.PerTargetTestRequirements
 }
@@ -36,30 +38,20 @@ func CreateTestPlan(
 	repoToBranchToSrcRoot map[string]map[string]string) (*testplans.GenerateTestPlanResponse, error) {
 	testPlan := &testplans.GenerateTestPlanResponse{}
 
-	btBuildReports := make(map[BuildTarget]bbproto.Build)
+
+	btBuildReports := make(map[buildId]bbproto.Build)
 	// Filter out special builds like "chromite-cq" that don't have build targets.
 	filteredBbBuilds := make([]*bbproto.Build, 0)
 	for _, bb := range unfilteredBbBuilds {
 		bt := getBuildTarget(bb)
-
-		// TODO(crbug.com/1016536): Make testingconfig rooted on builder name
-		// rather than build target. That will remove the need for this hack.
-		// The current problem is that the test plan generator can't tell which
-		// of the potentially several builders with a given build target is the
-		// one to test.
-		strippedBuilderName := strings.TrimSuffix(bb.GetBuilder().GetBuilder(), "-cq")
-		strippedBuilderName = strings.TrimSuffix(strippedBuilderName, "-postsubmit")
-		strippedBuilderName = strings.TrimSuffix(strippedBuilderName, "-snapshot")
-		if strippedBuilderName != bt {
-			log.Printf("filtering out build %v that's indirectly based on its build target %v", bb.GetBuilder().GetBuilder(), bt)
-		} else if len(bt) == 0 {
+		if len(bt) == 0 {
 			log.Printf("filtering out build without a build target: %s", bb.GetBuilder().GetBuilder())
 		} else if isPointlessBuild(bb) {
 			log.Printf("filtering out because marked as pointless: %s", bb.GetBuilder().GetBuilder())
 		} else if !hasTestArtifacts(bb) {
 			log.Printf("filtering out with missing test artifacts: %s", bb.GetBuilder().GetBuilder())
 		} else {
-			btBuildReports[BuildTarget(bt)] = *bb
+			btBuildReports[buildId{buildTarget:bt, builderName:bb.GetBuilder().GetBuilder()}] = *bb
 			filteredBbBuilds = append(filteredBbBuilds, bb)
 		}
 	}
@@ -70,8 +62,8 @@ func CreateTestPlan(
 		return testPlan, err
 	}
 
-	// List of builds that will actually be tested, e.g. one per build target.
-	targetBuildResults := make([]targetBuildResult, 0)
+	// List of builds that will actually be tested, e.g. one per builder name.
+	targetBuildResults := make([]buildResult, 0)
 perTargetTestReq:
 	for _, pttr := range targetTestReqs.PerTargetTestRequirements {
 		tbr, err := selectBuildForRequirements(pttr, btBuildReports)
@@ -136,7 +128,7 @@ func getBuildTarget(bb *bbproto.Build) string {
 
 // createResponse creates the final GenerateTestPlanResponse.
 func createResponse(
-	targetBuildResults []targetBuildResult,
+	targetBuildResults []buildResult,
 	pruneResult *testPruneResult) (*testplans.GenerateTestPlanResponse, error) {
 
 	resp := &testplans.GenerateTestPlanResponse{}
@@ -144,19 +136,19 @@ targetLoop:
 	for _, tbr := range targetBuildResults {
 		art, ok := tbr.buildReport.Output.Properties.Fields["artifacts"]
 		if !ok {
-			return nil, fmt.Errorf("found no artifacts output property for build_target %s", tbr.buildTarget)
+			return nil, fmt.Errorf("found no artifacts output property for builder %s", tbr.buildId.builderName)
 		}
 		gsBucket, ok := art.GetStructValue().Fields["gs_bucket"]
 		if !ok {
-			return nil, fmt.Errorf("found no artifacts.gs_bucket property for build_target %s", tbr.buildTarget)
+			return nil, fmt.Errorf("found no artifacts.gs_bucket property for builder %s", tbr.buildId.builderName)
 		}
 		gsPath, ok := art.GetStructValue().Fields["gs_path"]
 		if !ok {
-			return nil, fmt.Errorf("found no artifacts.gs_path property for build_target %s", tbr.buildTarget)
+			return nil, fmt.Errorf("found no artifacts.gs_path property for builder %s", tbr.buildId.builderName)
 		}
 		filesByArtifact, ok := art.GetStructValue().Fields["files_by_artifact"]
 		if !ok {
-			return nil, fmt.Errorf("found no artifacts.files_by_artifact property for build_target %s", tbr.buildTarget)
+			return nil, fmt.Errorf("found no artifacts.files_by_artifact property for builder %s", tbr.buildId.builderName)
 		}
 		bp := &testplans.BuildPayload{
 			ArtifactsGsBucket: gsBucket.GetStringValue(),
@@ -164,21 +156,21 @@ targetLoop:
 			FilesByArtifact:   filesByArtifact.GetStructValue(),
 		}
 		pttr := tbr.perTargetTestReqs
-		bt := chromiumos.BuildTarget{Name: string(tbr.buildTarget)}
-		tuc := &testplans.TestUnitCommon{BuildTarget: &bt, BuildPayload: bp}
+		bt := chromiumos.BuildTarget{Name: tbr.buildId.buildTarget}
+		tuc := &testplans.TestUnitCommon{BuildTarget: &bt, BuildPayload: bp, BuilderName: tbr.buildId.builderName}
 		isBuildCritical := tbr.buildReport.Critical != bbproto.Trinary_NO
 		if !isBuildCritical {
-			log.Printf("Build target %s is not critical. Skipping...", tbr.buildTarget)
+			log.Printf("Builder %s is not critical. Skipping...", tbr.buildId.builderName)
 			continue targetLoop
 		}
 		if pttr.HwTestCfg != nil {
 			if pruneResult.disableHWTests {
-				log.Printf("No HW testing needed for %s", tbr.buildTarget)
-			} else if pruneResult.canSkipForOnlyTestRule(tbr.buildTarget) {
-				log.Printf("Using OnlyTest rule to skip HW testing for %s", tbr.buildTarget)
+				log.Printf("No HW testing needed for %s", tbr.buildId.builderName)
+			} else if pruneResult.canSkipForOnlyTestRule(tbr.buildId) {
+				log.Printf("Using OnlyTest rule to skip HW testing for %s", tbr.buildId.builderName)
 			} else {
 				if pruneResult.disableNonTastTests {
-					log.Printf("Pruning non-Tast HW tests for %s", tbr.buildTarget)
+					log.Printf("Pruning non-Tast HW tests for %s", tbr.buildId.builderName)
 					tastTests := make([]*testplans.HwTestCfg_HwTest, 0)
 					for _, t := range pttr.HwTestCfg.HwTest {
 						if t.HwTestSuiteType == testplans.HwTestCfg_TAST {
@@ -199,7 +191,7 @@ targetLoop:
 		}
 		if pttr.MoblabVmTestCfg != nil {
 			if pruneResult.disableNonTastTests {
-				log.Printf("Pruning moblab tests for %s due to non-Tast rule", tbr.buildTarget)
+				log.Printf("Pruning moblab tests for %s due to non-Tast rule", tbr.buildId.builderName)
 			} else {
 				for _, moblab := range pttr.MoblabVmTestCfg.MoblabTest {
 					moblab.Common = withCritical(moblab.Common, isBuildCritical)
@@ -219,9 +211,9 @@ targetLoop:
 		}
 		if pttr.VmTestCfg != nil {
 			if pruneResult.disableVMTests {
-				log.Printf("No VM testing needed for %s", tbr.buildTarget)
+				log.Printf("No VM testing needed for %s", tbr.buildId.builderName)
 			} else if pruneResult.disableNonTastTests {
-				log.Printf("Pruning non-Tast VM tests for %s due to non-Tast rule", tbr.buildTarget)
+				log.Printf("Pruning non-Tast VM tests for %s due to non-Tast rule", tbr.buildId.builderName)
 			} else {
 				for _, vm := range pttr.VmTestCfg.VmTest {
 					vm.Common = withCritical(vm.Common, isBuildCritical)
@@ -259,15 +251,14 @@ func withCritical(tsc *testplans.TestSuiteCommon, buildCritical bool) *testplans
 // non-early-terminated build.
 func selectBuildForRequirements(
 	pttr *testplans.PerTargetTestRequirements,
-	buildReports map[BuildTarget]bbproto.Build) (*targetBuildResult, error) {
+	buildReports map[buildId]bbproto.Build) (*buildResult, error) {
 
 	log.Printf("Considering testing for TargetCritera %v", pttr.TargetCriteria)
-	var eligibleBuildTargets []BuildTarget
 	if pttr.TargetCriteria.GetBuildTarget() == "" {
 		return nil, errors.New("found a PerTargetTestRequirement without a build target")
 	}
-	eligibleBuildTargets = []BuildTarget{BuildTarget(pttr.TargetCriteria.GetBuildTarget())}
-	bt, err := pickBuilderToTest(eligibleBuildTargets, buildReports)
+	eligibleBuildIds := []buildId{buildId{pttr.TargetCriteria.GetBuildTarget(), pttr.TargetCriteria.GetBuilderName()}}
+	bt, err := pickBuilderToTest(eligibleBuildIds, buildReports)
 	if err != nil {
 		// Expected when a necessary builder failed, and thus we cannot continue with testing.
 		return nil, err
@@ -279,38 +270,38 @@ func selectBuildForRequirements(
 		return nil, nil
 	}
 	br := buildReports[*bt]
-	return &targetBuildResult{
+	return &buildResult{
 			buildReport:       br,
-			buildTarget:       BuildTarget(getBuildTarget(&br)),
+			buildId: buildId{buildTarget:getBuildTarget(&br), builderName: br.GetBuilder().GetBuilder()},
 			perTargetTestReqs: *pttr},
 		nil
 }
 
-// pickBuilderToTest returns up to one BuildTarget that should be tested, out of the provided slice
-// of BuildTargets. The returned BuildTarget, if present, is guaranteed to be one with a BuildResult.
-func pickBuilderToTest(buildTargets []BuildTarget, btBuildReports map[BuildTarget]bbproto.Build) (*BuildTarget, error) {
+// pickBuilderToTest returns up to one buildId that should be tested, out of the provided slice
+// of buildIds. The returned buildId, if present, is guaranteed to be one with a BuildResult.
+func pickBuilderToTest(buildIds []buildId, btBuildReports map[buildId]bbproto.Build) (*buildId, error) {
 	// Relevant results are those builds that weren't terminated early.
 	// Early termination is a good thing. It just means that the build wasn't affected by the relevant commits.
-	relevantReports := make(map[BuildTarget]bbproto.Build)
-	for _, bt := range buildTargets {
+	relevantReports := make(map[buildId]bbproto.Build)
+	for _, bt := range buildIds {
 		br, found := btBuildReports[bt]
 		if !found {
-			log.Printf("No build found for BuildTarget %s", bt)
+			log.Printf("No build found for buildId %s", bt)
 			continue
 		}
 		relevantReports[bt] = br
 	}
 	if len(relevantReports) == 0 {
-		// None of the builds were relevant, so none of these BuildTargets needs testing.
+		// None of the builds were relevant, so none of these builds needs testing.
 		return nil, nil
 	}
-	for _, bt := range buildTargets {
+	for _, bt := range buildIds {
 		// Find and return the first relevant, successful build.
 		result, found := relevantReports[bt]
 		if found && result.Status == bbproto.Status_SUCCESS {
 			return &bt, nil
 		}
 	}
-	log.Printf("can't test for build target(s) %v because all builders failed\n", buildTargets)
+	log.Printf("can't test for builders %v because all builders failed\n", buildIds)
 	return nil, nil
 }

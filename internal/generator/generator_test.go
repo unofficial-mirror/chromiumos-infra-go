@@ -31,7 +31,7 @@ var (
 	emptyGerritChanges    []*bbproto.GerritChange
 )
 
-func makeBuildbucketBuild(buildTarget string, status bbproto.Status, critical bool) *bbproto.Build {
+func makeBuildbucketBuild(buildTarget string, builderName string, status bbproto.Status, critical bool) *bbproto.Build {
 	var criticalVal bbproto.Trinary
 	if critical {
 		criticalVal = bbproto.Trinary_YES
@@ -39,7 +39,7 @@ func makeBuildbucketBuild(buildTarget string, status bbproto.Status, critical bo
 		criticalVal = bbproto.Trinary_NO
 	}
 	b := &bbproto.Build{
-		Builder: &bbproto.BuilderID{Builder: buildTarget + "-cq"},
+		Builder: &bbproto.BuilderID{Builder: builderName},
 		Critical: criticalVal,
 		Input:    &bbproto.Build_Input{},
 		Output: &bbproto.Build_Output{
@@ -80,6 +80,7 @@ func TestCreateCombinedTestPlan_oneUnitSuccess(t *testing.T) {
 	testReqs := &testplans.TargetTestRequirementsCfg{
 		PerTargetTestRequirements: []*testplans.PerTargetTestRequirements{
 			{TargetCriteria: &testplans.TargetCriteria{
+				BuilderName: "kevin-cq",
 				TargetType: &testplans.TargetCriteria_BuildTarget{BuildTarget: "kevin"}},
 				HwTestCfg: kevinHWTestCfg},
 		},
@@ -89,7 +90,7 @@ func TestCreateCombinedTestPlan_oneUnitSuccess(t *testing.T) {
 			{FilePattern: &testplans.FilePattern{Pattern: "hw/tests/not/needed/here/**"},
 				TestRestriction: &testplans.TestRestriction{DisableHwTests: true}}}}
 	bbBuilds := []*bbproto.Build{
-		makeBuildbucketBuild("kevin", bbproto.Status_SUCCESS, true),
+		makeBuildbucketBuild("kevin", "kevin-cq", bbproto.Status_SUCCESS, true),
 	}
 	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{})
 	repoToBranchToSrcRoot := map[string]map[string]string{"chromiumos/repo/name": {"refs/heads/master": "src/to/file"}}
@@ -107,6 +108,7 @@ func TestCreateCombinedTestPlan_oneUnitSuccess(t *testing.T) {
 					ArtifactsGsPath:   GS_PATH_PREFIX + "kevin",
 					FilesByArtifact:   &simpleFilesByArtifact,
 				},
+				BuilderName: "kevin-cq",
 				BuildTarget: &chromiumos.BuildTarget{Name: "kevin"}},
 				HwTestCfg: kevinHWTestCfg},
 		},
@@ -117,8 +119,8 @@ func TestCreateCombinedTestPlan_oneUnitSuccess(t *testing.T) {
 }
 
 func TestCreateCombinedTestPlan_manyUnitSuccess(t *testing.T) {
-	reefMoblabVmTestCfg := &testplans.MoblabVmTestCfg{MoblabTest: []*testplans.MoblabVmTestCfg_MoblabTest{
-		{TestType: "Moblab reef", Common: &testplans.TestSuiteCommon{Critical: &wrappers.BoolValue{Value: true}}},
+	kevinDebugMoblabVmTestCfg := &testplans.MoblabVmTestCfg{MoblabTest: []*testplans.MoblabVmTestCfg_MoblabTest{
+		{TestType: "Moblab kevin debug kernel", Common: &testplans.TestSuiteCommon{Critical: &wrappers.BoolValue{Value: true}}},
 	}}
 	kevinHWTestCfg := &testplans.HwTestCfg{HwTest: []*testplans.HwTestCfg_HwTest{
 		{
@@ -135,9 +137,11 @@ func TestCreateCombinedTestPlan_manyUnitSuccess(t *testing.T) {
 	testReqs := &testplans.TargetTestRequirementsCfg{
 		PerTargetTestRequirements: []*testplans.PerTargetTestRequirements{
 			{TargetCriteria: &testplans.TargetCriteria{
-				TargetType: &testplans.TargetCriteria_BuildTarget{BuildTarget: "reef"}},
-				MoblabVmTestCfg: reefMoblabVmTestCfg},
+				BuilderName: "kevin-debug-kernel-cq",
+				TargetType: &testplans.TargetCriteria_BuildTarget{BuildTarget: "kevin"}},
+				MoblabVmTestCfg: kevinDebugMoblabVmTestCfg},
 			{TargetCriteria: &testplans.TargetCriteria{
+				BuilderName: "kevin-cq",
 				TargetType: &testplans.TargetCriteria_BuildTarget{BuildTarget: "kevin"}},
 				HwTestCfg:     kevinHWTestCfg,
 				TastVmTestCfg: kevinTastVMTestCfg,
@@ -149,8 +153,8 @@ func TestCreateCombinedTestPlan_manyUnitSuccess(t *testing.T) {
 			{FilePattern: &testplans.FilePattern{Pattern: "hw/tests/not/needed/here/**"},
 				TestRestriction: &testplans.TestRestriction{DisableHwTests: true}}}}
 	bbBuilds := []*bbproto.Build{
-		makeBuildbucketBuild("kevin", bbproto.Status_SUCCESS, true),
-		makeBuildbucketBuild("reef", bbproto.Status_SUCCESS, true),
+		makeBuildbucketBuild("kevin", "kevin-cq", bbproto.Status_SUCCESS, true),
+		makeBuildbucketBuild("kevin", "kevin-debug-kernel-cq", bbproto.Status_SUCCESS, true),
 	}
 	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{
 		{
@@ -177,11 +181,12 @@ func TestCreateCombinedTestPlan_manyUnitSuccess(t *testing.T) {
 			{Common: &testplans.TestUnitCommon{
 				BuildPayload: &testplans.BuildPayload{
 					ArtifactsGsBucket: GS_BUCKET,
-					ArtifactsGsPath:   GS_PATH_PREFIX + "reef",
+					ArtifactsGsPath:   GS_PATH_PREFIX + "kevin",
 					FilesByArtifact:   &simpleFilesByArtifact,
 				},
-				BuildTarget: &chromiumos.BuildTarget{Name: "reef"}},
-				MoblabVmTestCfg: reefMoblabVmTestCfg},
+				BuilderName: "kevin-debug-kernel-cq",
+				BuildTarget: &chromiumos.BuildTarget{Name: "kevin"}},
+				MoblabVmTestCfg: kevinDebugMoblabVmTestCfg},
 		},
 		HwTestUnits: []*testplans.HwTestUnit{
 			{Common: &testplans.TestUnitCommon{
@@ -190,6 +195,7 @@ func TestCreateCombinedTestPlan_manyUnitSuccess(t *testing.T) {
 					ArtifactsGsPath:   GS_PATH_PREFIX + "kevin",
 					FilesByArtifact:   &simpleFilesByArtifact,
 				},
+				BuilderName: "kevin-cq",
 				BuildTarget: &chromiumos.BuildTarget{Name: "kevin"}},
 				HwTestCfg: kevinHWTestCfg},
 		},
@@ -200,6 +206,7 @@ func TestCreateCombinedTestPlan_manyUnitSuccess(t *testing.T) {
 					ArtifactsGsPath:   GS_PATH_PREFIX + "kevin",
 					FilesByArtifact:   &simpleFilesByArtifact,
 				},
+				BuilderName: "kevin-cq",
 				BuildTarget: &chromiumos.BuildTarget{Name: "kevin"}},
 				TastVmTestCfg: kevinTastVMTestCfg},
 		},
@@ -210,6 +217,7 @@ func TestCreateCombinedTestPlan_manyUnitSuccess(t *testing.T) {
 					ArtifactsGsPath:   GS_PATH_PREFIX + "kevin",
 					FilesByArtifact:   &simpleFilesByArtifact,
 				},
+				BuilderName: "kevin-cq",
 				BuildTarget: &chromiumos.BuildTarget{Name: "kevin"}},
 				VmTestCfg: kevinVMTestCfg},
 		}}
@@ -232,9 +240,11 @@ func TestCreateCombinedTestPlan_successDespiteOneFailedBuilder(t *testing.T) {
 	testReqs := &testplans.TargetTestRequirementsCfg{
 		PerTargetTestRequirements: []*testplans.PerTargetTestRequirements{
 			{TargetCriteria: &testplans.TargetCriteria{
+				BuilderName: "reef-cq",
 				TargetType: &testplans.TargetCriteria_BuildTarget{BuildTarget: "reef"}},
 				HwTestCfg: reefHwTestCfg},
 			{TargetCriteria: &testplans.TargetCriteria{
+				BuilderName: "kevin-cq",
 				TargetType: &testplans.TargetCriteria_BuildTarget{BuildTarget: "kevin"}},
 				VmTestCfg: kevinVMTestCfg},
 		},
@@ -244,8 +254,8 @@ func TestCreateCombinedTestPlan_successDespiteOneFailedBuilder(t *testing.T) {
 			{FilePattern: &testplans.FilePattern{Pattern: "hw/tests/not/needed/here/**"},
 				TestRestriction: &testplans.TestRestriction{DisableHwTests: true}}}}
 	bbBuilds := []*bbproto.Build{
-		makeBuildbucketBuild("kevin", bbproto.Status_FAILURE, true),
-		makeBuildbucketBuild("reef", bbproto.Status_SUCCESS, true),
+		makeBuildbucketBuild("kevin", "kevin-cq", bbproto.Status_FAILURE, true),
+		makeBuildbucketBuild("reef", "reef-cq", bbproto.Status_SUCCESS, true),
 	}
 	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{
 		{
@@ -277,6 +287,7 @@ func TestCreateCombinedTestPlan_successDespiteOneFailedBuilder(t *testing.T) {
 					ArtifactsGsPath:   GS_PATH_PREFIX + "reef",
 					FilesByArtifact:   &simpleFilesByArtifact,
 				},
+				BuilderName: "reef-cq",
 				BuildTarget: &chromiumos.BuildTarget{Name: "reef"}},
 				HwTestCfg: reefHwTestCfg},
 		}}
@@ -297,6 +308,7 @@ func TestCreateCombinedTestPlan_skipsUnnecessaryHardwareTest(t *testing.T) {
 	testReqs := &testplans.TargetTestRequirementsCfg{
 		PerTargetTestRequirements: []*testplans.PerTargetTestRequirements{
 			{TargetCriteria: &testplans.TargetCriteria{
+				BuilderName: "kevin-cq",
 				TargetType: &testplans.TargetCriteria_BuildTarget{BuildTarget: "kevin"}},
 				HwTestCfg: kevinHWTestCfg},
 		},
@@ -306,7 +318,7 @@ func TestCreateCombinedTestPlan_skipsUnnecessaryHardwareTest(t *testing.T) {
 			{FilePattern: &testplans.FilePattern{Pattern: "no/hw/tests/here/some/**"},
 				TestRestriction: &testplans.TestRestriction{DisableHwTests: true}}}}
 	bbBuilds := []*bbproto.Build{
-		makeBuildbucketBuild("kevin", bbproto.Status_SUCCESS, true),
+		makeBuildbucketBuild("kevin", "kevin-cq", bbproto.Status_SUCCESS, true),
 	}
 	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{
 		{
@@ -355,9 +367,11 @@ func TestCreateCombinedTestPlan_doesOnlyTest(t *testing.T) {
 	testReqs := &testplans.TargetTestRequirementsCfg{
 		PerTargetTestRequirements: []*testplans.PerTargetTestRequirements{
 			{TargetCriteria: &testplans.TargetCriteria{
+				BuilderName: "kevin-cq",
 				TargetType: &testplans.TargetCriteria_BuildTarget{BuildTarget: "kevin"}},
 				HwTestCfg: kevinHWTestCfg},
 			{TargetCriteria: &testplans.TargetCriteria{
+				BuilderName: "bob-cq",
 				TargetType: &testplans.TargetCriteria_BuildTarget{BuildTarget: "bob"}},
 				HwTestCfg: bobHWTestCfg},
 		},
@@ -366,12 +380,15 @@ func TestCreateCombinedTestPlan_doesOnlyTest(t *testing.T) {
 		SourceTreeTestRestriction: []*testplans.SourceTreeTestRestriction{
 			{FilePattern: &testplans.FilePattern{Pattern: "no/hw/tests/here/some/**"},
 				TestRestriction: &testplans.TestRestriction{
+					CqOnlyTestBuilders: []*testplans.TestRestriction_OnlyTestBuilder{
+						{BuilderName: "kevin-cq"},
+					},
 					OnlyTestBuildTargets: []*chromiumos.BuildTarget{
 						{Name: "kevin"}},
 				}}}}
 	bbBuilds := []*bbproto.Build{
-		makeBuildbucketBuild("kevin", bbproto.Status_SUCCESS, true),
-		makeBuildbucketBuild("bob", bbproto.Status_SUCCESS, true),
+		makeBuildbucketBuild("kevin", "kevin-cq", bbproto.Status_SUCCESS, true),
+		makeBuildbucketBuild("bob", "bob-cq", bbproto.Status_SUCCESS, true),
 	}
 	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{
 		{
@@ -403,6 +420,7 @@ func TestCreateCombinedTestPlan_doesOnlyTest(t *testing.T) {
 					ArtifactsGsPath:   GS_PATH_PREFIX + "kevin",
 					FilesByArtifact:   &simpleFilesByArtifact,
 				},
+				BuilderName: "kevin-cq",
 				BuildTarget: &chromiumos.BuildTarget{Name: "kevin"}},
 				HwTestCfg: kevinHWTestCfg},
 		},
@@ -419,6 +437,7 @@ func TestCreateCombinedTestPlan_inputMissingTargetType(t *testing.T) {
 			// This is missing a TargetType.
 			{TargetCriteria: &testplans.TargetCriteria{}},
 			{TargetCriteria: &testplans.TargetCriteria{
+				BuilderName: "kevin-cq",
 				TargetType: &testplans.TargetCriteria_BuildTarget{BuildTarget: "kevin"}}},
 		},
 	}
@@ -440,6 +459,7 @@ func TestCreateCombinedTestPlan_skipsPointlessBuild(t *testing.T) {
 	testReqs := &testplans.TargetTestRequirementsCfg{
 		PerTargetTestRequirements: []*testplans.PerTargetTestRequirements{
 			{TargetCriteria: &testplans.TargetCriteria{
+				BuilderName: "kevin-cq",
 				TargetType: &testplans.TargetCriteria_BuildTarget{BuildTarget: "kevin"}},
 				HwTestCfg: kevinHWTestCfg},
 		},
@@ -448,7 +468,7 @@ func TestCreateCombinedTestPlan_skipsPointlessBuild(t *testing.T) {
 		SourceTreeTestRestriction: []*testplans.SourceTreeTestRestriction{
 			{FilePattern: &testplans.FilePattern{Pattern: "hw/tests/not/needed/here/**"},
 				TestRestriction: &testplans.TestRestriction{DisableHwTests: true}}}}
-	bbBuild := makeBuildbucketBuild("kevin", bbproto.Status_SUCCESS, true)
+	bbBuild := makeBuildbucketBuild("kevin", "kevin-cq", bbproto.Status_SUCCESS, true)
 	bbBuild.Output.Properties.Fields["pointless_build"] = &_struct.Value{Kind: &_struct.Value_BoolValue{BoolValue: true}}
 	bbBuilds := []*bbproto.Build{bbBuild}
 	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{
@@ -485,7 +505,7 @@ func TestCreateTestPlan_succeedsOnNoBuildTarget(t *testing.T) {
 	sourceTreeTestCfg := &testplans.SourceTreeTestCfg{}
 	bbBuilds := []*bbproto.Build{
 		// build target is empty.
-		makeBuildbucketBuild("", bbproto.Status_FAILURE, true),
+		makeBuildbucketBuild("", "kevin-cq", bbproto.Status_FAILURE, true),
 	}
 	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{})
 	repoToBranchToSrcRoot := map[string]map[string]string{}
@@ -506,6 +526,7 @@ func TestCreateCombinedTestPlan_skipsNonCritical(t *testing.T) {
 	testReqs := &testplans.TargetTestRequirementsCfg{
 		PerTargetTestRequirements: []*testplans.PerTargetTestRequirements{
 			{TargetCriteria: &testplans.TargetCriteria{
+				BuilderName: "reef-cq",
 				TargetType: &testplans.TargetCriteria_BuildTarget{BuildTarget: "reef"}},
 				HwTestCfg: reefHwTestCfg},
 		},
@@ -515,7 +536,7 @@ func TestCreateCombinedTestPlan_skipsNonCritical(t *testing.T) {
 			{FilePattern: &testplans.FilePattern{Pattern: "hw/tests/not/needed/here/**"},
 				TestRestriction: &testplans.TestRestriction{DisableHwTests: true}}}}
 	bbBuilds := []*bbproto.Build{
-		makeBuildbucketBuild("reef", bbproto.Status_SUCCESS, false),
+		makeBuildbucketBuild("reef", "reef-cq", bbproto.Status_SUCCESS, false),
 	}
 	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{
 		{
@@ -558,6 +579,7 @@ func TestCreateCombinedTestPlan_ignoresNonArtifactBuild(t *testing.T) {
 	testReqs := &testplans.TargetTestRequirementsCfg{
 		PerTargetTestRequirements: []*testplans.PerTargetTestRequirements{
 			{TargetCriteria: &testplans.TargetCriteria{
+				BuilderName: "kevin-cq",
 				TargetType: &testplans.TargetCriteria_BuildTarget{BuildTarget: "kevin"}},
 				HwTestCfg: kevinHWTestCfg},
 		},
@@ -566,7 +588,7 @@ func TestCreateCombinedTestPlan_ignoresNonArtifactBuild(t *testing.T) {
 		SourceTreeTestRestriction: []*testplans.SourceTreeTestRestriction{
 			{FilePattern: &testplans.FilePattern{Pattern: "hw/tests/not/needed/here/**"},
 				TestRestriction: &testplans.TestRestriction{DisableHwTests: true}}}}
-	build := makeBuildbucketBuild("kevin", bbproto.Status_SUCCESS, true)
+	build := makeBuildbucketBuild("kevin", "kevin-cq", bbproto.Status_SUCCESS, true)
 
 	// Remove the AUTOTEST_FILES files_by_artifact key, thus making this whole
 	// build unusable for testing.
@@ -604,6 +626,7 @@ func TestCreateCombinedTestPlan_skipsNonTastTest(t *testing.T) {
 	testReqs := &testplans.TargetTestRequirementsCfg{
 		PerTargetTestRequirements: []*testplans.PerTargetTestRequirements{
 			{TargetCriteria: &testplans.TargetCriteria{
+				BuilderName: "kevin-cq",
 				TargetType: &testplans.TargetCriteria_BuildTarget{BuildTarget: "kevin"}},
 				HwTestCfg: kevinHWTestCfg,
 				VmTestCfg: kevinVmTestCfg},
@@ -614,7 +637,7 @@ func TestCreateCombinedTestPlan_skipsNonTastTest(t *testing.T) {
 			{FilePattern: &testplans.FilePattern{Pattern: "no/tast/tests/here/some/**"},
 				TestRestriction: &testplans.TestRestriction{DisableNonTastTests: true}}}}
 	bbBuilds := []*bbproto.Build{
-		makeBuildbucketBuild("kevin", bbproto.Status_SUCCESS, true),
+		makeBuildbucketBuild("kevin", "kevin-cq", bbproto.Status_SUCCESS, true),
 	}
 	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{
 		{

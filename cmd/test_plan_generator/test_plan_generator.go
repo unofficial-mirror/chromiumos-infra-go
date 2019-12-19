@@ -29,7 +29,7 @@ import (
 
 const (
 	sourceTreeTestConfigPath   = "testingconfig/generated/source_tree_test_config.binaryproto"
-	targetTestRequirementsPath = "testingconfig/generated/target_test_requirements.binaryproto"
+	targetTestRequirementsPath = "testingconfig/generated/target_test_requirements_v2.binaryproto"
 )
 
 var (

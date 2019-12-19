@@ -6,7 +6,7 @@ require (
 	cloud.google.com/go v0.37.2 // indirect
 	github.com/bmatcuk/doublestar v1.1.1
 	github.com/golang/mock v1.3.1
-	github.com/golang/protobuf v1.3.1
+	github.com/golang/protobuf v1.3.2
 	github.com/google/go-cmp v0.2.0
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/luci/gtreap v0.0.0-20161228054646-35df89791e8f // indirect
@@ -18,10 +18,9 @@ require (
 	github.com/smartystreets/assertions v0.0.0-20190401211740-f487f9de1cd3 // indirect
 	github.com/smartystreets/goconvey v0.0.0-20190330032615-68dc04aab96a // indirect
 	github.com/texttheater/golang-levenshtein v0.0.0-20180516184445-d188e65d659e // indirect
-	go.chromium.org/chromiumos/infra/proto/go v0.0.0-20191126210412-56e80cf716f1
+	go.chromium.org/chromiumos/infra/proto/go v0.0.0-20191218233240-b9998458e32e
 	go.chromium.org/gae v0.0.0-20190826183307-50a499513efa // indirect
 	go.chromium.org/luci v0.0.0-20191118200800-9eaf449bf869
 	golang.org/x/oauth2 v0.0.0-20190402181905-9f3314589c9a // indirect
-	google.golang.org/grpc v1.19.1 // indirect
 	gotest.tools v2.2.0+incompatible
 )

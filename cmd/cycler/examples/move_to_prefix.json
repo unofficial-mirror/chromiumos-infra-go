@@ -1,0 +1,37 @@
+{
+  "run_log_configuration": {
+      "destination_url": "gs://engeg-testing-chromeos-releases-2/logs",
+      "chunk_size_bytes": 104857600,
+      "channel_size": 10000,
+      "persist_retries": 100,
+      "max_unpersisted_logs": 10
+  },
+
+  "policy_effect_configuration": {
+      "move": {
+        "destination_bucket": "engeg-testing-chromeos-releases-2",
+        "destination_prefix": "last_change/"
+      },
+      "policy_document_path": "examples/policies/unlikely_object_name.rego"
+  },
+
+  "stats_configuration": {
+      "prefix_report_max_depth": 1,
+      "age_days_histogram_options": {
+          "num_buckets": 16,
+          "growth_factor": 1.0,
+          "base_bucket_size": 1.0,
+          "min_value": 0
+      },
+      "size_bytes_histogram_options": {
+          "num_buckets": 16,
+          "growth_factor": 4.0,
+          "base_bucket_size": 1.0,
+          "min_value": 0
+      }
+  },
+
+  "mutation_allowed" : true,
+
+  "bucket": "engeg-testing-chromeos-releases"
+}

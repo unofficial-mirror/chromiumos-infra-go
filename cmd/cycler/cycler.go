@@ -24,6 +24,7 @@ import (
 	"os/signal"
 	"runtime"
 	"runtime/debug"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -105,7 +106,10 @@ func main() {
 	iterJobs := flag.Int("iterJobs", 2000, "max number of object iterator jobs")
 
 	// Optional flag to override the bucket to operate on.
-	bucket := flag.String("bucket", "", "override the bucket name to operate on")
+	bucket := flag.String("bucket", "", "override the bucket name to operate on (e.g. gs://newbucket).")
+
+	// Optional flag to override the runlog URL.
+	runlogURL := flag.String("runlogURL", "", "override the runlog path (e.g. gs://newbucket/logs).")
 
 	runConfigPath := flag.String("runConfigPath", "", "the RunConfig input path "+
 		"(in binary or json representation).")
@@ -167,8 +171,17 @@ func main() {
 	}
 
 	if *bucket != "" {
-		fmt.Printf("Warning: Overriding bucket %v to %v\n", runConfig.Bucket, bucket)
-		runConfig.Bucket = *bucket
+		fmt.Printf("Warning: Overriding bucket %v to %v\n", runConfig.Bucket, *bucket)
+		if strings.HasPrefix(*bucket, "gs://") {
+			runConfig.Bucket = (*bucket)[5:]
+		} else {
+			runConfig.Bucket = *bucket
+		}
+	}
+
+	if *runlogURL != "" {
+		fmt.Printf("Warning: Overriding runlog %v to %v\n", runConfig.RunLogConfiguration.DestinationUrl, *runlogURL)
+		runConfig.RunLogConfiguration.DestinationUrl = *runlogURL
 	}
 
 	// Initialize GS context and client.

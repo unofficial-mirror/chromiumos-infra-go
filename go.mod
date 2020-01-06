@@ -1,6 +1,6 @@
 module go.chromium.org/chromiumos/infra/go
 
-go 1.12
+go 1.13
 
 require (
 	cloud.google.com/go v0.37.2
@@ -21,7 +21,7 @@ require (
 	github.com/smartystreets/assertions v0.0.0-20190401211740-f487f9de1cd3 // indirect
 	github.com/smartystreets/goconvey v0.0.0-20190330032615-68dc04aab96a // indirect
 	github.com/texttheater/golang-levenshtein v0.0.0-20180516184445-d188e65d659e // indirect
-	go.chromium.org/chromiumos/infra/proto/go v0.0.0-20200103230853-2d327075e636
+	go.chromium.org/chromiumos/infra/proto/go v0.0.0-20200106213256-37ffe011cbfd
 	go.chromium.org/gae v0.0.0-20190826183307-50a499513efa // indirect
 	go.chromium.org/luci v0.0.0-20191118200800-9eaf449bf869
 	golang.org/x/oauth2 v0.0.0-20190402181905-9f3314589c9a // indirect

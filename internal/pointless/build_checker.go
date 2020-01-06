@@ -5,15 +5,16 @@ package pointless
 
 import (
 	"fmt"
+	"log"
+	"sort"
+	"strings"
+
 	"github.com/bmatcuk/doublestar"
 	"github.com/golang/protobuf/ptypes/wrappers"
 	"go.chromium.org/chromiumos/infra/go/internal/gerrit"
 	chromite "go.chromium.org/chromiumos/infra/proto/go/chromite/api"
 	testplans_pb "go.chromium.org/chromiumos/infra/proto/go/testplans"
 	bbproto "go.chromium.org/luci/buildbucket/proto"
-	"log"
-	"sort"
-	"strings"
 )
 
 // CheckBuilder assesses whether a child builder is pointless for a given CQ run. This may be the
@@ -23,6 +24,7 @@ func CheckBuilder(
 	changes []*bbproto.GerritChange,
 	changeRevs *gerrit.ChangeRevData,
 	depGraph *chromite.DepGraph,
+	relevantPaths []*testplans_pb.PointlessBuildCheckRequest_Path,
 	repoToBranchToSrcRoot map[string]map[string]string,
 	cfg testplans_pb.BuildIrrelevanceCfg) (*testplans_pb.PointlessBuildCheckResponse, error) {
 
@@ -53,7 +55,7 @@ func CheckBuilder(
 		strings.Join(affectedFiles, "\n"))
 
 	// Filter out files that aren't in the Portage dep graph.
-	affectedFiles = filterByPortageDeps(affectedFiles, depGraph)
+	affectedFiles = filterByPortageDeps(affectedFiles, depGraph, relevantPaths)
 	if len(affectedFiles) == 0 {
 		log.Printf("All files ruled out after checking dep graph")
 		return &testplans_pb.PointlessBuildCheckResponse{
@@ -120,7 +122,7 @@ affectedFile:
 	return pipFilteredFiles
 }
 
-func filterByPortageDeps(files []string, depGraph *chromite.DepGraph) []string {
+func filterByPortageDeps(files []string, depGraph *chromite.DepGraph, relevantPaths []*testplans_pb.PointlessBuildCheckRequest_Path) []string {
 	if depGraph == nil {
 		log.Printf("No Portage DepGraph was provided, so no files can be filtered out by this rule.")
 		return files
@@ -130,6 +132,9 @@ func filterByPortageDeps(files []string, depGraph *chromite.DepGraph) []string {
 		for _, sp := range pd.DependencySourcePaths {
 			portageDeps = append(portageDeps, sp.Path)
 		}
+	}
+	for _, path := range relevantPaths {
+		portageDeps = append(portageDeps, path.Path)
 	}
 	log.Printf("Found %d Portage deps to consider from the build graph:\n"+
 		"<portage dep paths>\n%v\n</portage dep paths>",

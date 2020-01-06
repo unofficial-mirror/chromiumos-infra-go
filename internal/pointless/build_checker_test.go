@@ -12,17 +12,6 @@ import (
 	"testing"
 )
 
-func makeBuildbucketBuild(changes []*bbproto.GerritChange) *bbproto.Build {
-	b := &bbproto.Build{
-		Input:   &bbproto.Build_Input{},
-		Builder: &bbproto.BuilderID{Builder: "reef"},
-	}
-	for _, c := range changes {
-		b.Input.GerritChanges = append(b.Input.GerritChanges, c)
-	}
-	return b
-}
-
 func TestCheckBuilder_irrelevantToDepGraph(t *testing.T) {
 	// In this test, there's a CL that is fully irrelevant to the dep graph, so the build is pointless.
 
@@ -40,17 +29,14 @@ func TestCheckBuilder_irrelevantToDepGraph(t *testing.T) {
 			Files:   []string{"relevantfile", "irrelevantdir2"},
 		},
 	})
-	depGraph := &chromite.DepGraph{
-		PackageDeps: []*chromite.PackageDepInfo{
-			{DependencySourcePaths: []*chromite.SourcePath{
-				{Path: "src/dep/graph/path"},
-			}}}}
+	depGraph := &chromite.DepGraph{}
+	relevantPaths := []*testplans_pb.PointlessBuildCheckRequest_Path{{Path: "src/dep/graph/path"}}
 	repoToBranchToSrcRoot := map[string]map[string]string{
 		"chromiumos/public/example": {"refs/heads/master": "src/pub/ex"},
 	}
 	cfg := testplans_pb.BuildIrrelevanceCfg{}
 
-	res, err := CheckBuilder(changes, chRevData, depGraph, repoToBranchToSrcRoot, cfg)
+	res, err := CheckBuilder(changes, chRevData, depGraph, relevantPaths, repoToBranchToSrcRoot, cfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -102,7 +88,7 @@ func TestCheckBuilder_relevantToDepGraph(t *testing.T) {
 	}
 	cfg := testplans_pb.BuildIrrelevanceCfg{}
 
-	res, err := CheckBuilder(changes, chRevData, depGraph, repoToBranchToSrcRoot, cfg)
+	res, err := CheckBuilder(changes, chRevData, depGraph, []*testplans_pb.PointlessBuildCheckRequest_Path{}, repoToBranchToSrcRoot, cfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -146,7 +132,7 @@ func TestCheckBuilder_buildIrrelevantPaths(t *testing.T) {
 		},
 	}
 
-	res, err := CheckBuilder(changes, chRevData, depGraph, repoToBranchToSrcRoot, cfg)
+	res, err := CheckBuilder(changes, chRevData, depGraph, []*testplans_pb.PointlessBuildCheckRequest_Path{}, repoToBranchToSrcRoot, cfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -171,7 +157,7 @@ func TestCheckBuilder_noGerritChangesMeansNecessaryBuild(t *testing.T) {
 	}
 	cfg := testplans_pb.BuildIrrelevanceCfg{}
 
-	res, err := CheckBuilder(changes, chRevData, depGraph, repoToBranchToSrcRoot, cfg)
+	res, err := CheckBuilder(changes, chRevData, depGraph, []*testplans_pb.PointlessBuildCheckRequest_Path{}, repoToBranchToSrcRoot, cfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -203,7 +189,7 @@ func TestCheckBuild_nilDepGraphSuccessWithNoFilter(t *testing.T) {
 	}
 	cfg := testplans_pb.BuildIrrelevanceCfg{}
 
-	res, err := CheckBuilder(changes, chRevData, nil, repoToBranchToSrcRoot, cfg)
+	res, err := CheckBuilder(changes, chRevData, nil, nil, repoToBranchToSrcRoot, cfg)
 	if err != nil {
 		t.Error(err)
 	}

@@ -516,8 +516,8 @@ func TestCreateTestPlan_succeedsOnNoBuildTarget(t *testing.T) {
 	}
 }
 
-func TestCreateCombinedTestPlan_skipsNonCritical(t *testing.T) {
-	// In this test, the build is not critical, so no test unit will be produced.
+func TestCreateCombinedTestPlan_doesNotSkipNonCritical(t *testing.T) {
+	// In this test, the build is not critical, but we test it anyway!
 
 	reefHwTestCfg := &testplans.HwTestCfg{HwTest: []*testplans.HwTestCfg_HwTest{
 		{SkylabBoard: "my reef",
@@ -561,7 +561,18 @@ func TestCreateCombinedTestPlan_skipsNonCritical(t *testing.T) {
 	}
 
 	expectedTestPlan := &testplans.GenerateTestPlanResponse{
-		HwTestUnits: []*testplans.HwTestUnit{}}
+		HwTestUnits: []*testplans.HwTestUnit{
+			{Common: &testplans.TestUnitCommon{
+				BuildPayload: &testplans.BuildPayload{
+					ArtifactsGsBucket: GS_BUCKET,
+					ArtifactsGsPath:   GS_PATH_PREFIX + "reef",
+					FilesByArtifact:   &simpleFilesByArtifact,
+				},
+				BuilderName: "reef-cq",
+				BuildTarget: &chromiumos.BuildTarget{Name: "reef"}},
+				HwTestCfg: reefHwTestCfg},
+		},
+	}
 
 	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, cmpopts.EquateEmpty()); diff != "" {
 		t.Errorf("CreateCombinedTestPlan bad result (-want/+got)\n%s", diff)

@@ -132,7 +132,6 @@ func createResponse(
 	pruneResult *testPruneResult) (*testplans.GenerateTestPlanResponse, error) {
 
 	resp := &testplans.GenerateTestPlanResponse{}
-targetLoop:
 	for _, tbr := range targetBuildResults {
 		art, ok := tbr.buildReport.Output.Properties.Fields["artifacts"]
 		if !ok {
@@ -160,8 +159,9 @@ targetLoop:
 		tuc := &testplans.TestUnitCommon{BuildTarget: &bt, BuildPayload: bp, BuilderName: tbr.buildId.builderName}
 		isBuildCritical := tbr.buildReport.Critical != bbproto.Trinary_NO
 		if !isBuildCritical {
-			log.Printf("Builder %s is not critical. Skipping...", tbr.buildId.builderName)
-			continue targetLoop
+			// We formerly didn't test noncritical builders, but now we do.
+			// See https://crbug.com/1040602.
+			log.Printf("Builder %s is not critical, but we can still test it.", tbr.buildId.builderName)
 		}
 		if pttr.HwTestCfg != nil {
 			if pruneResult.disableHWTests {

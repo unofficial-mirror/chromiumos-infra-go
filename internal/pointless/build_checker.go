@@ -124,8 +124,9 @@ affectedFile:
 
 func filterByPortageDeps(files []string, depGraph *chromite.DepGraph, relevantPaths []*testplans_pb.PointlessBuildCheckRequest_Path) []string {
 	if depGraph == nil {
-		log.Printf("No Portage DepGraph was provided, so no files can be filtered out by this rule.")
-		return files
+		// Temporary hack for https://crbug.com/1042283.
+		// TODO(seanabraham): remove references to DepGraph.
+		depGraph = &chromite.DepGraph{}
 	}
 	portageDeps := make([]string, 0)
 	for _, pd := range depGraph.PackageDeps {

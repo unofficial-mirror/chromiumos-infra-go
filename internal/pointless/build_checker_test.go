@@ -166,38 +166,6 @@ func TestCheckBuilder_noGerritChangesMeansNecessaryBuild(t *testing.T) {
 	}
 }
 
-func TestCheckBuild_nilDepGraphSuccessWithNoFilter(t *testing.T) {
-	// In this test, no DepGraph is provided. We expect the checker to finish successfully, and to not
-	// filter out the files.
-
-	changes := []*bbproto.GerritChange{
-		{Host: "test-review.googlesource.com", Change: 123, Patchset: 2, Project: "chromiumos/public/example"}}
-	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{
-		{
-			ChangeRevKey: gerrit.ChangeRevKey{
-				Host:      "test-review.googlesource.com",
-				ChangeNum: 123,
-				Revision:  2,
-			},
-			Branch:  "refs/heads/master",
-			Project: "chromiumos/public/example",
-			Files:   []string{"a/b/c"},
-		},
-	})
-	repoToBranchToSrcRoot := map[string]map[string]string{
-		"chromiumos/public/example": {"refs/heads/master": "src/pub/ex"},
-	}
-	cfg := testplans_pb.BuildIrrelevanceCfg{}
-
-	res, err := CheckBuilder(changes, chRevData, nil, nil, repoToBranchToSrcRoot, cfg)
-	if err != nil {
-		t.Error(err)
-	}
-	if res.BuildIsPointless.Value {
-		t.Errorf("expected !build_is_pointless, instead got result %v", res)
-	}
-}
-
 func match(t *testing.T, pattern, name string) {
 	m, err := doublestar.Match(pattern, name)
 	if err != nil {

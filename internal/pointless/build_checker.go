@@ -12,18 +12,16 @@ import (
 	"github.com/bmatcuk/doublestar"
 	"github.com/golang/protobuf/ptypes/wrappers"
 	"go.chromium.org/chromiumos/infra/go/internal/gerrit"
-	chromite "go.chromium.org/chromiumos/infra/proto/go/chromite/api"
 	testplans_pb "go.chromium.org/chromiumos/infra/proto/go/testplans"
 	bbproto "go.chromium.org/luci/buildbucket/proto"
 )
 
 // CheckBuilder assesses whether a child builder is pointless for a given CQ run. This may be the
 // case if the commits in the CQ run don't affect any files that could possibly affect this
-// builder's Portage graph.
+// builder's relevant paths.
 func CheckBuilder(
 	changes []*bbproto.GerritChange,
 	changeRevs *gerrit.ChangeRevData,
-	depGraph *chromite.DepGraph,
 	relevantPaths []*testplans_pb.PointlessBuildCheckRequest_Path,
 	repoToBranchToSrcRoot map[string]map[string]string,
 	cfg testplans_pb.BuildIrrelevanceCfg) (*testplans_pb.PointlessBuildCheckResponse, error) {
@@ -54,10 +52,10 @@ func CheckBuilder(
 	log.Printf("After considering build-irrelevant paths, we still must consider files:\n%v",
 		strings.Join(affectedFiles, "\n"))
 
-	// Filter out files that aren't in the Portage dep graph.
-	affectedFiles = filterByPortageDeps(affectedFiles, depGraph, relevantPaths)
+	// Filter out files that aren't in the relevant paths.
+	affectedFiles = filterByPortageDeps(affectedFiles, relevantPaths)
 	if len(affectedFiles) == 0 {
-		log.Printf("All files ruled out after checking dep graph")
+		log.Printf("All files ruled out after checking relevant paths")
 		return &testplans_pb.PointlessBuildCheckResponse{
 			BuildIsPointless:     &wrappers.BoolValue{Value: true},
 			PointlessBuildReason: testplans_pb.PointlessBuildCheckResponse_IRRELEVANT_TO_DEPS_GRAPH,
@@ -122,22 +120,12 @@ affectedFile:
 	return pipFilteredFiles
 }
 
-func filterByPortageDeps(files []string, depGraph *chromite.DepGraph, relevantPaths []*testplans_pb.PointlessBuildCheckRequest_Path) []string {
-	if depGraph == nil {
-		// Temporary hack for https://crbug.com/1042283.
-		// TODO(seanabraham): remove references to DepGraph.
-		depGraph = &chromite.DepGraph{}
-	}
+func filterByPortageDeps(files []string, relevantPaths []*testplans_pb.PointlessBuildCheckRequest_Path) []string {
 	portageDeps := make([]string, 0)
-	for _, pd := range depGraph.PackageDeps {
-		for _, sp := range pd.DependencySourcePaths {
-			portageDeps = append(portageDeps, sp.Path)
-		}
-	}
 	for _, path := range relevantPaths {
 		portageDeps = append(portageDeps, path.Path)
 	}
-	log.Printf("Found %d Portage deps to consider from the build graph:\n"+
+	log.Printf("Found %d affected files to consider:\n"+
 		"<portage dep paths>\n%v\n</portage dep paths>",
 		len(portageDeps), strings.Join(portageDeps, "\n"))
 
@@ -157,7 +145,7 @@ affectedFile:
 				continue affectedFile
 			}
 		}
-		log.Printf("Ignoring file %s because no prefix of it is referenced in the dep graph", f)
+		log.Printf("Ignoring file %s because no prefix of it is referenced in the relevant paths", f)
 	}
 	return portageFilteredFiles
 }

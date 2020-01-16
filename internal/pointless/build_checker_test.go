@@ -6,14 +6,13 @@ package pointless
 import (
 	"github.com/bmatcuk/doublestar"
 	"go.chromium.org/chromiumos/infra/go/internal/gerrit"
-	chromite "go.chromium.org/chromiumos/infra/proto/go/chromite/api"
 	testplans_pb "go.chromium.org/chromiumos/infra/proto/go/testplans"
 	bbproto "go.chromium.org/luci/buildbucket/proto"
 	"testing"
 )
 
-func TestCheckBuilder_irrelevantToDepGraph(t *testing.T) {
-	// In this test, there's a CL that is fully irrelevant to the dep graph, so the build is pointless.
+func TestCheckBuilder_irrelevantToRelevantPaths(t *testing.T) {
+	// In this test, there's a CL that is fully irrelevant to relevant paths, so the build is pointless.
 
 	changes := []*bbproto.GerritChange{
 		{Host: "test-review.googlesource.com", Change: 123, Patchset: 2, Project: "chromiumos/public/example"}}
@@ -29,14 +28,13 @@ func TestCheckBuilder_irrelevantToDepGraph(t *testing.T) {
 			Files:   []string{"relevantfile", "irrelevantdir2"},
 		},
 	})
-	depGraph := &chromite.DepGraph{}
 	relevantPaths := []*testplans_pb.PointlessBuildCheckRequest_Path{{Path: "src/dep/graph/path"}}
 	repoToBranchToSrcRoot := map[string]map[string]string{
 		"chromiumos/public/example": {"refs/heads/master": "src/pub/ex"},
 	}
 	cfg := testplans_pb.BuildIrrelevanceCfg{}
 
-	res, err := CheckBuilder(changes, chRevData, depGraph, relevantPaths, repoToBranchToSrcRoot, cfg)
+	res, err := CheckBuilder(changes, chRevData, relevantPaths, repoToBranchToSrcRoot, cfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -48,8 +46,8 @@ func TestCheckBuilder_irrelevantToDepGraph(t *testing.T) {
 	}
 }
 
-func TestCheckBuilder_relevantToDepGraph(t *testing.T) {
-	// In this test, there are two CLs, with one of them being relevant to the Portage graph. The
+func TestCheckBuilder_relevantToRelevantPaths(t *testing.T) {
+	// In this test, there are two CLs, with one of them being related to the relevant paths. The
 	// build thus is necessary.
 
 	changes := []*bbproto.GerritChange{
@@ -77,18 +75,16 @@ func TestCheckBuilder_relevantToDepGraph(t *testing.T) {
 			Files:   []string{"important_stuff/important_file"},
 		},
 	})
-	depGraph := &chromite.DepGraph{
-		PackageDeps: []*chromite.PackageDepInfo{
-			{DependencySourcePaths: []*chromite.SourcePath{
-				{Path: "src/internal/ex/important_stuff"},
-			}}}}
+	relevantPaths := []*testplans_pb.PointlessBuildCheckRequest_Path{
+		{Path: "src/internal/ex/important_stuff"},
+	}
 	repoToBranchToSrcRoot := map[string]map[string]string{
 		"chromiumos/public/example":   {"refs/heads/master": "src/pub/ex"},
 		"chromiumos/internal/example": {"refs/heads/master": "src/internal/ex"},
 	}
 	cfg := testplans_pb.BuildIrrelevanceCfg{}
 
-	res, err := CheckBuilder(changes, chRevData, depGraph, []*testplans_pb.PointlessBuildCheckRequest_Path{}, repoToBranchToSrcRoot, cfg)
+	res, err := CheckBuilder(changes, chRevData, relevantPaths, repoToBranchToSrcRoot, cfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -117,11 +113,9 @@ func TestCheckBuilder_buildIrrelevantPaths(t *testing.T) {
 			},
 		},
 	})
-	depGraph := &chromite.DepGraph{
-		PackageDeps: []*chromite.PackageDepInfo{
-			{DependencySourcePaths: []*chromite.SourcePath{
-				{Path: "src/pub/ex/chromite-maybe"},
-			}}}}
+	relevantPaths := []*testplans_pb.PointlessBuildCheckRequest_Path{
+		{Path: "src/pub/ex/chromite-maybe"},
+	}
 	repoToBranchToSrcRoot := map[string]map[string]string{
 		"chromiumos/public/example": {"refs/heads/master": "src/pub/ex"},
 	}
@@ -132,7 +126,7 @@ func TestCheckBuilder_buildIrrelevantPaths(t *testing.T) {
 		},
 	}
 
-	res, err := CheckBuilder(changes, chRevData, depGraph, []*testplans_pb.PointlessBuildCheckRequest_Path{}, repoToBranchToSrcRoot, cfg)
+	res, err := CheckBuilder(changes, chRevData, relevantPaths, repoToBranchToSrcRoot, cfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -147,17 +141,15 @@ func TestCheckBuilder_buildIrrelevantPaths(t *testing.T) {
 func TestCheckBuilder_noGerritChangesMeansNecessaryBuild(t *testing.T) {
 	var changes []*bbproto.GerritChange
 	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{})
-	depGraph := &chromite.DepGraph{
-		PackageDeps: []*chromite.PackageDepInfo{
-			{DependencySourcePaths: []*chromite.SourcePath{
-				{Path: "src/pub/ex/chromite-maybe"},
-			}}}}
+	relevantPaths := []*testplans_pb.PointlessBuildCheckRequest_Path{
+		{Path: "src/pub/ex/chromite-maybe"},
+	}
 	repoToBranchToSrcRoot := map[string]map[string]string{
 		"chromiumos/public/example": {"refs/heads/master": "src/pub/ex"},
 	}
 	cfg := testplans_pb.BuildIrrelevanceCfg{}
 
-	res, err := CheckBuilder(changes, chRevData, depGraph, []*testplans_pb.PointlessBuildCheckRequest_Path{}, repoToBranchToSrcRoot, cfg)
+	res, err := CheckBuilder(changes, chRevData, relevantPaths, repoToBranchToSrcRoot, cfg)
 	if err != nil {
 		t.Error(err)
 	}

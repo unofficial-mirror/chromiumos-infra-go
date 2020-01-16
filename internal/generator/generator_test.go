@@ -39,7 +39,7 @@ func makeBuildbucketBuild(buildTarget string, builderName string, status bbproto
 		criticalVal = bbproto.Trinary_NO
 	}
 	b := &bbproto.Build{
-		Builder: &bbproto.BuilderID{Builder: builderName},
+		Builder:  &bbproto.BuilderID{Builder: builderName},
 		Critical: criticalVal,
 		Input:    &bbproto.Build_Input{},
 		Output: &bbproto.Build_Output{
@@ -81,7 +81,7 @@ func TestCreateCombinedTestPlan_oneUnitSuccess(t *testing.T) {
 		PerTargetTestRequirements: []*testplans.PerTargetTestRequirements{
 			{TargetCriteria: &testplans.TargetCriteria{
 				BuilderName: "kevin-cq",
-				TargetType: &testplans.TargetCriteria_BuildTarget{BuildTarget: "kevin"}},
+				TargetType:  &testplans.TargetCriteria_BuildTarget{BuildTarget: "kevin"}},
 				HwTestCfg: kevinHWTestCfg},
 		},
 	}
@@ -138,11 +138,11 @@ func TestCreateCombinedTestPlan_manyUnitSuccess(t *testing.T) {
 		PerTargetTestRequirements: []*testplans.PerTargetTestRequirements{
 			{TargetCriteria: &testplans.TargetCriteria{
 				BuilderName: "kevin-debug-kernel-cq",
-				TargetType: &testplans.TargetCriteria_BuildTarget{BuildTarget: "kevin"}},
+				TargetType:  &testplans.TargetCriteria_BuildTarget{BuildTarget: "kevin"}},
 				MoblabVmTestCfg: kevinDebugMoblabVmTestCfg},
 			{TargetCriteria: &testplans.TargetCriteria{
 				BuilderName: "kevin-cq",
-				TargetType: &testplans.TargetCriteria_BuildTarget{BuildTarget: "kevin"}},
+				TargetType:  &testplans.TargetCriteria_BuildTarget{BuildTarget: "kevin"}},
 				HwTestCfg:     kevinHWTestCfg,
 				TastVmTestCfg: kevinTastVMTestCfg,
 				VmTestCfg:     kevinVMTestCfg},
@@ -241,11 +241,11 @@ func TestCreateCombinedTestPlan_successDespiteOneFailedBuilder(t *testing.T) {
 		PerTargetTestRequirements: []*testplans.PerTargetTestRequirements{
 			{TargetCriteria: &testplans.TargetCriteria{
 				BuilderName: "reef-cq",
-				TargetType: &testplans.TargetCriteria_BuildTarget{BuildTarget: "reef"}},
+				TargetType:  &testplans.TargetCriteria_BuildTarget{BuildTarget: "reef"}},
 				HwTestCfg: reefHwTestCfg},
 			{TargetCriteria: &testplans.TargetCriteria{
 				BuilderName: "kevin-cq",
-				TargetType: &testplans.TargetCriteria_BuildTarget{BuildTarget: "kevin"}},
+				TargetType:  &testplans.TargetCriteria_BuildTarget{BuildTarget: "kevin"}},
 				VmTestCfg: kevinVMTestCfg},
 		},
 	}
@@ -309,7 +309,7 @@ func TestCreateCombinedTestPlan_skipsUnnecessaryHardwareTest(t *testing.T) {
 		PerTargetTestRequirements: []*testplans.PerTargetTestRequirements{
 			{TargetCriteria: &testplans.TargetCriteria{
 				BuilderName: "kevin-cq",
-				TargetType: &testplans.TargetCriteria_BuildTarget{BuildTarget: "kevin"}},
+				TargetType:  &testplans.TargetCriteria_BuildTarget{BuildTarget: "kevin"}},
 				HwTestCfg: kevinHWTestCfg},
 		},
 	}
@@ -368,11 +368,11 @@ func TestCreateCombinedTestPlan_doesOnlyTest(t *testing.T) {
 		PerTargetTestRequirements: []*testplans.PerTargetTestRequirements{
 			{TargetCriteria: &testplans.TargetCriteria{
 				BuilderName: "kevin-cq",
-				TargetType: &testplans.TargetCriteria_BuildTarget{BuildTarget: "kevin"}},
+				TargetType:  &testplans.TargetCriteria_BuildTarget{BuildTarget: "kevin"}},
 				HwTestCfg: kevinHWTestCfg},
 			{TargetCriteria: &testplans.TargetCriteria{
 				BuilderName: "bob-cq",
-				TargetType: &testplans.TargetCriteria_BuildTarget{BuildTarget: "bob"}},
+				TargetType:  &testplans.TargetCriteria_BuildTarget{BuildTarget: "bob"}},
 				HwTestCfg: bobHWTestCfg},
 		},
 	}
@@ -438,7 +438,7 @@ func TestCreateCombinedTestPlan_inputMissingTargetType(t *testing.T) {
 			{TargetCriteria: &testplans.TargetCriteria{}},
 			{TargetCriteria: &testplans.TargetCriteria{
 				BuilderName: "kevin-cq",
-				TargetType: &testplans.TargetCriteria_BuildTarget{BuildTarget: "kevin"}}},
+				TargetType:  &testplans.TargetCriteria_BuildTarget{BuildTarget: "kevin"}}},
 		},
 	}
 	sourceTreeTestCfg := &testplans.SourceTreeTestCfg{}
@@ -460,7 +460,7 @@ func TestCreateCombinedTestPlan_skipsPointlessBuild(t *testing.T) {
 		PerTargetTestRequirements: []*testplans.PerTargetTestRequirements{
 			{TargetCriteria: &testplans.TargetCriteria{
 				BuilderName: "kevin-cq",
-				TargetType: &testplans.TargetCriteria_BuildTarget{BuildTarget: "kevin"}},
+				TargetType:  &testplans.TargetCriteria_BuildTarget{BuildTarget: "kevin"}},
 				HwTestCfg: kevinHWTestCfg},
 		},
 	}
@@ -527,7 +527,7 @@ func TestCreateCombinedTestPlan_doesNotSkipNonCritical(t *testing.T) {
 		PerTargetTestRequirements: []*testplans.PerTargetTestRequirements{
 			{TargetCriteria: &testplans.TargetCriteria{
 				BuilderName: "reef-cq",
-				TargetType: &testplans.TargetCriteria_BuildTarget{BuildTarget: "reef"}},
+				TargetType:  &testplans.TargetCriteria_BuildTarget{BuildTarget: "reef"}},
 				HwTestCfg: reefHwTestCfg},
 		},
 	}
@@ -591,7 +591,7 @@ func TestCreateCombinedTestPlan_ignoresNonArtifactBuild(t *testing.T) {
 		PerTargetTestRequirements: []*testplans.PerTargetTestRequirements{
 			{TargetCriteria: &testplans.TargetCriteria{
 				BuilderName: "kevin-cq",
-				TargetType: &testplans.TargetCriteria_BuildTarget{BuildTarget: "kevin"}},
+				TargetType:  &testplans.TargetCriteria_BuildTarget{BuildTarget: "kevin"}},
 				HwTestCfg: kevinHWTestCfg},
 		},
 	}
@@ -638,7 +638,7 @@ func TestCreateCombinedTestPlan_skipsNonTastTest(t *testing.T) {
 		PerTargetTestRequirements: []*testplans.PerTargetTestRequirements{
 			{TargetCriteria: &testplans.TargetCriteria{
 				BuilderName: "kevin-cq",
-				TargetType: &testplans.TargetCriteria_BuildTarget{BuildTarget: "kevin"}},
+				TargetType:  &testplans.TargetCriteria_BuildTarget{BuildTarget: "kevin"}},
 				HwTestCfg: kevinHWTestCfg,
 				VmTestCfg: kevinVmTestCfg},
 		},

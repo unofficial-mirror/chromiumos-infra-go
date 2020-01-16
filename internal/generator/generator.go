@@ -23,7 +23,7 @@ type buildId struct {
 
 // buildResult is a conglomeration of data about a build and how to test it.
 type buildResult struct {
-	buildId buildId
+	buildId           buildId
 	buildReport       bbproto.Build
 	perTargetTestReqs testplans.PerTargetTestRequirements
 }
@@ -38,7 +38,6 @@ func CreateTestPlan(
 	repoToBranchToSrcRoot map[string]map[string]string) (*testplans.GenerateTestPlanResponse, error) {
 	testPlan := &testplans.GenerateTestPlanResponse{}
 
-
 	btBuildReports := make(map[buildId]bbproto.Build)
 	// Filter out special builds like "chromite-cq" that don't have build targets.
 	filteredBbBuilds := make([]*bbproto.Build, 0)
@@ -51,7 +50,7 @@ func CreateTestPlan(
 		} else if !hasTestArtifacts(bb) {
 			log.Printf("filtering out with missing test artifacts: %s", bb.GetBuilder().GetBuilder())
 		} else {
-			btBuildReports[buildId{buildTarget:bt, builderName:bb.GetBuilder().GetBuilder()}] = *bb
+			btBuildReports[buildId{buildTarget: bt, builderName: bb.GetBuilder().GetBuilder()}] = *bb
 			filteredBbBuilds = append(filteredBbBuilds, bb)
 		}
 	}
@@ -272,7 +271,7 @@ func selectBuildForRequirements(
 	br := buildReports[*bt]
 	return &buildResult{
 			buildReport:       br,
-			buildId: buildId{buildTarget:getBuildTarget(&br), builderName: br.GetBuilder().GetBuilder()},
+			buildId:           buildId{buildTarget: getBuildTarget(&br), builderName: br.GetBuilder().GetBuilder()},
 			perTargetTestReqs: *pttr},
 		nil
 }

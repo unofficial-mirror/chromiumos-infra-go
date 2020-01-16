@@ -123,7 +123,6 @@ func fetchFileList(host string, change int64, revision int32, ctx context.Contex
 	return results, nil
 }
 
-
 // ChangeRevData encapsulates a bunch of Gerrit change revisions.
 type ChangeRevData struct {
 	m map[string]*ChangeRev

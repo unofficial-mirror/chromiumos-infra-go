@@ -138,7 +138,7 @@ func TestCheckBuilder_buildIrrelevantPaths(t *testing.T) {
 	}
 }
 
-func TestCheckBuilder_noGerritChangesMeansNecessaryBuild(t *testing.T) {
+func TestCheckBuilder_noGerritChangesMeansPointlessBuild(t *testing.T) {
 	var changes []*bbproto.GerritChange
 	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{})
 	relevantPaths := []*testplans_pb.PointlessBuildCheckRequest_Path{
@@ -153,8 +153,8 @@ func TestCheckBuilder_noGerritChangesMeansNecessaryBuild(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if res.BuildIsPointless.Value {
-		t.Errorf("expected !build_is_pointless, instead got result %v", res)
+	if !res.BuildIsPointless.Value {
+		t.Errorf("expected build_is_pointless, instead got result %v", res)
 	}
 }
 

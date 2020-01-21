@@ -32,10 +32,10 @@ func CheckBuilder(
 		return nil, fmt.Errorf("error in extractAffectedFiles: %+v", err)
 	}
 	if len(affectedFiles) == 0 {
-		log.Printf("No affected files, so this can't be a CQ run. " +
-			"Aborting with BuildIsPointless := false")
+		log.Printf("No affected files, so this run is irrelevant to the relevant paths")
 		return &testplans_pb.PointlessBuildCheckResponse{
-			BuildIsPointless: &wrappers.BoolValue{Value: false},
+			PointlessBuildReason: testplans_pb.PointlessBuildCheckResponse_IRRELEVANT_TO_DEPS_GRAPH,
+			BuildIsPointless: &wrappers.BoolValue{Value: true},
 		}, nil
 	}
 

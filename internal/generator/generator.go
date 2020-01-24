@@ -208,6 +208,14 @@ func createResponse(
 				Common:        tuc,
 				TastVmTestCfg: pttr.TastVmTestCfg})
 		}
+		if pttr.DirectTastVmTestCfg != nil {
+			for _, tastVm := range pttr.DirectTastVmTestCfg.TastVmTest {
+				tastVm.Common = withCritical(tastVm.Common, isBuildCritical)
+			}
+			resp.DirectTastVmTestUnits = append(resp.DirectTastVmTestUnits, &testplans.TastVmTestUnit{
+				Common:        tuc,
+				TastVmTestCfg: pttr.TastVmTestCfg})
+		}
 		if pttr.VmTestCfg != nil {
 			if pruneResult.disableVMTests {
 				log.Printf("No VM testing needed for %s", tbr.buildId.builderName)

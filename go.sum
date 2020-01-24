@@ -179,6 +179,8 @@ github.com/yashtewari/glob-intersection v0.0.0-20180916065949-5c77d914dd0b h1:vV
 github.com/yashtewari/glob-intersection v0.0.0-20180916065949-5c77d914dd0b/go.mod h1:HptNXiXVDcJjXe9SqMd0v2FsL9f8dz4GnXgltU6q/co=
 go.chromium.org/chromiumos/infra/proto/go v0.0.0-20200106213256-37ffe011cbfd h1:OMukUGtsxOSvK5bC6s1Om1MbhbhBrUivF/AG6xZG2Gw=
 go.chromium.org/chromiumos/infra/proto/go v0.0.0-20200106213256-37ffe011cbfd/go.mod h1:6J9KHeZWAXoXap0SymRBXiPSDg8bSKGtHC+njpyz2eY=
+go.chromium.org/chromiumos/infra/proto/go v0.0.0-20200122233935-80b48f5df332 h1:14qX0YpgwMwPiOKkSH8y9YRP78LWsKKOZxEGpvFT8aw=
+go.chromium.org/chromiumos/infra/proto/go v0.0.0-20200122233935-80b48f5df332/go.mod h1:6J9KHeZWAXoXap0SymRBXiPSDg8bSKGtHC+njpyz2eY=
 go.chromium.org/gae v0.0.0-20190826183307-50a499513efa h1:1Ia0zTIyW9IktCoEQOHPqlBsohu5n/Vzqmupj4B4tqg=
 go.chromium.org/gae v0.0.0-20190826183307-50a499513efa/go.mod h1:ypuIZj/TmtaQgUYPNNu0iKlsUkuv10PROeqHCNrqrog=
 go.chromium.org/luci v0.0.0-20191118200800-9eaf449bf869 h1:/4CDaHTkA4+VywpOUqnsbr7KYnRkohvazceYD8wm71g=

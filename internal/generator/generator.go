@@ -214,7 +214,7 @@ func createResponse(
 			}
 			resp.DirectTastVmTestUnits = append(resp.DirectTastVmTestUnits, &testplans.TastVmTestUnit{
 				Common:        tuc,
-				TastVmTestCfg: pttr.TastVmTestCfg})
+				TastVmTestCfg: pttr.DirectTastVmTestCfg})
 		}
 		if pttr.VmTestCfg != nil {
 			if pruneResult.disableVMTests {

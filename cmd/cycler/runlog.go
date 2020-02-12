@@ -91,7 +91,7 @@ func (rl *Runlog) Init(config cycler_pb.RunLogConfiguration, client *storage.Cli
 	tstMsg := "Written to validate logging location writablility, ignore please."
 
 	// Path has a leading / and we omit it.
-	tstPath := path.Join(rl.dstURL.Path[1:], "ignore-sanity-test")
+	tstPath := path.Join(rl.dstURL.Path, "ignore-sanity-test")
 
 	switch scheme := rl.dstURL.Scheme; scheme {
 	case "gs":

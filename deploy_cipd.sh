@@ -19,7 +19,8 @@ fi
 COMMANDS=$(cd $CMDPATH; ls -d */ | sed 's#/##')
 
 for go_cmd in $COMMANDS; do
-  (cd "$CMDPATH/$go_cmd" && go build -o "$OUTPATH/$go_cmd")
+  # Target linux amd64, as that's what the GCE bots use.
+  (cd "$CMDPATH/$go_cmd" && GOOS=linux GOARCH=amd64 go build -o "$OUTPATH/$go_cmd")
 done
 
 cipd create -pkg-def=cipd.yaml -ref latest -json-output deploy_cipd.json

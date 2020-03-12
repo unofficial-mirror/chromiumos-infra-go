@@ -16,11 +16,11 @@ func TestAgeInDays(t *testing.T) {
 		t.Fail()
 	}
 
-	age, err = AgeInDays(time.Now().AddDate(0, 0, -1))
+	age, err = AgeInDays(time.Now().Add(time.Hour * -24))
 	if age != 1 || err != nil {
 		t.Fail()
 	}
-	age, err = AgeInDays(time.Now().AddDate(0, 0, -23))
+	age, err = AgeInDays(time.Now().Add(time.Hour * 24 * -23))
 	if age != 23 || err != nil {
 		t.Fail()
 	}

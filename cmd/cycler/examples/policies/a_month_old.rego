@@ -34,8 +34,8 @@ package cycler
 #   Etag string
 # }
 
-# 'act' binding is the ultimate bool determination of if we should trigger
-# the configuration supplied effect.
+# "ageDays", is calculated on the fly from cycler and inserted into input,
+# which is why it isn't prefixed with .attr. like the rest of the fields.
 act := true {
     input.ageDays < 31
 }

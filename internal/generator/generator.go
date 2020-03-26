@@ -24,7 +24,7 @@ type buildId struct {
 // buildResult is a conglomeration of data about a build and how to test it.
 type buildResult struct {
 	buildId           buildId
-	buildReport       bbproto.Build
+	build             bbproto.Build
 	perTargetTestReqs testplans.PerTargetTestRequirements
 }
 
@@ -38,25 +38,16 @@ func CreateTestPlan(
 	repoToBranchToSrcRoot map[string]map[string]string) (*testplans.GenerateTestPlanResponse, error) {
 	testPlan := &testplans.GenerateTestPlanResponse{}
 
-	btBuildReports := make(map[buildId]bbproto.Build)
-	// Filter out special builds like "chromite-cq" that don't have build targets.
-	filteredBbBuilds := make([]*bbproto.Build, 0)
-	for _, bb := range unfilteredBbBuilds {
-		bt := getBuildTarget(bb)
-		if len(bt) == 0 {
-			log.Printf("filtering out build without a build target: %s", bb.GetBuilder().GetBuilder())
-		} else if isPointlessBuild(bb) {
-			log.Printf("filtering out because marked as pointless: %s", bb.GetBuilder().GetBuilder())
-		} else if !hasTestArtifacts(bb) {
-			log.Printf("filtering out with missing test artifacts: %s", bb.GetBuilder().GetBuilder())
-		} else {
-			btBuildReports[buildId{buildTarget: bt, builderName: bb.GetBuilder().GetBuilder()}] = *bb
-			filteredBbBuilds = append(filteredBbBuilds, bb)
-		}
+	buildResults := eligibleTestBuilds(unfilteredBbBuilds)
+
+	// All the files in the GerritChanges, in source tree form.
+	srcPaths, err := srcPaths(gerritChanges, changeRevs, repoToBranchToSrcRoot)
+	if err != nil {
+		return testPlan, err
 	}
 
 	// For those changes, what pruning optimizations can be done?
-	pruneResult, err := extractPruneResult(sourceTreeCfg, gerritChanges, changeRevs, repoToBranchToSrcRoot)
+	pruneResult, err := extractPruneResult(sourceTreeCfg, srcPaths)
 	if err != nil {
 		return testPlan, err
 	}
@@ -65,7 +56,7 @@ func CreateTestPlan(
 	targetBuildResults := make([]buildResult, 0)
 perTargetTestReq:
 	for _, pttr := range targetTestReqs.PerTargetTestRequirements {
-		tbr, err := selectBuildForRequirements(pttr, btBuildReports)
+		tbr, err := selectBuildForRequirements(pttr, buildResults)
 		if err != nil {
 			return testPlan, err
 		}
@@ -77,6 +68,23 @@ perTargetTestReq:
 	}
 
 	return createResponse(targetBuildResults, pruneResult)
+}
+
+func eligibleTestBuilds(unfilteredBbBuilds []*bbproto.Build) map[buildId]*bbproto.Build {
+	buildIdToBuild := make(map[buildId]*bbproto.Build)
+	for _, bb := range unfilteredBbBuilds {
+		bt := getBuildTarget(bb)
+		if len(bt) == 0 {
+			log.Printf("filtering out build without a build target: %s", bb.GetBuilder().GetBuilder())
+		} else if isPointlessBuild(bb) {
+			log.Printf("filtering out because marked as pointless: %s", bb.GetBuilder().GetBuilder())
+		} else if !hasTestArtifacts(bb) {
+			log.Printf("filtering out with missing test artifacts: %s", bb.GetBuilder().GetBuilder())
+		} else {
+			buildIdToBuild[buildId{buildTarget: bt, builderName: bb.GetBuilder().GetBuilder()}] = bb
+		}
+	}
+	return buildIdToBuild
 }
 
 func isPointlessBuild(bb *bbproto.Build) bool {
@@ -131,8 +139,9 @@ func createResponse(
 	pruneResult *testPruneResult) (*testplans.GenerateTestPlanResponse, error) {
 
 	resp := &testplans.GenerateTestPlanResponse{}
+	// loop over the merged (Buildbucket build, TargetTestRequirements).
 	for _, tbr := range targetBuildResults {
-		art, ok := tbr.buildReport.Output.Properties.Fields["artifacts"]
+		art, ok := tbr.build.Output.Properties.Fields["artifacts"]
 		if !ok {
 			return nil, fmt.Errorf("found no artifacts output property for builder %s", tbr.buildId.builderName)
 		}
@@ -156,82 +165,195 @@ func createResponse(
 		pttr := tbr.perTargetTestReqs
 		bt := chromiumos.BuildTarget{Name: tbr.buildId.buildTarget}
 		tuc := &testplans.TestUnitCommon{BuildTarget: &bt, BuildPayload: bp, BuilderName: tbr.buildId.builderName}
-		isBuildCritical := tbr.buildReport.Critical != bbproto.Trinary_NO
-		if !isBuildCritical {
+		criticalBuild := tbr.build.Critical != bbproto.Trinary_NO
+		if !criticalBuild {
 			// We formerly didn't test noncritical builders, but now we do.
 			// See https://crbug.com/1040602.
 			log.Printf("Builder %s is not critical, but we can still test it.", tbr.buildId.builderName)
 		}
+
 		if pttr.HwTestCfg != nil {
-			if pruneResult.disableHWTests {
-				log.Printf("No HW testing needed for %s", tbr.buildId.builderName)
-			} else if pruneResult.canSkipForOnlyTestRule(tbr.buildId) {
-				log.Printf("Using OnlyTest rule to skip HW testing for %s", tbr.buildId.builderName)
-			} else {
-				if pruneResult.disableNonTastTests {
-					log.Printf("Pruning non-Tast HW tests for %s", tbr.buildId.builderName)
-					tastTests := make([]*testplans.HwTestCfg_HwTest, 0)
-					for _, t := range pttr.HwTestCfg.HwTest {
-						if t.HwTestSuiteType == testplans.HwTestCfg_TAST {
-							tastTests = append(tastTests, t)
-						}
-					}
-					pttr.HwTestCfg.HwTest = tastTests
-				}
-				if len(pttr.HwTestCfg.HwTest) != 0 {
-					for _, hw := range pttr.HwTestCfg.HwTest {
-						hw.Common = withCritical(hw.Common, isBuildCritical)
-					}
-					resp.HwTestUnits = append(resp.HwTestUnits, &testplans.HwTestUnit{
-						Common:    tuc,
-						HwTestCfg: pttr.HwTestCfg})
-				}
+			hwTestUnit := getHwTestUnit(tuc, pttr.HwTestCfg.HwTest, pruneResult, criticalBuild)
+			if hwTestUnit != nil {
+				resp.HwTestUnits = append(resp.HwTestUnits, hwTestUnit)
 			}
 		}
+
 		if pttr.MoblabVmTestCfg != nil {
-			if pruneResult.disableNonTastTests {
-				log.Printf("Pruning moblab tests for %s due to non-Tast rule", tbr.buildId.builderName)
-			} else {
-				for _, moblab := range pttr.MoblabVmTestCfg.MoblabTest {
-					moblab.Common = withCritical(moblab.Common, isBuildCritical)
-				}
-				resp.MoblabVmTestUnits = append(resp.MoblabVmTestUnits, &testplans.MoblabVmTestUnit{
-					Common:          tuc,
-					MoblabVmTestCfg: pttr.MoblabVmTestCfg})
+			moblabTestUnit := getMoblabTestUnit(tuc, pttr.MoblabVmTestCfg.MoblabTest, pruneResult, criticalBuild)
+			if moblabTestUnit != nil {
+				resp.MoblabVmTestUnits = append(resp.MoblabVmTestUnits, moblabTestUnit)
 			}
 		}
+
 		if pttr.TastVmTestCfg != nil {
-			for _, tastVm := range pttr.TastVmTestCfg.TastVmTest {
-				tastVm.Common = withCritical(tastVm.Common, isBuildCritical)
+			tastVmTestUnit := getTastVmTestUnit(tuc, pttr.TastVmTestCfg.TastVmTest, pruneResult, criticalBuild)
+			if tastVmTestUnit != nil {
+				resp.TastVmTestUnits = append(resp.TastVmTestUnits, tastVmTestUnit)
 			}
-			resp.TastVmTestUnits = append(resp.TastVmTestUnits, &testplans.TastVmTestUnit{
-				Common:        tuc,
-				TastVmTestCfg: pttr.TastVmTestCfg})
 		}
 		if pttr.DirectTastVmTestCfg != nil {
-			for _, tastVm := range pttr.DirectTastVmTestCfg.TastVmTest {
-				tastVm.Common = withCritical(tastVm.Common, isBuildCritical)
+			directTastVmTestUnit := getTastVmTestUnit(tuc, pttr.DirectTastVmTestCfg.TastVmTest, pruneResult, criticalBuild)
+			if directTastVmTestUnit != nil {
+				resp.DirectTastVmTestUnits = append(resp.DirectTastVmTestUnits, directTastVmTestUnit)
 			}
-			resp.DirectTastVmTestUnits = append(resp.DirectTastVmTestUnits, &testplans.TastVmTestUnit{
-				Common:        tuc,
-				TastVmTestCfg: pttr.DirectTastVmTestCfg})
 		}
 		if pttr.VmTestCfg != nil {
-			if pruneResult.disableVMTests {
-				log.Printf("No VM testing needed for %s", tbr.buildId.builderName)
-			} else if pruneResult.disableNonTastTests {
-				log.Printf("Pruning non-Tast VM tests for %s due to non-Tast rule", tbr.buildId.builderName)
-			} else {
-				for _, vm := range pttr.VmTestCfg.VmTest {
-					vm.Common = withCritical(vm.Common, isBuildCritical)
-				}
-				resp.VmTestUnits = append(resp.VmTestUnits, &testplans.VmTestUnit{
-					Common:    tuc,
-					VmTestCfg: pttr.VmTestCfg})
+			vmTestUnit := getVmTestUnit(tuc, pttr.VmTestCfg.VmTest, pruneResult, criticalBuild)
+			if vmTestUnit != nil {
+				resp.VmTestUnits = append(resp.VmTestUnits, vmTestUnit)
 			}
 		}
 	}
 	return resp, nil
+}
+
+func getHwTestUnit(tuc *testplans.TestUnitCommon, tests []*testplans.HwTestCfg_HwTest, pruneResult *testPruneResult, criticalBuild bool) *testplans.HwTestUnit {
+	if tests == nil {
+		return nil
+	}
+	tu := &testplans.HwTestUnit{
+		Common:    tuc,
+		HwTestCfg: &testplans.HwTestCfg{},
+	}
+testLoop:
+	for _, t := range tests {
+		if pruneResult.disableHWTests {
+			log.Printf("no HW testing needed for %v", t.Common.DisplayName)
+			continue testLoop
+		}
+		if pruneResult.disableNonTastTests && t.HwTestSuiteType != testplans.HwTestCfg_TAST {
+			log.Printf("skipping non-Tast testing for %v", t.Common.DisplayName)
+			continue testLoop
+		}
+		mustTest := pruneResult.mustAddForAlsoTestRule(t.Common.TestSuiteGroups)
+		if !mustTest {
+			if pruneResult.canSkipForOnlyTestRule(t.Common.TestSuiteGroups) {
+				log.Printf("using OnlyTest rule to skip HW testing for %v", t.Common.DisplayName)
+				continue testLoop
+			}
+			if t.Common.DisableByDefault {
+				log.Printf("%v is disabled by default, and it was not triggered to be enabled", t.Common.DisplayName)
+				continue testLoop
+			}
+		}
+		log.Printf("adding testing for %v", t.Common.DisplayName)
+		t.Common = withCritical(t.Common, criticalBuild)
+		tu.HwTestCfg.HwTest = append(tu.HwTestCfg.HwTest, t)
+	}
+	if len(tu.HwTestCfg.HwTest) > 0 {
+		return tu
+	}
+	return nil
+}
+
+func getMoblabTestUnit(tuc *testplans.TestUnitCommon, tests []*testplans.MoblabVmTestCfg_MoblabTest, pruneResult *testPruneResult, criticalBuild bool) *testplans.MoblabVmTestUnit {
+	if tests == nil {
+		return nil
+	}
+	tu := &testplans.MoblabVmTestUnit{
+		Common:          tuc,
+		MoblabVmTestCfg: &testplans.MoblabVmTestCfg{},
+	}
+testLoop:
+	for _, t := range tests {
+		if pruneResult.disableNonTastTests {
+			log.Printf("skipping non-Tast testing for %v", t.Common.DisplayName)
+			continue testLoop
+		}
+		mustTest := pruneResult.mustAddForAlsoTestRule(t.Common.TestSuiteGroups)
+		if !mustTest {
+			if pruneResult.canSkipForOnlyTestRule(t.Common.TestSuiteGroups) {
+				log.Printf("using OnlyTest rule to skip HW testing for %v", t.Common.DisplayName)
+				continue testLoop
+			}
+			if t.Common.DisableByDefault {
+				log.Printf("%v is disabled by default, and it was not triggered to be enabled", t.Common.DisplayName)
+				continue testLoop
+			}
+		}
+		log.Printf("adding testing for %v", t.Common.DisplayName)
+		t.Common = withCritical(t.Common, criticalBuild)
+		tu.MoblabVmTestCfg.MoblabTest = append(tu.MoblabVmTestCfg.MoblabTest, t)
+	}
+	if len(tu.MoblabVmTestCfg.MoblabTest) > 0 {
+		return tu
+	}
+	return nil
+}
+
+func getTastVmTestUnit(tuc *testplans.TestUnitCommon, tests []*testplans.TastVmTestCfg_TastVmTest, pruneResult *testPruneResult, criticalBuild bool) *testplans.TastVmTestUnit {
+	if tests == nil {
+		return nil
+	}
+	tu := &testplans.TastVmTestUnit{
+		Common:        tuc,
+		TastVmTestCfg: &testplans.TastVmTestCfg{},
+	}
+testLoop:
+	for _, t := range tests {
+		if pruneResult.disableVMTests {
+			log.Printf("no Tast VM testing needed for %v", t.Common.DisplayName)
+			continue testLoop
+		}
+		mustTest := pruneResult.mustAddForAlsoTestRule(t.Common.TestSuiteGroups)
+		if !mustTest {
+			if pruneResult.canSkipForOnlyTestRule(t.Common.TestSuiteGroups) {
+				log.Printf("using OnlyTest rule to skip Tast VM testing for %v", t.Common.DisplayName)
+				continue testLoop
+			}
+			if t.Common.DisableByDefault {
+				log.Printf("%v is disabled by default, and it was not triggered to be enabled", t.Common.DisplayName)
+				continue testLoop
+			}
+		}
+		log.Printf("adding testing for %v", t.Common.DisplayName)
+		t.Common = withCritical(t.Common, criticalBuild)
+		tu.TastVmTestCfg.TastVmTest = append(tu.TastVmTestCfg.TastVmTest, t)
+	}
+	if len(tu.TastVmTestCfg.TastVmTest) > 0 {
+		return tu
+	}
+	return nil
+}
+
+func getVmTestUnit(tuc *testplans.TestUnitCommon, tests []*testplans.VmTestCfg_VmTest, pruneResult *testPruneResult, criticalBuild bool) *testplans.VmTestUnit {
+	if tests == nil {
+		return nil
+	}
+	tu := &testplans.VmTestUnit{
+		Common:    tuc,
+		VmTestCfg: &testplans.VmTestCfg{},
+	}
+testLoop:
+	for _, t := range tests {
+		if pruneResult.disableVMTests {
+			log.Printf("no VM testing needed for %v", t.Common.DisplayName)
+			continue testLoop
+		}
+		if pruneResult.disableNonTastTests {
+			log.Printf("skipping non-Tast testing for %v", t.Common.DisplayName)
+			continue testLoop
+		}
+		mustTest := pruneResult.mustAddForAlsoTestRule(t.Common.TestSuiteGroups)
+		if !mustTest {
+			if pruneResult.canSkipForOnlyTestRule(t.Common.TestSuiteGroups) {
+				log.Printf("using OnlyTest rule to skip VM testing for %v", t.Common.DisplayName)
+				continue testLoop
+			}
+			if t.Common.DisableByDefault {
+				log.Printf("%v is disabled by default, and it was not triggered to be enabled", t.Common.DisplayName)
+				continue testLoop
+			}
+		}
+		log.Printf("adding testing for %v", t.Common.DisplayName)
+		t.Common = withCritical(t.Common, criticalBuild)
+		tu.VmTestCfg.VmTest = append(tu.VmTestCfg.VmTest, t)
+	}
+	if len(tu.VmTestCfg.VmTest) > 0 {
+		return tu
+	}
+	return nil
 }
 
 func withCritical(tsc *testplans.TestSuiteCommon, buildCritical bool) *testplans.TestSuiteCommon {
@@ -258,14 +380,14 @@ func withCritical(tsc *testplans.TestSuiteCommon, buildCritical bool) *testplans
 // non-early-terminated build.
 func selectBuildForRequirements(
 	pttr *testplans.PerTargetTestRequirements,
-	buildReports map[buildId]bbproto.Build) (*buildResult, error) {
+	buildIdToBuild map[buildId]*bbproto.Build) (*buildResult, error) {
 
 	log.Printf("Considering testing for TargetCritera %v", pttr.TargetCriteria)
 	if pttr.TargetCriteria.GetBuildTarget() == "" {
 		return nil, errors.New("found a PerTargetTestRequirement without a build target")
 	}
 	eligibleBuildIds := []buildId{buildId{pttr.TargetCriteria.GetBuildTarget(), pttr.TargetCriteria.GetBuilderName()}}
-	bt, err := pickBuilderToTest(eligibleBuildIds, buildReports)
+	bt, err := pickBuilderToTest(eligibleBuildIds, buildIdToBuild)
 	if err != nil {
 		// Expected when a necessary builder failed, and thus we cannot continue with testing.
 		return nil, err
@@ -276,22 +398,22 @@ func selectBuildForRequirements(
 		// This happens when no build was relevant due to an EarlyTerminationStatus.
 		return nil, nil
 	}
-	br := buildReports[*bt]
+	br := buildIdToBuild[*bt]
 	return &buildResult{
-			buildReport:       br,
-			buildId:           buildId{buildTarget: getBuildTarget(&br), builderName: br.GetBuilder().GetBuilder()},
+			build:             *br,
+			buildId:           buildId{buildTarget: getBuildTarget(br), builderName: br.GetBuilder().GetBuilder()},
 			perTargetTestReqs: *pttr},
 		nil
 }
 
 // pickBuilderToTest returns up to one buildId that should be tested, out of the provided slice
 // of buildIds. The returned buildId, if present, is guaranteed to be one with a BuildResult.
-func pickBuilderToTest(buildIds []buildId, btBuildReports map[buildId]bbproto.Build) (*buildId, error) {
+func pickBuilderToTest(buildIds []buildId, buildIdToBuild map[buildId]*bbproto.Build) (*buildId, error) {
 	// Relevant results are those builds that weren't terminated early.
 	// Early termination is a good thing. It just means that the build wasn't affected by the relevant commits.
-	relevantReports := make(map[buildId]bbproto.Build)
+	relevantReports := make(map[buildId]*bbproto.Build)
 	for _, bt := range buildIds {
-		br, found := btBuildReports[bt]
+		br, found := buildIdToBuild[bt]
 		if !found {
 			log.Printf("No build found for buildId %s", bt)
 			continue
@@ -311,4 +433,30 @@ func pickBuilderToTest(buildIds []buildId, btBuildReports map[buildId]bbproto.Bu
 	}
 	log.Printf("can't test for builders %v because all builders failed\n", buildIds)
 	return nil, nil
+}
+
+// srcPaths extracts the source paths from each of the provided Gerrit changes.
+func srcPaths(
+	changes []*bbproto.GerritChange,
+	changeRevs *gerrit.ChangeRevData,
+	repoToBranchToSrcRoot map[string]map[string]string) ([]string, error) {
+	srcPaths := make([]string, 0)
+	for _, commit := range changes {
+		chRev, err := changeRevs.GetChangeRev(commit.Host, commit.Change, int32(commit.Patchset))
+		if err != nil {
+			return srcPaths, err
+		}
+		for _, file := range chRev.Files {
+			branchMapping, found := repoToBranchToSrcRoot[chRev.Project]
+			if !found {
+				return srcPaths, fmt.Errorf("Found no branch mapping for project %s", chRev.Project)
+			}
+			srcRootMapping, found := branchMapping[chRev.Branch]
+			if !found {
+				return srcPaths, fmt.Errorf("Found no source mapping for project %s and branch %s", chRev.Project, chRev.Branch)
+			}
+			srcPaths = append(srcPaths, fmt.Sprintf("%s/%s", srcRootMapping, file))
+		}
+	}
+	return srcPaths, nil
 }

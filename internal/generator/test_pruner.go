@@ -7,11 +7,8 @@ package generator
 import (
 	"fmt"
 	"github.com/bmatcuk/doublestar"
-	"go.chromium.org/chromiumos/infra/go/internal/gerrit"
 	"go.chromium.org/chromiumos/infra/proto/go/testplans"
-	bbproto "go.chromium.org/luci/buildbucket/proto"
 	"log"
-	"strings"
 )
 
 type testType int
@@ -35,43 +32,45 @@ func (tt testType) String() string {
 }
 
 type testPruneResult struct {
-	disableHWTests       bool
-	disableVMTests       bool
-	disableNonTastTests  bool
-	onlyTestBuilderNames map[string]bool
+	disableHWTests      bool
+	disableVMTests      bool
+	disableNonTastTests bool
+	onlyTestGroups      map[string]bool
+	alsoTestGroups      map[string]bool
 }
 
-// canSkipForOnlyTestRule identifies whether testing for a provided buildId
-// can be skipped due to the only-test rules. e.g. if we only need to test on
-// "reef", this will return false for all non-reef build targets.
-func (tpr testPruneResult) canSkipForOnlyTestRule(bt buildId) bool {
-	// If no only-test builders were specified, we can't skip testing for
-	// any builders by only-test rules.
-	if len(tpr.onlyTestBuilderNames) == 0 {
+func (tpr testPruneResult) canSkipForOnlyTestRule(groups []*testplans.TestSuiteCommon_TestSuiteGroup) bool {
+	// If the source config didn't specify any onlyTestGroups, we can't skip testing for the groups in the params.
+	if len(tpr.onlyTestGroups) == 0 {
 		return false
 	}
-	isAnOnlyTestTarget, _ := tpr.onlyTestBuilderNames[bt.builderName]
-	return !isAnOnlyTestTarget
+	for _, g := range groups {
+		if tpr.onlyTestGroups[g.TestSuiteGroup] {
+			return false
+		}
+	}
+	return true
+}
+
+func (tpr testPruneResult) mustAddForAlsoTestRule(groups []*testplans.TestSuiteCommon_TestSuiteGroup) bool {
+	for _, g := range groups {
+		if tpr.alsoTestGroups[g.TestSuiteGroup] {
+			return true
+		}
+	}
+	return false
 }
 
 func extractPruneResult(
 	sourceTreeCfg *testplans.SourceTreeTestCfg,
-	changes []*bbproto.GerritChange,
-	changeRevs *gerrit.ChangeRevData,
-	repoToBranchToSrcRoot map[string]map[string]string) (*testPruneResult, error) {
+	srcPaths []string) (*testPruneResult, error) {
 
 	result := &testPruneResult{}
 
-	if len(changes) == 0 {
+	if len(srcPaths) == 0 {
 		// This happens during postsubmit runs, for example.
 		log.Print("no gerrit_changes, so no tests will be skipped")
 		return result, nil
-	}
-
-	// All the files in the GerritChanges, in source tree form.
-	srcPaths, err := srcPaths(changes, changeRevs, repoToBranchToSrcRoot)
-	if err != nil {
-		return result, err
 	}
 
 	disableHW := true
@@ -113,78 +112,78 @@ func extractPruneResult(
 			}
 		}
 	}
+
 	canOnlyTestSomeBuilders := true
-	onlyTestBuilderNames := make(map[string]bool)
+	onlyTestGroups := make(map[string]bool)
 	for _, fileSrcPath := range srcPaths {
 		if canOnlyTestSomeBuilders {
-			fileOnlyTestBuilders, err := checkOnlyTestBuilders(fileSrcPath, sourceTreeCfg)
+			fileOnlyTestGroups, err := getOnlyTestGroups(fileSrcPath, sourceTreeCfg)
 			if err != nil {
 				return result, err
 			}
-			if len(fileOnlyTestBuilders) == 0 {
+			if len(fileOnlyTestGroups) == 0 {
 				log.Printf("cannot limit set of builders for testing due to %s", fileSrcPath)
 				canOnlyTestSomeBuilders = false
-				onlyTestBuilderNames = make(map[string]bool)
+				onlyTestGroups = make(map[string]bool)
 			} else {
-				for k, v := range fileOnlyTestBuilders {
-					onlyTestBuilderNames[k] = v
+				for k, v := range fileOnlyTestGroups {
+					onlyTestGroups[k] = v
 				}
 			}
 		}
 	}
-	return &testPruneResult{
-			disableHWTests:       disableHW,
-			disableVMTests:       disableVM,
-			disableNonTastTests:  disableNonTastTests,
-			onlyTestBuilderNames: onlyTestBuilderNames},
-		nil
-}
 
-// srcPaths extracts the source paths from each of the provided Gerrit changes.
-func srcPaths(
-	changes []*bbproto.GerritChange,
-	changeRevs *gerrit.ChangeRevData,
-	repoToBranchToSrcRoot map[string]map[string]string) ([]string, error) {
-	srcPaths := make([]string, 0)
-	for _, commit := range changes {
-		chRev, err := changeRevs.GetChangeRev(commit.Host, commit.Change, int32(commit.Patchset))
-		if err != nil {
-			return srcPaths, err
-		}
-		for _, file := range chRev.Files {
-			branchMapping, found := repoToBranchToSrcRoot[chRev.Project]
-			if !found {
-				return srcPaths, fmt.Errorf("Found no branch mapping for project %s", chRev.Project)
-			}
-			srcRootMapping, found := branchMapping[chRev.Branch]
-			if !found {
-				return srcPaths, fmt.Errorf("Found no source mapping for project %s and branch %s", chRev.Project, chRev.Branch)
-			}
-			srcPaths = append(srcPaths, fmt.Sprintf("%s/%s", srcRootMapping, file))
-		}
-	}
-	return srcPaths, nil
-}
-
-// checkOnlyTestBuilders checks if the provided path is covered by an
-// only-test rule, which would allow us to exclude testing for all other
-// builders.
-func checkOnlyTestBuilders(
-	sourcePath string,
-	sourceTreeCfg *testplans.SourceTreeTestCfg) (map[string]bool, error) {
-	result := make(map[string]bool)
-	for _, sourceTreeRestriction := range sourceTreeCfg.SourceTreeTestRestriction {
-		match, err := doublestar.Match(sourceTreeRestriction.GetFilePattern().GetPattern(), sourcePath)
+	alsoTestGroups := make(map[string]bool)
+	for _, fileSrcPath := range srcPaths {
+		fileAlsoTestGroups, err := getAlsoTestGroups(fileSrcPath, sourceTreeCfg)
 		if err != nil {
 			return result, err
 		}
-		if match {
-			for _, otbt := range sourceTreeRestriction.TestRestriction.CqOnlyTestBuilders {
-				result[otbt.BuilderName] = true
-			}
+		for k, v := range fileAlsoTestGroups {
+			alsoTestGroups[k] = v
+			log.Printf("will also test group %v due to file %v", k, fileSrcPath)
 		}
 	}
-	return result, nil
+
+	return &testPruneResult{
+			disableHWTests:      disableHW,
+			disableVMTests:      disableVM,
+			disableNonTastTests: disableNonTastTests,
+			onlyTestGroups:      onlyTestGroups,
+			alsoTestGroups:      alsoTestGroups},
+		nil
+}
+
+func getOnlyTestGroups(
+	sourcePath string,
+	sourceTreeCfg *testplans.SourceTreeTestCfg) (map[string]bool, error) {
+	onlyTestGroups := make(map[string]bool)
+	for _, sourceTreeRestriction := range sourceTreeCfg.SourceTreeTestRestriction {
+		match, err := doublestar.Match(sourceTreeRestriction.GetFilePattern().GetPattern(), sourcePath)
+		if err != nil {
+			return onlyTestGroups, err
+		}
+		if match && sourceTreeRestriction.TestRestriction.GetCqOnlyTestGroup() != "" {
+			onlyTestGroups[sourceTreeRestriction.TestRestriction.GetCqOnlyTestGroup()] = true
+		}
+	}
+	return onlyTestGroups, nil
+}
+
+func getAlsoTestGroups(
+	sourcePath string,
+	sourceTreeCfg *testplans.SourceTreeTestCfg) (map[string]bool, error) {
+	alsoTestGroups := make(map[string]bool)
+	for _, sourceTreeRestriction := range sourceTreeCfg.SourceTreeTestRestriction {
+		match, err := doublestar.Match(sourceTreeRestriction.GetFilePattern().GetPattern(), sourcePath)
+		if err != nil {
+			return alsoTestGroups, err
+		}
+		if match && sourceTreeRestriction.TestRestriction.GetCqAlsoTestGroup() != "" {
+			alsoTestGroups[sourceTreeRestriction.TestRestriction.GetCqAlsoTestGroup()] = true
+		}
+	}
+	return alsoTestGroups, nil
 }
 
 // canDisableTestingForPath determines whether a particular testing type is unnecessary for
@@ -206,15 +205,4 @@ func canDisableTestingForPath(sourcePath string, sourceTreeCfg *testplans.Source
 		}
 	}
 	return false, nil
-}
-
-// hasPathPrefix checks if the provided string has a provided path prefix.
-// e.g. ab/cd/ef, ab --> true
-//      ab/cd, ab/c --> false
-func hasPathPrefix(s string, prefix string) bool {
-	if s == prefix {
-		return true
-	}
-	prefixAsDir := strings.TrimSuffix(prefix, "/") + "/"
-	return strings.HasPrefix(s, prefixAsDir)
 }

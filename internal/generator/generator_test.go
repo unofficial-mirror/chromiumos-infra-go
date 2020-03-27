@@ -488,6 +488,7 @@ func TestCreateCombinedTestPlan_doesAlsoTest(t *testing.T) {
 			Suite:           "HW bob",
 			SkylabBoard:     "bob board",
 			HwTestSuiteType: testplans.HwTestCfg_AUTOTEST,
+			Pool: "my little pool",
 		},
 	}}
 	testReqs := &testplans.TargetTestRequirementsCfg{

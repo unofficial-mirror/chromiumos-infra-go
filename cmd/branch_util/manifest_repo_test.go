@@ -4,6 +4,7 @@
 package main
 
 import (
+	"encoding/xml"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -24,62 +25,97 @@ func TestRepairManifest_success(t *testing.T) {
 		ProjectCheckout: "foo",
 	}
 	branchPathMap := map[string]string{
-		"foo/": "branch",
+		"foo/":          "branch",
+		"src/repohooks": "branch",
 	}
-	expectedManifest := repo.Manifest{
-		Default: repo.Default{
-			RemoteName: "cros",
-			Revision:   "test",
-		},
-		Remotes: []repo.Remote{
-			{Name: "cros", Revision: "123"},
-			{Name: "remote2", Revision: "124"},
-			{Name: "remote3", Revision: "125"},
-		},
-		Projects: []repo.Project{
-			{Name: "chromiumos/foo", Path: "foo/", RemoteName: "cros"},
-			{Name: "pinned", Path: "pinned/",
-				Annotations: []repo.Annotation{
-					{Name: "branch-mode", Value: "pin"},
-				},
-			},
-			{Name: "tot", Path: "tot/",
-				Annotations: []repo.Annotation{
-					{Name: "branch-mode", Value: "tot"},
-				},
-			},
-		},
-	}
-	expectedManifest = *expectedManifest.ResolveImplicitLinks()
+	// Variations in attribute order and singleton tags are to test
+	// regexp parsing.
+	originalManifest := `
+	 <?xml version="1.0" encoding="UTF-8"?>
+	 <manifest>
+	 	<!---Comment 1-->
+	 	<default remote="cros" revision="test" />
+	 	<remote name="cros" revision="123"></remote>
+	 	<remote revision="124" name="remote2" />
+	 	<remote name="remote3" revision="125" />
 
-	workingManifest = expectedManifest
+		<project path="src/repohooks" name="chromiumos/repohooks"
+			groups="minilayout,firmware,buildtools,labtools,crosvm" />
+		<repo-hooks in-project="chromiumos/repohooks" enabled-list="pre-upload" />
+
+	 	<project name="chromiumos/foo" path="foo/" upstream="" remote="cros" />
+	 	<project upstream="" name="pinned" revision="456" path="pinned/">
+	 		<!---Comment 2-->
+	 		<annotation name="branch-mode" value="pin" />
+	 	</project>
+	 	<project name="tot" path="tot/" upstream="">
+	 		<annotation name="branch-mode" value="tot" />
+	 	</project>
+	 </manifest>
+	`
+
+	err := xml.Unmarshal([]byte(originalManifest), &workingManifest)
+	workingManifest.ResolveImplicitLinks()
+
+	assert.NilError(t, err)
+
 	// Mock out loadManifestFromFile
-	loadManifestFromFile = func(path string) (repo.Manifest, error) {
-		return expectedManifest, nil
+	loadManifestFromFileRaw = func(path string) ([]byte, error) {
+		return []byte(originalManifest), nil
 	}
 	git.CommandRunnerImpl = cmd.FakeCommandRunner{
 		Stdout: "123 test",
 	}
 
-	manifest, err := manifestRepo.RepairManifest("dummy_path", branchPathMap)
+	manifestRaw, err := manifestRepo.repairManifest("dummy_path", branchPathMap)
 	assert.NilError(t, err)
-	// RepairManifest deletes revision attr on <default>
+
+	manifest := repo.Manifest{}
+	assert.NilError(t, xml.Unmarshal(manifestRaw, &manifest))
+	// repairManifest deletes revision attr on <default>
 	assert.Equal(t, manifest.Default.Revision, "")
-	// RepairManifest deletes revision attr on <remote>
+	// repairManifest deletes revision attr on <remote>
 	for _, remote := range manifest.Remotes {
 		assert.Equal(t, remote.Revision, "")
 	}
-	// RepairManifest properly sets revision on branched projects.
+	// repairManifest properly sets revision on branched projects.
 	assert.Equal(t, manifest.Projects[0].Revision, "refs/heads/branch")
-	// RepairManifest properly sets revision on pinned projects.
-	assert.Equal(t, manifest.Projects[1].Revision, "123")
-	// RepairManifest properly sets revision on ToT projects.
-	assert.Equal(t, manifest.Projects[2].Revision, "refs/heads/master")
+	assert.Equal(t, manifest.Projects[1].Revision, "refs/heads/branch")
+	// repairManifest properly sets revision on pinned projects.
+	assert.Equal(t, manifest.Projects[2].Revision, "123")
+	// repairManifest properly sets revision on ToT projects.
+	assert.Equal(t, manifest.Projects[3].Revision, "refs/heads/master")
+
+	// Check that manifest is otherwise unmodified.
+	expectedManifest := `
+	 <?xml version="1.0" encoding="UTF-8"?>
+	 <manifest>
+	 	<!---Comment 1-->
+	 	<default remote="cros" />
+	 	<remote name="cros"></remote>
+	 	<remote name="remote2" />
+	 	<remote name="remote3" />
+
+		<project path="src/repohooks" name="chromiumos/repohooks"
+			groups="minilayout,firmware,buildtools,labtools,crosvm" revision="refs/heads/branch"/>
+		<repo-hooks in-project="chromiumos/repohooks" enabled-list="pre-upload" />
+
+	 	<project name="chromiumos/foo" path="foo/" remote="cros" revision="refs/heads/branch"/>
+	 	<project name="pinned" revision="123" path="pinned/">
+	 		<!---Comment 2-->
+	 		<annotation name="branch-mode" value="pin" />
+	 	</project>
+	 	<project name="tot" path="tot/" revision="refs/heads/master">
+	 		<annotation name="branch-mode" value="tot" />
+	 	</project>
+	 </manifest>
+	`
+	assert.Equal(t, string(manifestRaw), expectedManifest)
 }
 
 func TestRepairManifestsOnDisk(t *testing.T) {
 	// Use actual repo implementations
-	loadManifestFromFile = repo.LoadManifestFromFile
+	loadManifestFromFileRaw = repo.LoadManifestFromFileRaw
 	loadManifestTree = repo.LoadManifestTree
 
 	defaultManifest := repo.Manifest{
@@ -153,6 +189,7 @@ func TestRepairManifestsOnDisk(t *testing.T) {
 	branchMap := make(map[string]string)
 	branchMap[fooProject.Path] = "newbranch"
 
+	workingManifest = fullManifest
 	err = manifestRepo.RepairManifestsOnDisk(branchMap)
 	assert.NilError(t, err)
 	// Read repaired manifests from disk, check expectations.

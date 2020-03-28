@@ -41,6 +41,7 @@ const (
   <remote name="cros-internal" revision="refs/heads/master" fetch="%s"/>
 `
 	projectsExternalXML = `
+  <!--This comment should persist.-->
   <project name="chromiumos/manifest" path="manifest"/>
 
   <project name="chromiumos/overlays/chromiumos-overlay"
@@ -50,6 +51,7 @@ const (
            path="src/third_party/implicit-pinned"
            revision="refs/heads/implicit-pinned"/>
 
+  <!--This comment should also persist.-->
   <project name="chromiumos/multicheckout"
            path="src/third_party/multicheckout-a"
            revision="refs/heads/multicheckout-a"/>
@@ -99,6 +101,7 @@ const (
   <default remote="cros"/>
 `
 	projectsExternalBranchedXML = `
+  <!--This branched comment should persist.-->
   <project name="chromiumos/manifest"
            path="manifest"
            revision="refs/heads/old-branch"/>
@@ -111,6 +114,7 @@ const (
            path="src/third_party/implicit-pinned"
            revision="refs/heads/implicit-pinned"/>
 
+  <!--This branched comment should also persist.-->
   <project name="chromiumos/multicheckout"
            path="src/third_party/multicheckout-a"
            revision="refs/heads/old-branch-multicheckout-a"/>
@@ -247,7 +251,10 @@ func getBranchedManifestFiles(crosFetch, crosInternalFetch string) (
 
 func manifestXml(chunks ...string) string {
 	return fmt.Sprintf(
-		`<?xml version="1.0" encoding="UTF-8"?><manifest>%s</manifest>`,
+		`<?xml version="1.0" encoding="UTF-8"?>
+		<manifest>
+		%s
+		</manifest>`,
 		strings.Join(chunks, ""))
 }
 
@@ -381,6 +388,13 @@ func assertManifestsRepaired(t *testing.T, r *test.CrosRepoHarness, branch strin
 		manifestInternalProject, branch, getKeys(manifestInternalFiles)))
 }
 
+func assertCommentsPersist(t *testing.T, r *test.CrosRepoHarness,
+	sourceFiles func(string, string) (map[string]string, map[string]string, string), branch string) {
+	manifestFiles, manifestInternalFiles, _ := sourceFiles("", "")
+	assert.NilError(t, r.AssertCommentsPersist(manifestProject, branch, manifestFiles))
+	assert.NilError(t, r.AssertCommentsPersist(manifestInternalProject, branch, manifestInternalFiles))
+}
+
 func assertNoRemoteDiff(t *testing.T, r *test.CrosRepoHarness) {
 	manifest := r.Harness.Manifest()
 	for _, remote := range manifest.Remotes {
@@ -423,6 +437,8 @@ func TestCreate(t *testing.T) {
 		PatchNumber:       0,
 	}
 	assert.NilError(t, r.AssertCrosVersion("master", masterVersion))
+
+	assertCommentsPersist(t, r, getManifestFiles, branch)
 }
 
 // Branch off of old-branch to make sure that the source version is being
@@ -467,6 +483,8 @@ func TestCreateReleaseNonMaster(t *testing.T) {
 		PatchNumber:       0,
 	}
 	assert.NilError(t, r.AssertCrosVersion("old-branch", sourceVersion))
+
+	assertCommentsPersist(t, r, getBranchedManifestFiles, branch)
 }
 
 func TestCreateDryRun(t *testing.T) {
@@ -553,6 +571,8 @@ func TestCreateOverwrite(t *testing.T) {
 		PatchNumber:       0,
 	}
 	assert.NilError(t, r.AssertCrosVersion("master", masterVersion))
+
+	assertCommentsPersist(t, r, getManifestFiles, branch)
 }
 
 // Test create dies when it tries to overwrite without --force.
@@ -653,6 +673,8 @@ func TestRename(t *testing.T) {
 		PatchNumber:       0,
 	}
 	assert.NilError(t, r.AssertCrosVersion(newBranch, newBranchVersion))
+
+	assertCommentsPersist(t, r, getBranchedManifestFiles, newBranch)
 }
 
 func TestRenameDryRun(t *testing.T) {
@@ -729,6 +751,8 @@ func TestRenameOverwrite(t *testing.T) {
 	}
 	assert.NilError(t, r.AssertCrosVersion(oldBranch, oldBranchVersion))
 
+	assertCommentsPersist(t, r, getManifestFiles, newBranch)
+
 	// Gah! Turns out we actually wanted what's in oldBranch. Let's try force renaming
 	// oldBranch to newBranch, overwriting the existing contents of newBranch in the process.
 	s = &branchApplication{application, nil, nil}
@@ -753,6 +777,8 @@ func TestRenameOverwrite(t *testing.T) {
 	assert.NilError(t, r.AssertCrosBranchFromManifest(*branchManifest, newBranch, oldBranch))
 	assertManifestsRepaired(t, r, newBranch)
 	assert.NilError(t, r.AssertCrosVersion(newBranch, oldBranchVersion))
+
+	assertCommentsPersist(t, r, getBranchedManifestFiles, newBranch)
 }
 
 // Test rename dies if it tries to overwrite without --force.

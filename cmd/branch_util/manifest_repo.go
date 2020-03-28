@@ -4,9 +4,12 @@
 package main
 
 import (
+	"encoding/xml"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"go.chromium.org/chromiumos/infra/go/internal/git"
@@ -25,7 +28,12 @@ const (
 	officialManifest         = "official.xml"
 )
 
-var loadManifestFromFile = repo.LoadManifestFromFile
+const (
+	attrRegexpTemplate = "%s=\"[^\"]*\""
+	tagRegexpTempate   = "<%s[^(<>)]*>"
+)
+
+var loadManifestFromFileRaw = repo.LoadManifestFromFileRaw
 var loadManifestTree = repo.LoadManifestTree
 
 func (m *ManifestRepo) gitRevision(project repo.Project) (string, error) {
@@ -49,27 +57,102 @@ func (m *ManifestRepo) gitRevision(project repo.Project) (string, error) {
 	return strings.Fields(output.Stdout)[0], nil
 }
 
-// RepairManifest reads the manifest at the given path and repairs it in memory.
+func delAttr(tag, attr string) string {
+	// Regex for finding attribute.
+	// We include any trailing whitespace in the match.
+	attrRegex := regexp.MustCompile(fmt.Sprintf(attrRegexpTemplate+"\\s*", attr))
+	return attrRegex.ReplaceAllString(tag, "")
+}
+
+func setAttr(tag, attr, value string) string {
+	// Regex for finding attribute.
+	attrRegex := regexp.MustCompile(fmt.Sprintf(attrRegexpTemplate, attr))
+	// Attribute with new value.
+	newAttr := fmt.Sprintf("%s=\"%s\"", attr, value)
+
+	// Attribute with current value.
+	currAttr := attrRegex.FindString(tag)
+	if currAttr != "" { // Attr exists, replace value.
+		return attrRegex.ReplaceAllString(tag, newAttr)
+	} else { // Attr does not exist, add attribute to end of start tag.
+		endRegex := regexp.MustCompile("(/?>)")
+		return endRegex.ReplaceAllString(tag, " "+newAttr+"$1")
+	}
+}
+
+func setRevisionAttr(tag, revision string) string {
+	return setAttr(tag, "revision", revision)
+}
+
+// Given a repo.Project struct, find the corresponding start tag in
+// a raw XML file. Empty string indicates no match.
+func findProjectTag(project *repo.Project, rawManifest string) string {
+	projectRegexp := regexp.MustCompile(fmt.Sprintf(tagRegexpTempate, "project"))
+	for _, tag := range projectRegexp.FindAllString(rawManifest, -1) {
+		p := &repo.Project{}
+
+		// If tag is not a singleton, add empty end tag for unmarshalling purposes.
+		var err error
+		if tag[len(tag)-2:] != "/>" {
+			err = xml.Unmarshal([]byte(tag+"</project>"), p)
+		} else {
+			err = xml.Unmarshal([]byte(tag), p)
+		}
+		if err != nil {
+			continue
+		}
+
+		// Together, Name and Path form a unique identifier.
+		// If Path is blank, Name is (or at least ought to be) a unique identifier.
+		if project.Name == p.Name && (p.Path == "" || project.Path == p.Path) {
+			return tag
+		}
+	}
+	return ""
+}
+
+// repairManifest reads the manifest at the given path and repairs it in memory.
 // Because humans rarely read branched manifests, this function optimizes for
 // code readibility and explicitly sets revision on every project in the manifest,
 // deleting any defaults.
 // branchesByPath maps project paths to branch names.
-func (m *ManifestRepo) RepairManifest(path string, branchesByPath map[string]string) (*repo.Manifest, error) {
-	manifest, err := loadManifestFromFile(path)
+func (m *ManifestRepo) repairManifest(path string, branchesByPath map[string]string) ([]byte, error) {
+	log.Printf("Repairing %s...", path)
+	manifestData, err := loadManifestFromFileRaw(path)
 	if err != nil {
 		return nil, errors.Annotate(err, "error loading manifest").Err()
 	}
+	manifest := string(manifestData)
+
+	// We use xml.Unmarshal to avoid the complexities of a
+	// truly exhaustive regex, which would need to include logic for <annotation> tags nested
+	// within a <project> tag (which are needed to determine the project type).
+	parsedManifest := repo.Manifest{}
+	err = xml.Unmarshal(manifestData, &parsedManifest)
+	if err != nil {
+		return nil, errors.Annotate(err, "failed to unmarshal manifest").Err()
+	}
+	parsedManifest.ResolveImplicitLinks()
 
 	// Delete the default revision.
-	manifest.Default.Revision = ""
+	defaultRegexp := regexp.MustCompile(fmt.Sprintf(tagRegexpTempate, "default"))
+	defaultTag := defaultRegexp.FindString(manifest)
+	manifest = strings.ReplaceAll(manifest, defaultTag, delAttr(defaultTag, "revision"))
 
 	// Delete remote revisions.
-	for i := range manifest.Remotes {
-		manifest.Remotes[i].Revision = ""
+	remoteRegexp := regexp.MustCompile(fmt.Sprintf(tagRegexpTempate, "remote"))
+	remoteTags := remoteRegexp.FindAllString(manifest, -1)
+	for _, remoteTag := range remoteTags {
+		manifest = strings.ReplaceAll(manifest, remoteTag, delAttr(remoteTag, "revision"))
 	}
 
 	// Update all project revisions.
-	for i, project := range manifest.Projects {
+	for _, project := range parsedManifest.Projects {
+		// Path defaults to name.
+		if project.Path == "" {
+			project.Path = project.Name
+		}
+
 		workingProject, err := workingManifest.GetProjectByPath(project.Path)
 		if err != nil {
 			// We don't really know what to do with a project that doesn't exist in the working manifest,
@@ -85,9 +168,9 @@ func (m *ManifestRepo) RepairManifest(path string, branchesByPath map[string]str
 			if !inDict {
 				return nil, fmt.Errorf("project %s is not pinned/tot but not set in branchesByPath", project.Path)
 			}
-			manifest.Projects[i].Revision = git.NormalizeRef(branchName)
+			project.Revision = git.NormalizeRef(branchName)
 		case repo.Tot:
-			manifest.Projects[i].Revision = git.NormalizeRef("master")
+			project.Revision = git.NormalizeRef("master")
 		case repo.Pinned:
 			// TODO(@jackneus): all this does is convert the current revision to a SHA.
 			// Is this really necessary?
@@ -95,14 +178,26 @@ func (m *ManifestRepo) RepairManifest(path string, branchesByPath map[string]str
 			if err != nil {
 				return nil, errors.Annotate(err, "error repairing manifest").Err()
 			}
-			manifest.Projects[i].Revision = revision
+			project.Revision = revision
 		default:
 			return nil, fmt.Errorf("project %s branch mode unspecifed", project.Path)
 		}
 
-		manifest.Projects[i].Upstream = ""
+		projectTag := findProjectTag(&project, manifest)
+
+		// Clear upstream.
+		newProjectTag := delAttr(string(projectTag), "upstream")
+		// Set new revision.
+		newProjectTag = setRevisionAttr(newProjectTag, project.Revision)
+		// Update manifest.
+		manifest = strings.ReplaceAll(manifest, projectTag, newProjectTag)
 	}
-	return &manifest, nil
+	// Collapse multiple consecutive spaces.
+	manifest = regexp.MustCompile(`  +`).ReplaceAllString(manifest, " ")
+	// Remove trailing space in start tags.
+	manifest = regexp.MustCompile(`\s+>`).ReplaceAllString(manifest, ">")
+
+	return []byte(manifest), nil
 }
 
 // listManifests finds all manifests included directly or indirectly by root
@@ -143,11 +238,11 @@ func (m *ManifestRepo) RepairManifestsOnDisk(branchesByPath map[string]string) e
 		return errors.Annotate(err, "failed to listManifests").Err()
 	}
 	for _, manifestPath := range manifestPaths {
-		manifest, err := m.RepairManifest(manifestPath, branchesByPath)
+		manifest, err := m.repairManifest(manifestPath, branchesByPath)
 		if err != nil {
 			return errors.Annotate(err, "failed to repair manifest %s", manifestPath).Err()
 		}
-		err = manifest.Write(manifestPath)
+		err = ioutil.WriteFile(manifestPath, manifest, 0644)
 		if err != nil {
 			return errors.Annotate(err, "failed to write repaired manifest to %s", manifestPath).Err()
 		}

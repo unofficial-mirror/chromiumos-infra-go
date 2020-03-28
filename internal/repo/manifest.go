@@ -302,6 +302,17 @@ func LoadManifestFromFile(file string) (Manifest, error) {
 	return *manifest, nil
 }
 
+// LoadManifestFromFileRaw loads the manifest at the given file and returns
+// the file contents as a byte array.
+func LoadManifestFromFileRaw(file string) ([]byte, error) {
+	data, err := ioutil.ReadFile(file)
+	if err != nil {
+		return nil, errors.Annotate(err, "failed to open and read %s", file).Err()
+	}
+	// We don't ResolveImplicitLinks or otherwise do anything else in this function (as it returns "raw" data).
+	return data, nil
+}
+
 // LoadManifestFromFileWithIncludes loads the manifest at the given files but also
 // calls MergeManifests to resolve includes.
 func LoadManifestFromFileWithIncludes(file string) (*Manifest, error) {

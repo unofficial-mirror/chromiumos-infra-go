@@ -9,6 +9,8 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"reflect"
+	"regexp"
 	"strings"
 
 	mv "go.chromium.org/chromiumos/infra/go/internal/chromeos_version"
@@ -493,6 +495,47 @@ func (r *CrosRepoHarness) AssertManifestProjectRepaired(
 		}
 		if err = r.AssertProjectRevisionsMatchBranch(manifest, branch, ""); err != nil {
 			return errors.Annotate(err, "manifest %s has error", file).Err()
+		}
+	}
+	return nil
+}
+
+func getComments(file string) []string {
+	commentRegex := regexp.MustCompile("<!--.*-->")
+	return commentRegex.FindAllString(file, -1)
+}
+
+func (r *CrosRepoHarness) AssertCommentsPersist(
+	project rh.RemoteProject, branch string, expectedManifestFiles map[string]string) error {
+	tmpDir, err := ioutil.TempDir(r.Harness.HarnessRoot(), "tmp-repo")
+	defer os.RemoveAll(tmpDir)
+	if err != nil {
+		return err
+	}
+
+	remotePath := r.Harness.GetRemotePath(project)
+	errs := []error{
+		git.Clone(remotePath, tmpDir),
+		git.Checkout(tmpDir, branch),
+	}
+	for _, err := range errs {
+		if err != nil {
+			return errors.Annotate(err, "failed to checkout branch %s in project %s", branch, project.ProjectName).Err()
+		}
+	}
+
+	for file, expectedContents := range expectedManifestFiles {
+		filepath := filepath.Join(tmpDir, file)
+		contents, err := ioutil.ReadFile(filepath)
+		if err != nil {
+			return errors.Annotate(err, "failed to load manifest file %s", file).Err()
+		}
+
+		expectedComments := getComments(expectedContents)
+		comments := getComments(string(contents))
+
+		if !reflect.DeepEqual(expectedComments, comments) {
+			return fmt.Errorf("Comment mismatch. Expected %v got %v", expectedComments, comments)
 		}
 	}
 	return nil

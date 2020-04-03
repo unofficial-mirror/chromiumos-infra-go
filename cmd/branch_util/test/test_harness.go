@@ -91,6 +91,10 @@ type CrosRepoHarnessConfig struct {
 	VersionProject string
 }
 
+const (
+	attrRegexpTemplate = "%s=\"[^\"]*\""
+)
+
 func (r *CrosRepoHarness) Initialize(config *CrosRepoHarnessConfig) error {
 	if config.VersionProject == "" {
 		return fmt.Errorf("version project not specified")
@@ -462,15 +466,11 @@ func (r *CrosRepoHarness) AssertProjectRevisionsMatchBranch(manifest repo.Manife
 	return nil
 }
 
-// AssertManifestProjectRepaired asserts that the specified manifest XML files in the specified branch
-// of a project were repaired.
-// This function assumes that r.Harness.SyncLocalCheckout() has just been run.
-func (r *CrosRepoHarness) AssertManifestProjectRepaired(
-	project rh.RemoteProject, branch string, manifestFiles []string) error {
+func getLocalCheckout(r *CrosRepoHarness, project rh.RemoteProject, branch string) (string, error) {
+	// Create local checkout of project at branch.
 	tmpDir, err := ioutil.TempDir(r.Harness.HarnessRoot(), "tmp-repo")
-	defer os.RemoveAll(tmpDir)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	remotePath := r.Harness.GetRemotePath(project)
@@ -480,8 +480,29 @@ func (r *CrosRepoHarness) AssertManifestProjectRepaired(
 	}
 	for _, err := range errs {
 		if err != nil {
-			return errors.Annotate(err, "failed to checkout branch %s in project %s", branch, project.ProjectName).Err()
+			return "", errors.Annotate(err, "failed to checkout branch %s in project %s", branch, project.ProjectName).Err()
 		}
+	}
+	return tmpDir, nil
+}
+
+func cleanupLocalCheckout(checkout string) {
+	os.RemoveAll(checkout)
+}
+
+// Use these variables to call the functions so that they can be mocked for testing purposes.
+var getLocalCheckoutFunc = getLocalCheckout
+var cleanupLocalCheckoutFunc = cleanupLocalCheckout
+
+// AssertManifestProjectRepaired asserts that the specified manifest XML files in the specified branch
+// of a project were repaired.
+// This function assumes that r.Harness.SyncLocalCheckout() has just been run.
+func (r *CrosRepoHarness) AssertManifestProjectRepaired(
+	project rh.RemoteProject, branch string, manifestFiles []string) error {
+	tmpDir, err := getLocalCheckoutFunc(r, project, branch)
+	defer cleanupLocalCheckoutFunc(tmpDir)
+	if err != nil {
+		return err
 	}
 
 	for _, file := range manifestFiles {
@@ -505,26 +526,20 @@ func getComments(file string) []string {
 	return commentRegex.FindAllString(file, -1)
 }
 
+// AssertCommentsPersist asserts that the comments from the source manifests (i.e. the manifests of the source branch)
+// persist in the new branch.
 func (r *CrosRepoHarness) AssertCommentsPersist(
-	project rh.RemoteProject, branch string, expectedManifestFiles map[string]string) error {
-	tmpDir, err := ioutil.TempDir(r.Harness.HarnessRoot(), "tmp-repo")
-	defer os.RemoveAll(tmpDir)
+	project rh.RemoteProject, branch string, sourceManifestFiles map[string]string) error {
+	// Create local checkout of project at branch.
+	tmpDir, err := getLocalCheckoutFunc(r, project, branch)
+	defer cleanupLocalCheckoutFunc(tmpDir)
 	if err != nil {
 		return err
 	}
 
-	remotePath := r.Harness.GetRemotePath(project)
-	errs := []error{
-		git.Clone(remotePath, tmpDir),
-		git.Checkout(tmpDir, branch),
-	}
-	for _, err := range errs {
-		if err != nil {
-			return errors.Annotate(err, "failed to checkout branch %s in project %s", branch, project.ProjectName).Err()
-		}
-	}
-
-	for file, expectedContents := range expectedManifestFiles {
+	for file, expectedContents := range sourceManifestFiles {
+		// Manifest filenames are the same in source and destination branches, so we simply change the path to get the
+		// new manifest.
 		filepath := filepath.Join(tmpDir, file)
 		contents, err := ioutil.ReadFile(filepath)
 		if err != nil {
@@ -539,4 +554,51 @@ func (r *CrosRepoHarness) AssertCommentsPersist(
 		}
 	}
 	return nil
+}
+
+func removeAttrs(manifest []byte) []byte {
+	fetchRegexp := regexp.MustCompile(fmt.Sprintf(attrRegexpTemplate, "fetch"))
+	revisionRegexp := regexp.MustCompile(fmt.Sprintf(attrRegexpTemplate, "revision"))
+	upstreamRegexp := regexp.MustCompile(fmt.Sprintf(attrRegexpTemplate, "upstream"))
+	manifest = fetchRegexp.ReplaceAll(manifest, []byte{})
+	manifest = revisionRegexp.ReplaceAll(manifest, []byte{})
+	return upstreamRegexp.ReplaceAll(manifest, []byte{})
+}
+
+func stripManifest(manifest []byte) []byte {
+	return regexp.MustCompile(`\s*`).ReplaceAll(manifest, []byte{})
+}
+
+// AssertMinimalManifestChanges asserts that the manifests in project/branch exactly match the expected contents
+// with three exceptions:
+// 1. Ignore whitespace.
+// 2. Ignore revision attributes (which are checked in other tests).
+// 3. Ignore fetch attributes (which are just mock values in the test harness).
+// 4. Ignore upstream attributes (doing so makes branch_util_test.go cleaner and they aren't really relevant anyways)
+func (r *CrosRepoHarness) AssertMinimalManifestChanges(
+	project rh.RemoteProject, branch string, expectedManifestFiles map[string]string) error {
+	// Create local checkout of project at branch.
+	tmpDir, err := getLocalCheckoutFunc(r, project, branch)
+	defer cleanupLocalCheckoutFunc(tmpDir)
+	if err != nil {
+		return err
+	}
+
+	// Check that manifests in project/branch exactly match contents of expectedManifestFiles
+	for file, expectedContents := range expectedManifestFiles {
+		filepath := filepath.Join(tmpDir, file)
+		contents, err := ioutil.ReadFile(filepath)
+		if err != nil {
+			return errors.Annotate(err, "failed to load manifest file %s", file).Err()
+		}
+
+		expectedContents = string(removeAttrs([]byte(expectedContents)))
+		contents = removeAttrs(contents)
+
+		if !reflect.DeepEqual(stripManifest([]byte(expectedContents)), stripManifest(contents)) {
+			return fmt.Errorf("Manifest mismatch for %s. Expected\n%v\ngot\n%v", file, string(expectedContents), string(contents))
+		}
+	}
+	return nil
+
 }

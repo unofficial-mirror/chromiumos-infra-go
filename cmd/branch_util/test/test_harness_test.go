@@ -340,6 +340,9 @@ func TestAssertProjectRevisionsMatchBranch(t *testing.T) {
 }
 
 func TestAssertManifestProjectRepaired(t *testing.T) {
+	getLocalCheckoutFunc = getLocalCheckout
+	cleanupLocalCheckoutFunc = cleanupLocalCheckout
+
 	configManifest := testManifest
 	configManifest.Projects = append(configManifest.Projects, DefaultManifestProject)
 	config := CrosRepoHarnessConfig{
@@ -393,4 +396,120 @@ func TestAssertManifestProjectRepaired(t *testing.T) {
 	assert.NilError(t, err)
 
 	assert.NilError(t, r.AssertManifestProjectRepaired(manifestProject, newBranch, []string{"manifest.xml"}))
+}
+
+const foo = `
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest>
+  <remote name="cros" fetch="bar" />
+  <project path="src/repohooks" name="chromiumos/repohooks"
+           groups="minilayout,firmware,buildtools,labtools,crosvm"
+           revision="refs/heads/bar" />
+  <repo-hooks in-project="chromiumos/repohooks" enabled-list="pre-upload" />
+
+  <!--This comment should persist.-->
+  <project name="chromiumos/manifest"
+           path="manifest"
+           revision="refs/heads/bar"
+           upstream="bogus" />
+
+  <new-element name="this should persist" />
+
+  <project name="chromiumos/overlays/chromiumos-overlay"
+           path="src/third_party/chromiumos-overlay"
+           revision="refs/heads/bar"/>
+
+  <project name="external/implicit-pinned"
+           path="src/third_party/implicit-pinned"
+           revision="refs/heads/implicit-pinned"/>
+
+  <!--This comment should also persist.-->
+  <project name="chromiumos/multicheckout"
+           path="src/third_party/multicheckout-a"
+           revision="refs/heads/multicheckout-a"/>
+
+  <project name="chromiumos/multicheckout"
+           path="src/third_party/multicheckout-b"
+           revision="refs/heads/multicheckout-b"/>
+
+</manifest>
+`
+
+const bar = `
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest>
+  <remote name="cros" fetch="bar" />
+  <project path="src/repohooks" name="chromiumos/repohooks"
+           groups="minilayout,firmware,buildtools,labtools,crosvm"
+           revision="refs/heads/bar" />
+  <repo-hooks in-project="chromiumos/repohooks" enabled-list="pre-upload" />
+
+  <!--This comment should persist.-->
+  <project name="chromiumos/manifest"
+           path="manifest"
+           revision="refs/heads/bar"/>
+
+  <new-element name="this should persist" />
+
+  <project name="external/implicit-pinned"
+           path="src/third_party/implicit-pinned"
+           revision="refs/heads/implicit-pinned"/>
+
+  <!--This comment will be lost :( -->
+  <project name="chromiumos/overlays/chromiumos-overlay"
+           path="src/third_party/chromiumos-overlay"
+           revision="refs/heads/bar"/>
+
+  <!--This comment should also persist.-->
+  <project name="chromiumos/multicheckout"
+           path="src/third_party/multicheckout-a"
+           revision="refs/heads/multicheckout-a"/>
+
+  <project name="chromiumos/multicheckout"
+           path="src/third_party/multicheckout-b"
+           revision="refs/heads/multicheckout-b"/>
+
+</manifest>
+`
+
+func TestAssertCommentsPersist(t *testing.T) {
+	getLocalCheckoutFunc = func(r *CrosRepoHarness, project rh.RemoteProject, branch string) (string, error) {
+		return "test_data/", nil
+	}
+	cleanupLocalCheckoutFunc = func(checkout string) {
+		return
+	}
+
+	r := &CrosRepoHarness{}
+
+	sourceManifestFiles := map[string]string{
+		"foo.xml": foo,
+	}
+	assert.NilError(t, r.AssertCommentsPersist(rh.RemoteProject{}, "", sourceManifestFiles))
+
+	sourceManifestFiles = map[string]string{
+		"foo.xml": bar,
+	}
+	assert.ErrorContains(t, r.AssertCommentsPersist(rh.RemoteProject{}, "", sourceManifestFiles), "This comment will be lost")
+}
+
+func TestAssertMinimalManifestChanges(t *testing.T) {
+	getLocalCheckoutFunc = func(r *CrosRepoHarness, project rh.RemoteProject, branch string) (string, error) {
+		return "test_data/", nil
+	}
+	cleanupLocalCheckoutFunc = func(checkout string) {
+		return
+	}
+
+	r := &CrosRepoHarness{}
+
+	expectedManifestFiles := map[string]string{
+		"foo.xml": foo,
+	}
+	assert.NilError(t, r.AssertMinimalManifestChanges(rh.RemoteProject{}, "", expectedManifestFiles))
+
+	expectedManifestFiles = map[string]string{
+		"foo.xml": bar,
+	}
+	assert.ErrorContains(t, r.AssertMinimalManifestChanges(rh.RemoteProject{}, "", expectedManifestFiles), "mismatch")
 }

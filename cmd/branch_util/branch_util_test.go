@@ -32,7 +32,7 @@ const (
 	remotesFileName  = "_remotes.xml"
 
 	defaultXML = `
-	<default revision="refs/heads/master" remote="cros"/>
+  <default revision="refs/heads/master" remote="cros" sync-j="8"/>
 `
 	remoteExternalXML = `
   <remote name="cros" revision="refs/heads/master" fetch="%s"/>
@@ -41,8 +41,14 @@ const (
   <remote name="cros-internal" revision="refs/heads/master" fetch="%s"/>
 `
 	projectsExternalXML = `
+  <project path="src/repohooks" name="chromiumos/repohooks"
+           groups="minilayout,firmware,buildtools,labtools,crosvm" />
+  <repo-hooks in-project="chromiumos/repohooks" enabled-list="pre-upload" />
+
   <!--This comment should persist.-->
   <project name="chromiumos/manifest" path="manifest"/>
+
+  <new-element name="this should persist" />
 
   <project name="chromiumos/overlays/chromiumos-overlay"
            path="src/third_party/chromiumos-overlay"/>
@@ -97,39 +103,55 @@ const (
 )
 
 const (
+	existingBranchName = "old-branch"
+
 	defaultBranchedXML = `
-  <default remote="cros"/>
+  <default remote="cros" sync-j="8"/>
 `
+	remoteExternalBranchedXML = `
+  <remote name="cros" fetch="%s"/>
+`
+	remoteInternalBranchedXML = `
+  <remote name="cros-internal" fetch="%s"/>
+`
+
 	projectsExternalBranchedXML = `
-  <!--This branched comment should persist.-->
+  <project path="src/repohooks" name="chromiumos/repohooks"
+           groups="minilayout,firmware,buildtools,labtools,crosvm"
+           revision="refs/heads/%[1]s" />
+  <repo-hooks in-project="chromiumos/repohooks" enabled-list="pre-upload" />
+
+  <!--This comment should persist.-->
   <project name="chromiumos/manifest"
            path="manifest"
-           revision="refs/heads/old-branch"/>
+           revision="refs/heads/%[1]s"/>
+
+  <new-element name="this should persist" />
 
   <project name="chromiumos/overlays/chromiumos-overlay"
            path="src/third_party/chromiumos-overlay"
-           revision="refs/heads/old-branch"/>
+           revision="refs/heads/%[1]s"/>
 
   <project name="external/implicit-pinned"
            path="src/third_party/implicit-pinned"
            revision="refs/heads/implicit-pinned"/>
 
-  <!--This branched comment should also persist.-->
+  <!--This comment should also persist.-->
   <project name="chromiumos/multicheckout"
            path="src/third_party/multicheckout-a"
-           revision="refs/heads/old-branch-multicheckout-a"/>
+           revision="refs/heads/%[1]s-multicheckout-a"/>
 
   <project name="chromiumos/multicheckout"
            path="src/third_party/multicheckout-b"
-           revision="refs/heads/old-branch-multicheckout-b"/>
+           revision="refs/heads/%[1]s-multicheckout-b"/>
 `
 
 	projectsInternalBranchedXML = `
   <project name="chromeos/manifest-internal"
            path="manifest-internal"
            remote="cros-internal"
-           revision="refs/heads/old-branch"
-           upstream="refs/heads/old-branch"/>
+           revision="refs/heads/%[1]s"
+           upstream="refs/heads/%[1]s"/>
 
   <project name="chromeos/explicit-pinned"
            path="src/explicit-pinned"
@@ -141,7 +163,7 @@ const (
   <project name="chromeos/explicit-branch"
            path="src/explicit-branch"
            remote="cros-internal"
-           revision="refs/heads/old-branch">
+           revision="refs/heads/%[1]s">
     <annotation name="branch-mode" value="create"/>
   </project>
 
@@ -206,7 +228,7 @@ func getManifestFiles(crosFetch, crosInternalFetch string) (
 	return
 }
 
-func getBranchedManifestFiles(crosFetch, crosInternalFetch string) (
+func getBranchedManifestFiles(branch, crosFetch, crosInternalFetch string) (
 	manifestBranchedFiles map[string]string,
 	manifestInternalBranchedFiles map[string]string,
 	fullBranchedXML string) {
@@ -218,8 +240,10 @@ func getBranchedManifestFiles(crosFetch, crosInternalFetch string) (
 	if crosInternalFetch == "" {
 		crosInternalFetch = "placeholder"
 	}
-	remoteInternalXML := fmt.Sprintf(remoteInternalXML, crosInternalFetch)
-	remoteExternalXML := fmt.Sprintf(remoteExternalXML, crosFetch)
+	remoteInternalXML := fmt.Sprintf(remoteInternalBranchedXML, crosInternalFetch)
+	remoteExternalXML := fmt.Sprintf(remoteExternalBranchedXML, crosFetch)
+	projectsExternalBranchedXML := fmt.Sprintf(projectsExternalBranchedXML, branch)
+	projectsInternalBranchedXML := fmt.Sprintf(projectsInternalBranchedXML, branch)
 
 	manifestBranchedFiles = map[string]string{
 		remotesFileName: manifestXml(remoteExternalXML),
@@ -247,6 +271,13 @@ func getBranchedManifestFiles(crosFetch, crosInternalFetch string) (
 		projectsInternalBranchedXML,
 	)
 	return
+}
+
+func getExistingBranchManifestFiles(crosFetch, crosInternalFetch string) (
+	manifestBranchedFiles map[string]string,
+	manifestInternalBranchedFiles map[string]string,
+	fullBranchedXML string) {
+	return getBranchedManifestFiles(existingBranchName, crosFetch, crosInternalFetch)
 }
 
 func manifestXml(chunks ...string) string {
@@ -325,8 +356,9 @@ func setUp(t *testing.T) *test.CrosRepoHarness {
 	crosFetchVal := manifest.GetRemoteByName("cros").Fetch
 	crosInternalFetchVal := manifest.GetRemoteByName("cros-internal").Fetch
 	manifestFiles, manifestInternalFiles, _ := getManifestFiles(crosFetchVal, crosInternalFetchVal)
+
 	manifestBranchedFiles, manifestInternalBranchedFiles, fullBranchedXML :=
-		getBranchedManifestFiles(crosFetchVal, crosInternalFetchVal)
+		getExistingBranchManifestFiles(crosFetchVal, crosInternalFetchVal)
 
 	// Add manifest files to remote.
 	addManifestFiles(t, &r, manifestProject, "master", manifestFiles)
@@ -335,7 +367,6 @@ func setUp(t *testing.T) *test.CrosRepoHarness {
 	addManifestFiles(t, &r, manifestInternalProject, "master", manifestInternalFiles)
 
 	// Create existing branch on remote.
-	branchName := "old-branch"
 	var branchManifest *repo.Manifest
 	assert.NilError(t, xml.Unmarshal([]byte(fullBranchedXML), &branchManifest))
 	branchManifest = branchManifest.ResolveImplicitLinks()
@@ -359,10 +390,10 @@ func setUp(t *testing.T) *test.CrosRepoHarness {
 		BranchBuildNumber: 1,
 		PatchNumber:       0,
 	}
-	assert.NilError(t, r.SetVersion(branchName, version))
+	assert.NilError(t, r.SetVersion(existingBranchName, version))
 	// Commit manifest files.
-	addManifestFiles(t, &r, manifestProject, branchName, manifestBranchedFiles)
-	addManifestFiles(t, &r, manifestInternalProject, branchName, manifestInternalBranchedFiles)
+	addManifestFiles(t, &r, manifestProject, existingBranchName, manifestBranchedFiles)
+	addManifestFiles(t, &r, manifestInternalProject, existingBranchName, manifestInternalBranchedFiles)
 
 	assert.NilError(t, r.TakeSnapshot())
 
@@ -393,6 +424,14 @@ func assertCommentsPersist(t *testing.T, r *test.CrosRepoHarness,
 	manifestFiles, manifestInternalFiles, _ := sourceFiles("", "")
 	assert.NilError(t, r.AssertCommentsPersist(manifestProject, branch, manifestFiles))
 	assert.NilError(t, r.AssertCommentsPersist(manifestInternalProject, branch, manifestInternalFiles))
+}
+
+func assertMinimalManifestChanges(t *testing.T, r *test.CrosRepoHarness, branch string) {
+	// Ensure that the created manifests differ minimally from the expected manifests (as produced by
+	// getBranchedManifestFiles).
+	expectedManifestFiles, expectedManifestInternalFiles, _ := getBranchedManifestFiles(branch, "", "")
+	assert.NilError(t, r.AssertMinimalManifestChanges(manifestProject, branch, expectedManifestFiles))
+	assert.NilError(t, r.AssertMinimalManifestChanges(manifestInternalProject, branch, expectedManifestInternalFiles))
 }
 
 func assertNoRemoteDiff(t *testing.T, r *test.CrosRepoHarness) {
@@ -439,6 +478,12 @@ func TestCreate(t *testing.T) {
 	assert.NilError(t, r.AssertCrosVersion("master", masterVersion))
 
 	assertCommentsPersist(t, r, getManifestFiles, branch)
+	// Check that manifests were minmally changed (e.g. element ordering preserved).
+	// This check is meaningful because the manifests are created using the branch_util
+	// tool which reads in, unmarshals, and modifies the manifests from getManifestFiles.
+	// The expected manifests (which the branched manifests are being compared to)
+	// are simply strings produced by getBranchedManifestFiles.
+	assertMinimalManifestChanges(t, r, branch)
 }
 
 // Branch off of old-branch to make sure that the source version is being
@@ -462,7 +507,7 @@ func TestCreateReleaseNonMaster(t *testing.T) {
 
 	crosFetchVal := manifest.GetRemoteByName("cros").Fetch
 	crosInternalFetchVal := manifest.GetRemoteByName("cros-internal").Fetch
-	_, _, fullBranchedXML := getBranchedManifestFiles(crosFetchVal, crosInternalFetchVal)
+	_, _, fullBranchedXML := getBranchedManifestFiles(existingBranchName, crosFetchVal, crosInternalFetchVal)
 	var branchManifest *repo.Manifest
 	assert.NilError(t, xml.Unmarshal([]byte(fullBranchedXML), &branchManifest))
 	branchManifest = branchManifest.ResolveImplicitLinks()
@@ -484,7 +529,7 @@ func TestCreateReleaseNonMaster(t *testing.T) {
 	}
 	assert.NilError(t, r.AssertCrosVersion("old-branch", sourceVersion))
 
-	assertCommentsPersist(t, r, getBranchedManifestFiles, branch)
+	assertCommentsPersist(t, r, getExistingBranchManifestFiles, branch)
 }
 
 func TestCreateDryRun(t *testing.T) {
@@ -535,6 +580,8 @@ func TestCreateRelease(t *testing.T) {
 		PatchNumber:       0,
 	}
 	assert.NilError(t, r.AssertCrosVersion("master", masterVersion))
+
+	assertCommentsPersist(t, r, getManifestFiles, branch)
 }
 
 // Test create overwrites existing branches when --force is set.
@@ -642,7 +689,7 @@ func TestRename(t *testing.T) {
 	manifest := r.Harness.Manifest()
 	manifestDir := r.Harness.GetRemotePath(manifestInternalProject)
 
-	oldBranch := "old-branch"
+	oldBranch := existingBranchName // "old-branch"
 	newBranch := "new-branch"
 
 	s := &branchApplication{application, nil, nil}
@@ -659,7 +706,7 @@ func TestRename(t *testing.T) {
 	// Get manifest for oldBranch.
 	crosFetchVal := manifest.GetRemoteByName("cros").Fetch
 	crosInternalFetchVal := manifest.GetRemoteByName("cros-internal").Fetch
-	_, _, fullBranchedXML := getBranchedManifestFiles(crosFetchVal, crosInternalFetchVal)
+	_, _, fullBranchedXML := getExistingBranchManifestFiles(crosFetchVal, crosInternalFetchVal)
 	var branchManifest *repo.Manifest
 	assert.NilError(t, xml.Unmarshal([]byte(fullBranchedXML), &branchManifest))
 	branchManifest = branchManifest.ResolveImplicitLinks()
@@ -674,7 +721,8 @@ func TestRename(t *testing.T) {
 	}
 	assert.NilError(t, r.AssertCrosVersion(newBranch, newBranchVersion))
 
-	assertCommentsPersist(t, r, getBranchedManifestFiles, newBranch)
+	assertCommentsPersist(t, r, getExistingBranchManifestFiles, newBranch)
+	assertMinimalManifestChanges(t, r, newBranch)
 }
 
 func TestRenameDryRun(t *testing.T) {
@@ -711,7 +759,7 @@ func TestRenameOverwrite(t *testing.T) {
 	manifest := r.Harness.Manifest()
 	manifestDir := r.Harness.GetRemotePath(manifestInternalProject)
 
-	oldBranch := "old-branch"
+	oldBranch := existingBranchName // "old-branch"
 	newBranch := "new-branch"
 
 	// Create a branch to rename. To quote the functional tests for `cros branch`:
@@ -769,7 +817,7 @@ func TestRenameOverwrite(t *testing.T) {
 	// Get manifest for oldBranch.
 	crosFetchVal := manifest.GetRemoteByName("cros").Fetch
 	crosInternalFetchVal := manifest.GetRemoteByName("cros-internal").Fetch
-	_, _, fullBranchedXML := getBranchedManifestFiles(crosFetchVal, crosInternalFetchVal)
+	_, _, fullBranchedXML := getExistingBranchManifestFiles(crosFetchVal, crosInternalFetchVal)
 	var branchManifest *repo.Manifest
 	assert.NilError(t, xml.Unmarshal([]byte(fullBranchedXML), &branchManifest))
 	branchManifest = branchManifest.ResolveImplicitLinks()
@@ -778,7 +826,7 @@ func TestRenameOverwrite(t *testing.T) {
 	assertManifestsRepaired(t, r, newBranch)
 	assert.NilError(t, r.AssertCrosVersion(newBranch, oldBranchVersion))
 
-	assertCommentsPersist(t, r, getBranchedManifestFiles, newBranch)
+	assertCommentsPersist(t, r, getExistingBranchManifestFiles, newBranch)
 }
 
 // Test rename dies if it tries to overwrite without --force.

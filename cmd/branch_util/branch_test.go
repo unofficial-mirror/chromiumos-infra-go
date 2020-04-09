@@ -23,6 +23,9 @@ var branchNameTestManifest = repo.Manifest{
 		// Will be properly named using the `original` parameter.
 		{Path: "baz1/", Name: "baz", Upstream: "refs/heads/oldbranch-factory-100"},
 		{Path: "baz2/", Name: "baz", Upstream: "refs/heads/oldbranch-factory-101"},
+		{Path: "baz2/", Name: "baz", Upstream: "refs/heads/oldbranch-factory-101"},
+		// Project with an upstream that is from a CrOS branch name.
+		{Path: "baz2/", Name: "baz", Upstream: "refs/heads/release-R77-12371.B-myfactory-2.6"},
 	},
 }
 
@@ -47,6 +50,7 @@ func TestProjectBranchName(t *testing.T) {
 	assert.Equal(t, projectBranchName("mybranch", manifest.Projects[0], ""), "mybranch")
 	assert.Equal(t, projectBranchName("mybranch", manifest.Projects[1], ""), "mybranch-factory-100")
 	assert.Equal(t, projectBranchName("mybranch", manifest.Projects[2], ""), "mybranch-101")
+	assert.Equal(t, projectBranchName("mybranch", manifest.Projects[6], ""), "mybranch-myfactory-2.6")
 }
 
 func TestProjectBranchName_withOriginal(t *testing.T) {

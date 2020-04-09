@@ -23,6 +23,9 @@ var (
 		"chromiumos/manifest":        true,
 		"chromeos/manifest-internal": true,
 	}
+	// A Chrome OS branch name as a prefix to a string, starting with a dash.
+	// e.g. -release-R77-12371.B
+	branchPrefix = regexp.MustCompile("^-.*[.]B")
 )
 
 type ProjectBranch struct {
@@ -64,6 +67,10 @@ func projectBranchName(branch string, project repo.Project, original string) str
 		if strings.HasPrefix(suffix, "-"+original+"-") {
 			suffix = strings.TrimPrefix(suffix, "-"+original)
 		}
+	} else {
+		// If the suffix already has a version in it, trim that.
+		// e.g. -release-R77-12371.B-wpa_supplicant-2.6 --> -wpa_supplicant-2.6
+		suffix = branchPrefix.ReplaceAllString(suffix, "")
 	}
 	return branch + suffix
 }

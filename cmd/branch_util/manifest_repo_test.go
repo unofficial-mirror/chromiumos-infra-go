@@ -97,10 +97,10 @@ func TestRepairManifest_success(t *testing.T) {
 	 	<remote name="remote3" />
 
 		<project path="src/repohooks" name="chromiumos/repohooks"
-			groups="minilayout,firmware,buildtools,labtools,crosvm" revision="refs/heads/branch"/>
+			groups="minilayout,firmware,buildtools,labtools,crosvm" revision="refs/heads/branch" />
 		<repo-hooks in-project="chromiumos/repohooks" enabled-list="pre-upload" />
 
-	 	<project name="chromiumos/foo" path="foo/" remote="cros" revision="refs/heads/branch"/>
+	 	<project name="chromiumos/foo" path="foo/" remote="cros" revision="refs/heads/branch" />
 	 	<project name="pinned" revision="123" path="pinned/">
 	 		<!---Comment 2-->
 	 		<annotation name="branch-mode" value="pin" />

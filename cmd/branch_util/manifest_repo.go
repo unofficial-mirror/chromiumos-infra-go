@@ -58,24 +58,23 @@ func (m *ManifestRepo) gitRevision(project repo.Project) (string, error) {
 }
 
 func delAttr(tag, attr string) string {
-	// Regex for finding attribute.
-	// We include any trailing whitespace in the match.
-	attrRegex := regexp.MustCompile(fmt.Sprintf(attrRegexpTemplate+"\\s*", attr))
-	return attrRegex.ReplaceAllString(tag, "")
+	// Regex for finding attribute. Include leading whitespace.
+	attrRegex := regexp.MustCompile(fmt.Sprintf(`\s*`+attrRegexpTemplate, attr))
+	return attrRegex.ReplaceAllString(tag, ``)
 }
 
 func setAttr(tag, attr, value string) string {
 	// Regex for finding attribute.
 	attrRegex := regexp.MustCompile(fmt.Sprintf(attrRegexpTemplate, attr))
 	// Attribute with new value.
-	newAttr := fmt.Sprintf("%s=\"%s\"", attr, value)
+	newAttr := fmt.Sprintf(`%s="%s"`, attr, value)
 
 	// Attribute with current value.
 	currAttr := attrRegex.FindString(tag)
 	if currAttr != "" { // Attr exists, replace value.
 		return attrRegex.ReplaceAllString(tag, newAttr)
-	} else { // Attr does not exist, add attribute to end of start tag.
-		endRegex := regexp.MustCompile("(/?>)")
+	} else { // Attr does not exist, add attribute to end of [start] tag.
+		endRegex := regexp.MustCompile(`(\s*/?>)`)
 		return endRegex.ReplaceAllString(tag, " "+newAttr+"$1")
 	}
 }
@@ -192,8 +191,6 @@ func (m *ManifestRepo) repairManifest(path string, branchesByPath map[string]str
 		// Update manifest.
 		manifest = strings.ReplaceAll(manifest, projectTag, newProjectTag)
 	}
-	// Collapse multiple consecutive spaces.
-	manifest = regexp.MustCompile(`  +`).ReplaceAllString(manifest, " ")
 	// Remove trailing space in start tags.
 	manifest = regexp.MustCompile(`\s+>`).ReplaceAllString(manifest, ">")
 

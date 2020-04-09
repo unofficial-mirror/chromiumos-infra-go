@@ -25,7 +25,7 @@ var branchNameTestManifest = repo.Manifest{
 		{Path: "baz2/", Name: "baz", Upstream: "refs/heads/oldbranch-factory-101"},
 		{Path: "baz2/", Name: "baz", Upstream: "refs/heads/oldbranch-factory-101"},
 		// Project with an upstream that is from a CrOS branch name.
-		{Path: "baz2/", Name: "baz", Upstream: "refs/heads/release-R77-12371.B-myfactory-2.6"},
+		{Path: "baz2/", Name: "baz", Upstream: "refs/heads/release-R77-12371.B-myfactory/2.6"},
 	},
 }
 

@@ -72,6 +72,8 @@ func projectBranchName(branch string, project repo.Project, original string) str
 		// e.g. -release-R77-12371.B-wpa_supplicant-2.6 --> -wpa_supplicant-2.6
 		suffix = branchPrefix.ReplaceAllString(suffix, "")
 	}
+	// Remove the "/" character, since those don't belong in branch names.
+	suffix = strings.ReplaceAll(suffix, "/", "-")
 	return branch + suffix
 }
 

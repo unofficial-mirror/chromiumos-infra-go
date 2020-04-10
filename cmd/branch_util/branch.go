@@ -67,7 +67,8 @@ func projectBranchName(branch string, project repo.Project, original string) str
 		if strings.HasPrefix(suffix, "-"+original+"-") {
 			suffix = strings.TrimPrefix(suffix, "-"+original)
 		}
-	} else {
+	}
+	if branchPrefix.MatchString(suffix) {
 		// If the suffix already has a version in it, trim that.
 		// e.g. -release-R77-12371.B-wpa_supplicant-2.6 --> -wpa_supplicant-2.6
 		suffix = branchPrefix.ReplaceAllString(suffix, "")
@@ -289,14 +290,17 @@ func createRemoteBranchesWorker(
 		branchName := git.NormalizeRef(projectBranch.branchName)
 		refspec := fmt.Sprintf("%s:%s", getOriginRef(projectBranch.project.Revision), branchName)
 
+		logMode := "Pushing"
 		cmd := []string{"push", "origin", refspec}
 		if dryRun {
 			cmd = append(cmd, "--dry-run")
+			logMode = "Dry run"
 		}
 		if force {
 			cmd = append(cmd, "--force")
+			logMode += " (with --force flag)"
 		}
-		logOut("Pushing ref %s for project %s\n", branchName, projectBranch.project.Path)
+		logOut("%s ref %s for project %s\n", logMode, branchName, projectBranch.project.Path)
 
 		ctx, cancel := context.WithTimeout(context.Background(), gitTimeout)
 		defer cancel()

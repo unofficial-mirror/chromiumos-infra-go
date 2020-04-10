@@ -58,6 +58,7 @@ func TestProjectBranchName_withOriginal(t *testing.T) {
 	workingManifest = manifest
 	assert.Equal(t, projectBranchName("mybranch", manifest.Projects[3], "oldbranch"), "mybranch-factory-100")
 	assert.Equal(t, projectBranchName("mybranch", manifest.Projects[4], "oldbranch"), "mybranch-factory-101")
+	assert.Equal(t, projectBranchName("mybranch", manifest.Projects[6], "oldbranch"), "mybranch-myfactory-2.6")
 }
 
 func TestCanBranchProject(t *testing.T) {

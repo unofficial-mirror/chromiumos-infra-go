@@ -1,0 +1,38 @@
+{
+  "run_log_configuration": {
+      "destination_url": "gs://engeg-test-cycler-bucket/logs",
+      "chunk_size_bytes": 104857600,
+      "channel_size": 10000,
+      "persist_retries": 100,
+      "max_unpersisted_logs": 10
+  },
+
+  "policy_effect_configuration": {
+      "duplicate": {
+        "destination_bucket": "chromeos-releases-backup",
+        "destination_prefix": "old-paladins/"
+      },
+      "policy_document_path": "examples/policies/old_paladin.rego",
+      "prefix_regexp" : "^.+?-paladin(-tryjob)?/.*"
+  },
+
+  "stats_configuration": {
+      "prefix_report_max_depth": 1,
+      "age_days_histogram_options": {
+          "num_buckets": 16,
+          "growth_factor": 1.0,
+          "base_bucket_size": 1.0,
+          "min_value": 0
+      },
+      "size_bytes_histogram_options": {
+          "num_buckets": 16,
+          "growth_factor": 4.0,
+          "base_bucket_size": 1.0,
+          "min_value": 0
+      }
+  },
+
+  "mutation_allowed" : true,
+
+  "bucket": "chromeos-image-archive"
+}

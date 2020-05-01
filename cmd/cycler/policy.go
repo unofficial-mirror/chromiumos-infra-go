@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"regexp"
 	"time"
 
 	cycler_pb "go.chromium.org/chromiumos/infra/proto/go/cycler"
@@ -28,7 +29,7 @@ type Policy struct {
 	// We must be explicitly allowed to mutate after policy determinations.
 	MutationAllowed bool `json:"MutationAllowed"`
 
-	// Because it's low in runtime cost, and we're touching all the objects
+	// Because it's low in runtime cost, and we're touching the objects
 	// regardless, also update an instance of Stats.
 	PrefixStats *Stats `json:"PrefixStats"`
 
@@ -43,6 +44,9 @@ type Policy struct {
 
 	// The prepared (via init()) query to run on the submitted objects.
 	q *rego.PreparedEvalQuery
+
+	// The compiled regex to apply to each prefix.
+	prefixRegexp *regexp.Regexp
 
 	// gcp client, set on init.
 	client *storage.Client
@@ -75,6 +79,11 @@ func (ap *Policy) init(ctx context.Context, client *storage.Client,
 	// Set up our bucket stats config using unmarshalled config.
 	ap.PrefixStats = &Stats{}
 	ap.PrefixStats.init(ctx, statsConfig)
+
+	// Set up the prefix regex
+	if ap.Config.PrefixRegexp != "" {
+		ap.prefixRegexp = regexp.MustCompile(ap.Config.PrefixRegexp)
+	}
 
 	// Set up our action stats with the same config.
 	ap.ActionStats = &Stats{}
@@ -221,6 +230,10 @@ func shouldAct(rs *rego.ResultSet) (bool, error) {
 		return act, nil
 	}
 	return false, nil
+}
+
+func (ap *Policy) PrefixRegexp() *regexp.Regexp {
+	return ap.prefixRegexp
 }
 
 func (ap *Policy) close() error {

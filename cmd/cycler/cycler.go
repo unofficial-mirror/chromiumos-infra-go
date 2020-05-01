@@ -22,6 +22,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/signal"
+	"regexp"
 	"runtime"
 	"runtime/debug"
 	"strings"
@@ -229,7 +230,7 @@ func main() {
 	for j := 0; j < *iterJobs; j++ {
 		iwg.Add(1)
 		go prefixIterator(ctx, client, &iwg, runConfig.Bucket, "/", true, workChan,
-			prefixChan, iteratorStopChan)
+			prefixChan, iteratorStopChan, pol.PrefixRegexp())
 	}
 
 	// Start the object attr worker jobs.
@@ -362,7 +363,7 @@ func worker(work chan *AttrUnit, stop chan bool, wg *sync.WaitGroup, pol Policy)
 func prefixIterator(ctx context.Context, client *storage.Client,
 	wg *sync.WaitGroup, bucket string, delimiter string, versions bool,
 	workChan chan *AttrUnit, prefixChan chan *PrefixUnit,
-	stop chan bool) {
+	stop chan bool, prefixRegexp *regexp.Regexp) {
 
 	var iterDelta int64
 
@@ -435,6 +436,10 @@ WorkLoop:
 				}
 
 				if attr.Prefix != "" {
+					if prefixRegexp != nil && !prefixRegexp.MatchString(attr.Prefix) {
+						glog.V(3).Infof("Prefix didn't match PrefixRegexp: %v\n", attr.Prefix)
+						continue
+					}
 					atomic.AddInt64(&dirsFound, 1)
 					// TODO(engeg@): If we've completely filled the
 					// prefixChan, there is a chance this will block.

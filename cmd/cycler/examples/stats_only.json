@@ -1,6 +1,6 @@
 {
     "run_log_configuration": {
-        "destination_url": "gs://engeg-testing-chromeos-releases/logs",
+        "destination_url": "gs://engeg-test-cycler-bucket/logs",
         "chunk_size_bytes": 104857600,
         "channel_size": 10000,
         "persist_retries": 100,
@@ -30,5 +30,5 @@
 
     "mutation_allowed" : false,
 
-    "bucket": "engeg-testing-chromeos-releases"
+    "bucket": "fill-in-your-bucket-name"
 }

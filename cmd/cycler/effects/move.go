@@ -10,6 +10,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 
 	cycler_pb "go.chromium.org/chromiumos/infra/proto/go/cycler"
@@ -17,28 +18,38 @@ import (
 	"cloud.google.com/go/storage"
 )
 
+// Real or mock actor, non-test invocations use util.objectBucketToBucket.
+type MoveEffectActor func(ctx context.Context, client *storage.Client, srcAttr *storage.ObjectAttrs,
+	dstBucket string, prefix string, deleteAfter bool) error
+
+func (me MoveEffect) DefaultActor() interface{} {
+	return objectBucketToBucket
+}
+
 // MoveEffect runtime and configuration state.
 type MoveEffect struct {
 	Config cycler_pb.MoveEffectConfiguration `json:"MoveEffectConfiguration"`
+	Actor  MoveEffectActor
 }
 
-// MoveEffectConfig has no configuration.
+// MoveEffectConfig configuration.
 type MoveEffectConfig struct {
 	DestinationBucket string `json:"DestinationBucket"`
 	DestinationPrefix string `json:"DestinationPrefix"`
 }
 
-// Init the move effect.
-func (me *MoveEffect) Init(config interface{}, checks ...bool) {
+// Init the move effect with a config and an actor (mock or real function).
+func (me *MoveEffect) Initialize(config interface{}, actor interface{}, checks ...bool) {
 	orig, ok := config.(cycler_pb.MoveEffectConfiguration)
 	if !ok {
-		fmt.Fprintf(os.Stderr, "Config could not be typecast: %+v", ok)
+		log.Printf("Config could not be typecast: %+v", ok)
 		os.Exit(2)
 	}
 
 	CheckMutationAllowed(checks)
 
 	me.Config = orig
+	me.Actor = actor.(MoveEffectActor)
 }
 
 // Enact does the move operation on the attr, _this deletes the old object_!
@@ -67,7 +78,7 @@ func (me *MoveEffect) Enact(ctx context.Context, client *storage.Client, attr *s
 
 // Internal move object command for google storage.
 func (me *MoveEffect) moveObject(ctx context.Context, client *storage.Client, attr *storage.ObjectAttrs) error {
-	return objectBucketToBucket(ctx, client, attr, me.Config.DestinationBucket, me.Config.DestinationPrefix, true)
+	return me.Actor(ctx, client, attr, me.Config.DestinationBucket, me.Config.DestinationPrefix, true)
 }
 
 // MoveResult defines all outputs of a move effect.
@@ -78,16 +89,16 @@ type MoveResult struct {
 }
 
 // HasActed is true if the effect was applied.
-func (er *MoveResult) HasActed() bool {
-	return er.acted
+func (mr MoveResult) HasActed() bool {
+	return mr.acted
 }
 
 // JSONResult is the JSON result.
-func (er *MoveResult) JSONResult() string {
-	return er.jsonResult
+func (mr MoveResult) JSONResult() string {
+	return mr.jsonResult
 }
 
 // TextResult is the unformatted text result.
-func (er *MoveResult) TextResult() string {
-	return er.textResult
+func (mr MoveResult) TextResult() string {
+	return mr.textResult
 }

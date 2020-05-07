@@ -13,13 +13,19 @@ import (
 	cycler_pb "go.chromium.org/chromiumos/infra/proto/go/cycler"
 )
 
+// NoopEffect has no actor.
+
 // NoopEffect runtime and configuration state.
 type NoopEffect struct {
 	Config cycler_pb.NoopEffectConfiguration `json:"NoopEffectConfiguration"`
 }
 
+func (ne NoopEffect) DefaultActor() interface{} {
+	return nil
+}
+
 // Init nothing.
-func (ne *NoopEffect) Init(config interface{}, checks ...bool) {
+func (ne *NoopEffect) Initialize(config interface{}, actor interface{}, checks ...bool) {
 	return
 }
 

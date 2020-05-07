@@ -10,6 +10,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 
 	cycler_pb "go.chromium.org/chromiumos/infra/proto/go/cycler"
@@ -17,16 +18,25 @@ import (
 	"cloud.google.com/go/storage"
 )
 
+// Real or mock actor, non-test invocations use util.objectBucketToBucket.
+type DuplicateEffectActor func(ctx context.Context, client *storage.Client, srcAttr *storage.ObjectAttrs,
+	dstBucket string, prefix string, deleteAfter bool) error
+
+func (de DuplicateEffect) DefaultActor() interface{} {
+	return objectBucketToBucket
+}
+
 // DuplicateEffect runtime and configuration state.
 type DuplicateEffect struct {
 	Config cycler_pb.DuplicateEffectConfiguration `json:"DuplicateEffectConfiguration"`
+	Actor  DuplicateEffectActor
 }
 
 // Init the DuplicateEffect, duplicate doesn't mutate so skip checks.
-func (me *DuplicateEffect) Init(config interface{}, checks ...bool) {
+func (de *DuplicateEffect) Initialize(config interface{}, actor interface{}, checks ...bool) {
 	orig, ok := config.(cycler_pb.DuplicateEffectConfiguration)
 	if !ok {
-		fmt.Fprintf(os.Stderr, "Config could not be typecast: %+v", ok)
+		log.Printf("Config could not be typecast: %+v", ok)
 		os.Exit(2)
 	}
 
@@ -34,12 +44,13 @@ func (me *DuplicateEffect) Init(config interface{}, checks ...bool) {
 	// so consider it an effect that requires mutation to be allowed.
 	CheckMutationAllowed(checks)
 
-	me.Config = orig
+	de.Config = orig
+	de.Actor = actor.(DuplicateEffectActor)
 }
 
 // Enact does the duplicate operation on the attr, does not mutate existing object.
-func (me *DuplicateEffect) Enact(ctx context.Context, client *storage.Client, attr *storage.ObjectAttrs) (EffectResult, error) {
-	err := me.duplicateObject(ctx, client, attr)
+func (de *DuplicateEffect) Enact(ctx context.Context, client *storage.Client, attr *storage.ObjectAttrs) (EffectResult, error) {
+	err := de.duplicateObject(ctx, client, attr)
 	if err != nil {
 		return nil, fmt.Errorf("Error duplicating object in DuplicateEffect.enact: %v", err)
 	}
@@ -49,17 +60,17 @@ func (me *DuplicateEffect) Enact(ctx context.Context, client *storage.Client, at
 	if err != nil {
 		return nil, fmt.Errorf("Error marshalling json in DuplicateEffect.enact: %v", err)
 	}
-	er := DuplicateResult{
+	dr := DuplicateResult{
 		acted:      true,
 		jsonResult: string(jsonResult),
 		textResult: textResult,
 	}
-	return &er, nil
+	return &dr, nil
 }
 
 // Internal duplicate object command for google storage.
-func (me *DuplicateEffect) duplicateObject(ctx context.Context, client *storage.Client, attr *storage.ObjectAttrs) error {
-	return objectBucketToBucket(ctx, client, attr, me.Config.DestinationBucket, me.Config.DestinationPrefix, false)
+func (de *DuplicateEffect) duplicateObject(ctx context.Context, client *storage.Client, attr *storage.ObjectAttrs) error {
+	return de.Actor(ctx, client, attr, de.Config.DestinationBucket, de.Config.DestinationPrefix, false)
 }
 
 // DuplicateResult defines all outputs of an echo effect.
@@ -70,16 +81,16 @@ type DuplicateResult struct {
 }
 
 // HasActed is true if the effect was applied.
-func (er *DuplicateResult) HasActed() bool {
-	return er.acted
+func (dr DuplicateResult) HasActed() bool {
+	return dr.acted
 }
 
 // JSONResult is the JSON result.
-func (er *DuplicateResult) JSONResult() string {
-	return er.jsonResult
+func (dr DuplicateResult) JSONResult() string {
+	return dr.jsonResult
 }
 
 // TextResult is the unformatted text result.
-func (er *DuplicateResult) TextResult() string {
-	return er.textResult
+func (dr DuplicateResult) TextResult() string {
+	return dr.textResult
 }

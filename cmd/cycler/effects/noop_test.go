@@ -14,7 +14,7 @@ import (
 func TestNoopEffect(t *testing.T) {
 	attr := &storage.ObjectAttrs{}
 	ne := NoopEffect{}
-	ne.Init(nil)
+	ne.Initialize(nil, nil)
 
 	// We can 'get away' with passing nil here as we expect, nay, _demand_,
 	// that the noop action doesn't use a GS client.

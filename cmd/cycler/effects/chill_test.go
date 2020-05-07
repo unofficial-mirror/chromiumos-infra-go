@@ -1,7 +1,51 @@
-// Copyright 2019 The Chromium OS Authors. All rights reserved.
+// Copyright 2020 The Chromium OS Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 package effects
 
-//TODO(engeg@): Impl.
+import (
+	"context"
+	"testing"
+
+	"cloud.google.com/go/storage"
+	cycler_pb "go.chromium.org/chromiumos/infra/proto/go/cycler"
+)
+
+func getChillMock(t *testing.T) ChillEffectActor {
+	return func(ctx context.Context, client *storage.Client, srcAttr *storage.ObjectAttrs,
+		toStorageClass cycler_pb.ChillEffectConfiguration_EnumStorageClass) error {
+		if toStorageClass != cycler_pb.ChillEffectConfiguration_COLDLINE {
+			t.Errorf("Wanted COLDLINE, got %+v", toStorageClass)
+		}
+		return nil
+	}
+}
+
+func TestChillEffect(t *testing.T) {
+	config := cycler_pb.ChillEffectConfiguration{
+		ToStorageClass: cycler_pb.ChillEffectConfiguration_COLDLINE,
+	}
+
+	ctx := context.Background()
+	ce := ChillEffect{}
+	ce.Initialize(config, getChillMock(t))
+
+	attr := &storage.ObjectAttrs{}
+
+	client, err := storage.NewClient(ctx)
+	if err != nil {
+		t.Error("couldn't construct client")
+	}
+
+	moveResult, err := ce.Enact(ctx, client, attr)
+	if err != nil {
+		t.Fail()
+	}
+
+	if moveResult.HasActed() != true {
+		t.Fail()
+	}
+}
+
+//TODO(engeg@) Add test we never call actor if storage class doesn't change.

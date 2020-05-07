@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"os"
 
+	cycler_pb "go.chromium.org/chromiumos/infra/proto/go/cycler"
+
 	"cloud.google.com/go/storage"
 )
 
@@ -25,6 +27,28 @@ func objectBucketToBucket(ctx context.Context, client *storage.Client,
 	}
 	if deleteAfter {
 		return src.Delete(ctx)
+	}
+	return nil
+}
+
+// Change object storage class via copy with src and dst being the same.
+func objectChangeStorageClass(ctx context.Context, client *storage.Client,
+	srcAttr *storage.ObjectAttrs, toStorageClass cycler_pb.ChillEffectConfiguration_EnumStorageClass) error {
+
+	newStorageClass := cycler_pb.ChillEffectConfiguration_EnumStorageClass.String(toStorageClass)
+
+	// We might not need to change the storage class at all.
+	if srcAttr.StorageClass == newStorageClass {
+		return nil
+	}
+	src := client.Bucket(srcAttr.Bucket).Object(srcAttr.Name)
+	dst := client.Bucket(srcAttr.Bucket).Object(srcAttr.Name)
+
+	copier := dst.CopierFrom(src)
+	copier.StorageClass = newStorageClass
+
+	if _, err := copier.Run(ctx); err != nil {
+		return err
 	}
 	return nil
 }

@@ -13,8 +13,9 @@ import (
 // Effect defines something that a policy might enact on an individual *attr.
 type Effect interface {
 	// interface{} assumed to be corresponding config struct, checks all must be
-	// true to Init, and this is used with the mutation allowed parameter at the moment.
-	Init(config interface{}, checks ...bool)
+	// true to Initialize, and this is used with the mutation allowed parameter at the moment.
+	DefaultActor() interface{}
+	Initialize(config interface{}, actor interface{}, checks ...bool)
 	Enact(ctx context.Context, client *storage.Client, attr *storage.ObjectAttrs) (EffectResult, error)
 }
 

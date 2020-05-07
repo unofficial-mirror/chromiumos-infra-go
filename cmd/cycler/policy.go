@@ -90,6 +90,7 @@ func (ap *Policy) init(ctx context.Context, client *storage.Client,
 	ap.ActionStats.init(ctx, statsConfig)
 
 	var protoConfig interface{}
+	var actor interface{}
 	switch effectType := ap.Config.EffectConfiguration.(type) {
 	case *cycler_pb.PolicyEffectConfiguration_Noop:
 		ap.Effect = &effects.NoopEffect{}
@@ -100,12 +101,11 @@ func (ap *Policy) init(ctx context.Context, client *storage.Client,
 	case *cycler_pb.PolicyEffectConfiguration_Move:
 		ap.Effect = &effects.MoveEffect{}
 		protoConfig = *ap.Config.GetMove()
-
-	// TODO(engeg): Implement additional effects.
-	//case *cycler_pb.PolicyEffectConfiguration_Echo:
-	//ap.effect = &effects.EchoEffect{}
-	//case *cycler_pb.PolicyEffectConfiguration_Chill:
-	//ap.effect = &effects.ChillEffect{}
+	case *cycler_pb.PolicyEffectConfiguration_Chill:
+		ap.Effect = &effects.ChillEffect{}
+		protoConfig = *ap.Config.GetChill()
+	// Additional effects here.
+	// ...
 
 	case nil:
 		glog.Errorf("Effect configuration type not set: %v", effectType)
@@ -115,7 +115,8 @@ func (ap *Policy) init(ctx context.Context, client *storage.Client,
 		os.Exit(2)
 	}
 
-	ap.Effect.Init(protoConfig, runConfigMutationAllowed, cmdMutationAllowed)
+	actor = ap.Effect.DefaultActor()
+	ap.Effect.Initialize(protoConfig, actor, runConfigMutationAllowed, cmdMutationAllowed)
 
 	// Parse the rego expression defined.
 	ap.r = rego.New(

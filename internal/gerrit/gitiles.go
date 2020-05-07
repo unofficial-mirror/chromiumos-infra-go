@@ -8,14 +8,15 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"io"
+	"net/http"
+	"time"
+
 	"go.chromium.org/chromiumos/infra/go/internal/shared"
 	"go.chromium.org/luci/common/api/gitiles"
 	"go.chromium.org/luci/common/errors"
 	"go.chromium.org/luci/common/logging"
 	gitilespb "go.chromium.org/luci/common/proto/gitiles"
-	"io"
-	"net/http"
-	"time"
 )
 
 var (
@@ -49,10 +50,11 @@ func FetchFilesFromGitiles(authedClient *http.Client, ctx context.Context, host,
 }
 
 func obtainGitilesBytes(ctx context.Context, gc gitilespb.GitilesClient, project string, ref string) ([]byte, error) {
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	ctx, cancel := context.WithTimeout(ctx, 8*time.Minute)
 	defer cancel()
 	ch := make(chan *gitilespb.ArchiveResponse, 1)
-	err := shared.DoWithRetry(ctx, shared.DefaultOpts, func() error {
+
+	err := shared.DoWithRetry(ctx, shared.LongerOpts, func() error {
 		// This sets the deadline for the individual API call, while the outer context sets
 		// an overall timeout for all attempts.
 		innerCtx, cancel := context.WithTimeout(ctx, 30*time.Second)

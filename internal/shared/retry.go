@@ -19,6 +19,9 @@ type Options struct {
 type DoFunc func() error
 
 var (
+	// Give longer timeout than default to for gitiles quota issues (~5 minutes).
+	LongerOpts = Options{BaseDelay: 5 * time.Second, BackoffBase: 2.0, Retries: 5}
+	// The default timeout (~30 seconds).
 	DefaultOpts = Options{BaseDelay: time.Second, BackoffBase: 2.0, Retries: 5}
 )
 

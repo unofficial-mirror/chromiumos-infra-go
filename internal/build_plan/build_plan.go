@@ -74,6 +74,16 @@ func isImageBuilder(b *cros_pb.BuilderConfig) bool {
 			return true
 		}
 	}
+	for _, ai := range b.GetArtifacts().GetArtifactsInfo().GetLegacy().GetOutputArtifacts() {
+		for _, art := range ai.GetArtifactTypes() {
+			if art == cros_pb.ArtifactsByService_Legacy_IMAGE_ZIP {
+				return true
+			}
+		}
+	}
+	// TODO: use the new output artifacts IMAGE_ZIP item when it's ready.
+	//for _, _ := range b.GetArtifacts().GetArtifactsInfo().GetImage().GetOutputArtifacts() {
+	//}
 	return false
 }
 

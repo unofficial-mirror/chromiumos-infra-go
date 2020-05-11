@@ -181,6 +181,7 @@ github.com/texttheater/golang-levenshtein v0.0.0-20180516184445-d188e65d659e/go.
 github.com/yashtewari/glob-intersection v0.0.0-20180916065949-5c77d914dd0b h1:vVRagRXf67ESqAb72hG2C/ZwI8NtJF2u2V76EsuOHGY=
 github.com/yashtewari/glob-intersection v0.0.0-20180916065949-5c77d914dd0b/go.mod h1:HptNXiXVDcJjXe9SqMd0v2FsL9f8dz4GnXgltU6q/co=
 go.chromium.org/chromiumos/config/go v0.0.0-20200318093054-a27b69c663f3/go.mod h1:CF3tnR4iHZNHapiBgHcI/QonygXaxUPNc3r4n7dz4wg=
+go.chromium.org/chromiumos/config/go v0.0.0-20200414232608-f5f458358927/go.mod h1:CF3tnR4iHZNHapiBgHcI/QonygXaxUPNc3r4n7dz4wg=
 go.chromium.org/chromiumos/infra/proto/go v0.0.0-20200106213256-37ffe011cbfd h1:OMukUGtsxOSvK5bC6s1Om1MbhbhBrUivF/AG6xZG2Gw=
 go.chromium.org/chromiumos/infra/proto/go v0.0.0-20200106213256-37ffe011cbfd/go.mod h1:6J9KHeZWAXoXap0SymRBXiPSDg8bSKGtHC+njpyz2eY=
 go.chromium.org/chromiumos/infra/proto/go v0.0.0-20200122233935-80b48f5df332 h1:14qX0YpgwMwPiOKkSH8y9YRP78LWsKKOZxEGpvFT8aw=
@@ -189,6 +190,8 @@ go.chromium.org/chromiumos/infra/proto/go v0.0.0-20200323212618-23a7500d5500 h1:
 go.chromium.org/chromiumos/infra/proto/go v0.0.0-20200323212618-23a7500d5500/go.mod h1:hIZ5MhNjtC/Meviec9R8h8TjtuRPse26Ee4rDjGm/zU=
 go.chromium.org/chromiumos/infra/proto/go v0.0.0-20200327051600-a75739118398 h1:RMGJamam5xzgIJuE02iA8uWnymk03FCVwc2ATGVroQE=
 go.chromium.org/chromiumos/infra/proto/go v0.0.0-20200327051600-a75739118398/go.mod h1:hIZ5MhNjtC/Meviec9R8h8TjtuRPse26Ee4rDjGm/zU=
+go.chromium.org/chromiumos/infra/proto/go v0.0.0-20200511154439-1189fb3824b2 h1:9NC5tU9N0XRly21JYlUYmNWYt6HXRJ+8S3AkzPB2Uug=
+go.chromium.org/chromiumos/infra/proto/go v0.0.0-20200511154439-1189fb3824b2/go.mod h1:IQsSFs/0PTkYB4921qru+QGpmNYDn2I+78r2mkdPRjc=
 go.chromium.org/gae v0.0.0-20190826183307-50a499513efa h1:1Ia0zTIyW9IktCoEQOHPqlBsohu5n/Vzqmupj4B4tqg=
 go.chromium.org/gae v0.0.0-20190826183307-50a499513efa/go.mod h1:ypuIZj/TmtaQgUYPNNu0iKlsUkuv10PROeqHCNrqrog=
 go.chromium.org/luci v0.0.0-20191118200800-9eaf449bf869 h1:/4CDaHTkA4+VywpOUqnsbr7KYnRkohvazceYD8wm71g=

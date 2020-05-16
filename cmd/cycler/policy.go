@@ -104,6 +104,9 @@ func (ap *Policy) init(ctx context.Context, client *storage.Client,
 	case *cycler_pb.PolicyEffectConfiguration_Chill:
 		ap.Effect = &effects.ChillEffect{}
 		protoConfig = *ap.Config.GetChill()
+	case *cycler_pb.PolicyEffectConfiguration_Delete:
+		ap.Effect = &effects.DeleteEffect{}
+		protoConfig = *ap.Config.GetDelete()
 	// Additional effects here.
 	// ...
 

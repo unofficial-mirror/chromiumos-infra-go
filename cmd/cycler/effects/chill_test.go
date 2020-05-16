@@ -38,13 +38,13 @@ func TestChillEffect(t *testing.T) {
 		t.Error("couldn't construct client")
 	}
 
-	moveResult, err := ce.Enact(ctx, client, attr)
+	chillResult, err := ce.Enact(ctx, client, attr)
 	if err != nil {
-		t.Fail()
+		t.Errorf("chillResult returned an err:\n%+v", err)
 	}
 
-	if moveResult.HasActed() != true {
-		t.Fail()
+	if chillResult.HasActed() != true {
+		t.Error("chillResult.HasActed() returned false")
 	}
 }
 

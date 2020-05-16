@@ -53,6 +53,14 @@ func objectChangeStorageClass(ctx context.Context, client *storage.Client,
 	return nil
 }
 
+// Delete the provided srtAttr object.
+func objectDelete(ctx context.Context, client *storage.Client, srcAttr *storage.ObjectAttrs) error {
+	if err := client.Bucket(srcAttr.Bucket).Object(srcAttr.Name).Delete(ctx); err != nil {
+		return err
+	}
+	return nil
+}
+
 // CheckMutationAllowed will exit if any check in checks is false.
 func CheckMutationAllowed(checks []bool) {
 	for _, check := range checks {

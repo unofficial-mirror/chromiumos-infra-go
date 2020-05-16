@@ -44,10 +44,10 @@ func TestMoveEffect(t *testing.T) {
 
 	moveResult, err := me.Enact(ctx, client, attr)
 	if err != nil {
-		t.Fail()
+		t.Errorf("moveResult returned an err:\n%+v", err)
 	}
 
 	if moveResult.HasActed() != true {
-		t.Fail()
+		t.Error("moveResult.HasActed() returned false")
 	}
 }

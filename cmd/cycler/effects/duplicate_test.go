@@ -42,12 +42,11 @@ func TestDuplicateEffect(t *testing.T) {
 		t.Error("couldn't construct client")
 	}
 
-	moveResult, err := de.Enact(ctx, client, attr)
+	duplicateResult, err := de.Enact(ctx, client, attr)
 	if err != nil {
-		t.Fail()
+		t.Errorf("duplicateResult returned an err:\n%+v", err)
 	}
-
-	if moveResult.HasActed() != true {
-		t.Fail()
+	if duplicateResult.HasActed() != true {
+		t.Error("duplicateResult.HasActed() returned false")
 	}
 }

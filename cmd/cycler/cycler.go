@@ -204,10 +204,9 @@ func main() {
 
 	// Initialize the policy.
 	pol := Policy{}
-	pol.init(ctx, client, runlog.LogSink,
-		runConfig.PolicyEffectConfiguration,
-		runConfig.StatsConfiguration,
-		cmdMutationAllowed, runConfig.MutationAllowed)
+	pol.init(ctx, client, runlog.LogSink, runConfig.PolicyEffectConfiguration,
+		runConfig.StatsConfiguration, cmdMutationAllowed, runConfig.MutationAllowed,
+		cyclerInvocationID.String())
 
 	// Print invocationID.
 	glog.V(0).Infof("cycler invocation uuid: %v", cyclerInvocationID)

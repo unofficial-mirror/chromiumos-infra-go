@@ -4,6 +4,23 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+usage() { echo "Usage: $0 [-v]" 1>&2; exit 1; }
+
+# Initializes the options for the test harness script.
+while getopts "v" o; do
+  case "${o}" in
+    v)
+      VERBOSE=true
+      echo "verbose mode: $VERBOSE"
+      ;;
+    *)
+      usage
+      ;;
+   esac
+done
+
+# TODO(engeg@): Ensure that cycler is build locally!
+
 # Creates a bucket with a randomly named suffix
 # (e.g. gs://cycler-integ-test-aeferwhgahgeh).
 create_random_bucket() {

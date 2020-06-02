@@ -39,6 +39,9 @@ type Policy struct {
 	// The effect we've configured.
 	Effect effects.Effect `json:"Effect"` // effect.effectEffect(effect, effect, ...)    ;)
 
+	// This run's uuid, passed by the initilizer.
+	RunUUID string `json:"RunUUID"`
+
 	// The rego context object to build.
 	r *rego.Rego
 
@@ -67,7 +70,10 @@ type PolicyResult struct {
 func (ap *Policy) init(ctx context.Context, client *storage.Client,
 	logSink chan []byte, config *cycler_pb.PolicyEffectConfiguration,
 	statsConfig *cycler_pb.StatsConfiguration, cmdMutationAllowed bool,
-	runConfigMutationAllowed bool) {
+	runConfigMutationAllowed bool, runUUID string) {
+
+	// Set the UUID.
+	ap.RunUUID = runUUID
 
 	// Set the config.
 	ap.Config = *config

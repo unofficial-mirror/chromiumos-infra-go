@@ -4,11 +4,13 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-source ../common.sh
+cd "${0%/*}" || (echo "couldn't cd to test directory"; exit 1;)
+TEST_DIR=$PWD
+
+source ../common.sh || (echo "couldn't source common.sh"i; exit 1;)
 
 expected_size_test() {
-  echo "Testing noop policy and basic cycler functionality"
-  echo "=================================================="
+  echo "test: noop policy and basic cycler functionality"
 
   failures=0
 
@@ -24,10 +26,11 @@ expected_size_test() {
   stdout_out=$(mktemp)
 
   printf "running cycler\n"
-  ../../cycler  -bucket "$test_bucket" -iUnderstandCyclerIsInEarlyDevelopment \
-                --runConfigPath ./run_config.json \
+  ./cycler  -bucket "$test_bucket" -iUnderstandCyclerIsInEarlyDevelopment \
+                --runConfigPath "$TEST_DIR/run_config.json" \
                 --jsonOutFile "$json_out" \
-                --runlogURL "$log_url" >"$stdout_out" 2>&1
+                --runlogURL "$log_url" >"$stdout_out" \
+                || die 1 "cycler run exited non-zero"
 
   if [[ "$VERBOSE" = true ]]; then
     echo "cat $json_out" | jq
@@ -36,13 +39,12 @@ expected_size_test() {
   run_uuid=$(jq -r '.RunUUID' "$json_out")
   printf "run uuid: %s\n" "$run_uuid"
 
-
   # make some assertions on the output gathered.
   expected_rootsizebytes=2048000
   actual_rootsizebytes=$(jq '.PrefixStats.RootSizeBytes' "$json_out")
   if [[ "$expected_rootsizebytes" -ne "$actual_rootsizebytes" ]]; then
-    printf ".PrefixStats.RootSizeByte %s, " "$actual_rootsizebytes"
-    printf "expected %s " "$expected_rootsizebytes"
+    printf ".PrefixStats.RootSizeByte %s, " "$actual_rootsizebytes\n"
+    printf "expected %s " "$expected_rootsizebytes\n"
     (( failures++ ))
   else
     echo "matched expected size"
@@ -51,8 +53,8 @@ expected_size_test() {
   expected_file_count=10
   actual_file_count=$(jq '.ActionStats.SizeBytesHistogram.Count' "$json_out")
   if [[ "$expected_file_count" -ne "$actual_file_count" ]]; then
-    printf ".SizeBytesHistogram.Count %s" "$actual_file_count"
-    printf "expected %s" "$expected_file_count"
+    printf ".SizeBytesHistogram.Count %s" "$actual_file_count\n"
+    printf "expected %s" "$expected_file_count\n"
     (( failures++ ))
   else
     echo "matched histogram count size"

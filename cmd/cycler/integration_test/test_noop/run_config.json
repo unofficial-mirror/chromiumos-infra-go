@@ -9,7 +9,7 @@
 
     "policy_effect_configuration": {
         "noop": { },
-        "policy_document_path": "true.rego"
+        "policy_document_path": "./test_noop/true.rego"
     },
 
     "stats_configuration": {

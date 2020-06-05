@@ -1,4 +1,4 @@
-// Copyright 2019 The Chromium Authors. All rights reserved.
+// Copyright 2019 The Chromium OS Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 package pointless
@@ -35,7 +35,7 @@ func CheckBuilder(
 		log.Printf("No affected files, so this run is irrelevant to the relevant paths")
 		return &testplans_pb.PointlessBuildCheckResponse{
 			PointlessBuildReason: testplans_pb.PointlessBuildCheckResponse_IRRELEVANT_TO_DEPS_GRAPH,
-			BuildIsPointless: &wrappers.BoolValue{Value: true},
+			BuildIsPointless:     &wrappers.BoolValue{Value: true},
 		}, nil
 	}
 

@@ -1,6 +1,7 @@
-// Copyright 2019 The Chromium Authors. All rights reserved.
+// Copyright 2019 The Chromium OS Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
 package generator
 
 import (
@@ -120,7 +121,7 @@ func TestCreateCombinedTestPlan_oneUnitSuccess(t *testing.T) {
 			},
 		},
 	}
-	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, cmpopts.EquateEmpty()); diff != "" {
+	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, cmpopts.EquateEmpty(), cmpopts.IgnoreUnexported(_struct.Value{}, _struct.Struct{}, wrappers.BoolValue{})); diff != "" {
 		t.Errorf("CreateCombinedTestPlan bad result (-want/+got)\n%s", diff)
 	}
 }
@@ -240,7 +241,7 @@ func TestCreateCombinedTestPlan_manyUnitSuccess(t *testing.T) {
 					BuildTarget: &chromiumos.BuildTarget{Name: "kevin"}},
 				VmTestCfg: kevinVMTestCfg},
 		}}
-	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, cmpopts.EquateEmpty()); diff != "" {
+	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, cmpopts.EquateEmpty(), cmpopts.IgnoreUnexported(_struct.Value{}, _struct.Struct{}, wrappers.BoolValue{})); diff != "" {
 		t.Errorf("CreateCombinedTestPlan bad result (-want/+got)\n%s", diff)
 	}
 }
@@ -319,7 +320,7 @@ func TestCreateCombinedTestPlan_successDespiteOneFailedBuilder(t *testing.T) {
 				HwTestCfg: reefHwTestCfg},
 		}}
 
-	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, cmpopts.EquateEmpty()); diff != "" {
+	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, cmpopts.EquateEmpty(), cmpopts.IgnoreUnexported(_struct.Value{}, _struct.Struct{}, wrappers.BoolValue{})); diff != "" {
 		t.Errorf("CreateCombinedTestPlan bad result (-want/+got)\n%s", diff)
 	}
 }
@@ -462,7 +463,7 @@ func TestCreateCombinedTestPlan_doesOnlyTest(t *testing.T) {
 		},
 	}
 
-	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, cmpopts.EquateEmpty()); diff != "" {
+	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, cmpopts.EquateEmpty(), cmpopts.IgnoreUnexported(_struct.Value{}, _struct.Struct{}, wrappers.BoolValue{})); diff != "" {
 		t.Errorf("CreateCombinedTestPlan bad result (-want/+got)\n%s", diff)
 	}
 }
@@ -488,7 +489,7 @@ func TestCreateCombinedTestPlan_doesAlsoTest(t *testing.T) {
 			Suite:           "HW bob",
 			SkylabBoard:     "bob board",
 			HwTestSuiteType: testplans.HwTestCfg_AUTOTEST,
-			Pool: "my little pool",
+			Pool:            "my little pool",
 		},
 	}}
 	testReqs := &testplans.TargetTestRequirementsCfg{
@@ -551,7 +552,7 @@ func TestCreateCombinedTestPlan_doesAlsoTest(t *testing.T) {
 				HwTestCfg: kevinHWTestCfg,
 			}}}
 
-	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, cmpopts.EquateEmpty()); diff != "" {
+	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, cmpopts.EquateEmpty(), cmpopts.IgnoreUnexported(_struct.Value{}, _struct.Struct{}, wrappers.BoolValue{})); diff != "" {
 		t.Errorf("CreateCombinedTestPlan bad result (-want/+got)\n%s", diff)
 	}
 }
@@ -703,7 +704,7 @@ func TestCreateCombinedTestPlan_doesNotSkipNonCritical(t *testing.T) {
 				HwTestCfg: reefHwTestCfg,
 			}}}
 
-	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, cmpopts.EquateEmpty()); diff != "" {
+	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, cmpopts.EquateEmpty(), cmpopts.IgnoreUnexported(_struct.Value{}, _struct.Struct{}, wrappers.BoolValue{})); diff != "" {
 		t.Errorf("CreateCombinedTestPlan bad result (-want/+got)\n%s", diff)
 	}
 }

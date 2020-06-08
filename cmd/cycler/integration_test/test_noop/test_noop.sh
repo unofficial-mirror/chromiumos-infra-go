@@ -17,6 +17,8 @@ expected_size_test() {
   test_bucket=$(create_random_bucket)
   log_bucket=$(create_random_bucket)
   log_url="$log_bucket/logs"
+  logs_out=$(mktemp -d)
+
   printf "created bucket: %s\n" "$test_bucket"
 
   printf "making objects in bucket\n"
@@ -46,8 +48,6 @@ expected_size_test() {
     printf ".PrefixStats.RootSizeByte %s, " "$actual_rootsizebytes\n"
     printf "expected %s " "$expected_rootsizebytes\n"
     (( failures++ ))
-  else
-    echo "matched expected size"
   fi
 
   expected_file_count=10
@@ -56,22 +56,30 @@ expected_size_test() {
     printf ".SizeBytesHistogram.Count %s" "$actual_file_count\n"
     printf "expected %s" "$expected_file_count\n"
     (( failures++ ))
-  else
-    echo "matched histogram count size"
   fi
 
   # inspect the logging directory, ensure files logged.
-  logs_out=$(mktemp -d)
-  printf "copying logs locally\n"
+  printf "copying logs locally to: %s\n" "$logs_out"
   gsutil -m cp -R "$log_bucket/logs/$run_uuid" "$logs_out" >/dev/null 2>&1
 
-  # TODO(engeg@): clean up tmp dir, inspect bucket objects.
+  # decompress logs in place
+  if ! decompress_logs "$logs_out"; then
+    (( failures++ ))
+  fi
+
+  if ! validate_jsonl "$logs_out"; then
+    (( failures++ ))
+  fi
+
+  if ! count_jsonl "$logs_out" $expected_file_count; then
+    (( failures++ ))
+  fi
 
   # clean up
-  clean_up_test "$test_bucket" "$log_bucket"
+  clean_up_test "$test_bucket" "$log_bucket" "$logs_out"
 
-  if [[ failures -gt 0 ]]; then
-    return 1
+  if [[ $failures -gt 0 ]]; then
+    return $failures
   else
     return 0
   fi

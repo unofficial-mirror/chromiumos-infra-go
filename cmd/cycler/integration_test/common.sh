@@ -20,6 +20,7 @@ Usage: ./test_effect/test_name.sh [-v] [-d]
     -v: Run test in verbose mode
     -x: Set -x and be extremely verbose
     -d: Don't rebuild cycler before running
+    -l: Leave downloaded cycler logs
 EOF
 )
 
@@ -35,9 +36,10 @@ cd .. || die 1 "couldn't cd to top level test directory"
 
 REBUILD=true
 SETX=false
+LEAVELOGS=false
 
 # Initializes the options for the test harness script.
-while getopts "vdx" o; do
+while getopts "vdxl" o; do
   case "${o}" in
     v)
       VERBOSE=true
@@ -46,6 +48,9 @@ while getopts "vdx" o; do
     x)
       SETX=true
       echo "setting -x (extremely verbose)"
+      ;;
+    l)
+      LEAVELOGS=true
       ;;
     d)
       REBUILD=false
@@ -99,9 +104,10 @@ create_random_object_in_bucket() {
 # Takes the following arguments:
 # $1 The object bucket name.
 # $2 The logging bucket name.
+# $3 The downloaded logs tmp directory.
 clean_up_test() {
-  if [[ $# -ne 2 ]]; then
-    die 1 "clean_up_test requires 2 arguments"
+  if [[ $# -ne 3 ]]; then
+    die 1 "clean_up_test requires 3 arguments"
   fi
 
   empty_bucket "$1"
@@ -109,6 +115,11 @@ clean_up_test() {
 
   remove_bucket "$1"
   remove_bucket "$2"
+
+  if [[ "$LEAVELOGS" = false ]]; then
+    echo "removing local cycler logs"
+    rm -rf "$3"
+  fi
 
   if [[ "$REBUILD" = true ]]; then
     echo "removing built cycler"
@@ -176,4 +187,56 @@ random_n_chars() {
   ( tr -dc '[:lower:]' | fold -w "$1" | head -n 1 ) < /dev/urandom
 }
 
+# Decompress the .gz logs recursively in place
+#
+# Takes the following arguments:
+# $1 The .gz log root directory
+decompress_logs() {
+   # decompress logs in place
+  if ! find "$1" -type f -exec gunzip {} \;; then
+    echo "couldn't gunzip remote logs"
+    false
+  else
+    true
+  fi
+}
 
+
+# Validate that jq can parse the json object in a dir
+#
+# Takes the following arguments:
+# $1 The jsonl root directory
+#
+# Echos error message if it fails.
+validate_jsonl() {
+ # validate the logs via jq pass.
+  if ! find "$1" -type f -exec \
+    sh -c 'jq . "$1" >/dev/null' _ {} \;; then
+    echo "cycler logs don't appear to be valid jsonl"
+    false
+  else
+    true
+  fi
+}
+
+# Validate the number of json objects recursively in dir.
+#
+# Takes the following arguments:
+# $1 The jsonl root directory.
+# $2 The number of expected objects.
+#
+# Echos the error message if it fails
+count_jsonl() {
+  objects=0
+  for f in "$1"/**/*.jsonl; do
+    new_objs=$(jq length "$f" | wc -l)
+    (( objects=objects+new_objs ))
+  done;
+
+  if [[ objects -eq $2 ]]; then
+    true
+  else
+    echo "the number of objects $objects is not the expected $2"
+    false
+  fi
+}

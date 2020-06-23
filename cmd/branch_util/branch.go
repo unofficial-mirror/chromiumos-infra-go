@@ -41,17 +41,17 @@ func canBranchProject(manifest repo.Manifest, project repo.Project) bool {
 }
 
 // projectBranchName determines the git branch name for the project.
-func projectBranchName(branch string, project repo.Project, original string) string {
+func projectBranchName(br string, project repo.Project, original string) string {
 	// If the project has only one checkout, then the base branch name is fine.
 	var checkouts []string
-	for _, proj := range workingManifest.Projects {
+	for _, proj := range branch.WorkingManifest.Projects {
 		if proj.Name == project.Name {
 			checkouts = append(checkouts, proj.Name)
 		}
 	}
 
 	if len(checkouts) == 1 {
-		return branch
+		return br
 	}
 
 	// Otherwise, the project name needs a suffix. We append its upstream or
@@ -77,20 +77,20 @@ func projectBranchName(branch string, project repo.Project, original string) str
 	}
 	// Remove the "/" character, since those don't belong in branch names.
 	suffix = strings.ReplaceAll(suffix, "/", "-")
-	return branch + suffix
+	return br + suffix
 }
 
 // projectBranches returns a list of ProjectBranch structs:
 // one for each branchable project.
 // The original parameter is the CrOS branch from which the current checkout stems.
-func projectBranches(branch, original string) []ProjectBranch {
+func projectBranches(br, original string) []ProjectBranch {
 	var projectBranches []ProjectBranch
-	for _, project := range workingManifest.Projects {
-		if canBranchProject(workingManifest, project) {
+	for _, project := range branch.WorkingManifest.Projects {
+		if canBranchProject(branch.WorkingManifest, project) {
 			projectBranches = append(projectBranches,
 				ProjectBranch{
 					project:    project,
-					branchName: projectBranchName(branch, project, original),
+					branchName: projectBranchName(br, project, original),
 				})
 		}
 	}
@@ -99,7 +99,7 @@ func projectBranches(branch, original string) []ProjectBranch {
 
 // branchExists checks that a branch matching the given pattern exists in a particular project.
 func branchExists(project repo.Project, branchPattern *regexp.Regexp) (bool, error) {
-	remoteUrl, err := projectFetchUrl(project.Path)
+	remoteUrl, err := branch.ProjectFetchUrl(project.Path)
 	if err != nil {
 		return false, errors.Annotate(err, "failed to get remote project url").Err()
 	}
@@ -121,8 +121,8 @@ func branchExists(project repo.Project, branchPattern *regexp.Regexp) (bool, err
 
 // branchExistsExplicit checks that the given branch exists in the project.
 // It is a good bit faster than branchExists.
-func branchExistsExplicit(project repo.Project, branch string) (bool, error) {
-	remoteUrl, err := projectFetchUrl(project.Path)
+func branchExistsExplicit(project repo.Project, br string) (bool, error) {
+	remoteUrl, err := branch.ProjectFetchUrl(project.Path)
 	if err != nil {
 		return false, errors.Annotate(err, "failed to get remote project url").Err()
 	}
@@ -135,7 +135,7 @@ func branchExistsExplicit(project repo.Project, branch string) (bool, error) {
 	opts.Retries = gitRetries
 	err = shared.DoWithRetry(ctx, opts, func() error {
 		// If we give a full URL, don't need to run the command in a git repo.
-		output, err := git.RemoteHasBranch("", remoteUrl, branch)
+		output, err := git.RemoteHasBranch("", remoteUrl, br)
 		if err != nil {
 			return err
 		}
@@ -152,7 +152,7 @@ func branchExistsExplicit(project repo.Project, branch string) (bool, error) {
 func assertBranchesDoNotExistWorker(
 	wg *sync.WaitGroup, projectBranches <-chan ProjectBranch, errs chan<- error) {
 	for projectBranch := range projectBranches {
-		logOut("...checking that %s does not exist in %s.\n",
+		branch.LogOut("...checking that %s does not exist in %s.\n",
 			projectBranch.branchName,
 			projectBranch.project.Name)
 		exists, err := branchExistsExplicit(projectBranch.project, projectBranch.branchName)
@@ -200,7 +200,7 @@ func assertBranchesDoNotExist(branches []ProjectBranch) error {
 func gerritProjectBranches(pbs []ProjectBranch) ([]branch.GerritProjectBranch, error) {
 	var result []branch.GerritProjectBranch
 	for _, pb := range pbs {
-		remote := workingManifest.GetRemoteByName(pb.project.RemoteName)
+		remote := branch.WorkingManifest.GetRemoteByName(pb.project.RemoteName)
 		if remote == nil {
 			return result, fmt.Errorf("remote %s does not exist in working manifest", pb.project.RemoteName)
 		}
@@ -232,7 +232,7 @@ func getBranchesByPath(branches []ProjectBranch) map[string]string {
 	return branchesByPath
 }
 
-// getOriginRef returns the equivalent of the specified ref for the "origin" remote.
+// getOriginRef returns the equivalent of the specified Ref for the "origin" remote.
 func getOriginRef(ref string) string {
 	// If the revision starts with refs/heads/, make it start with
 	// refs/remotes/origin instead.
@@ -269,22 +269,22 @@ func repairManifestRepositories(branches []ProjectBranch, dryRun, force bool) er
 	}
 
 	for projectName := range ManifestProjects {
-		manifestProject, err := workingManifest.GetUniqueProject(projectName)
+		manifestProject, err := branch.WorkingManifest.GetUniqueProject(projectName)
 		if err != nil {
 			return err
 		}
-		opts := &checkoutOptions{
-			depth: 1,
-			ref:   manifestProject.Revision,
+		opts := &branch.CheckoutOptions{
+			Depth: 1,
+			Ref:   manifestProject.Revision,
 		}
-		manifestCheckout, err := getProjectCheckout(manifestProject.Path, opts)
+		manifestCheckout, err := branch.GetProjectCheckout(manifestProject.Path, opts)
 		defer os.RemoveAll(manifestCheckout)
 
 		if err != nil {
 			return errors.Annotate(err, "failed to checkout project %s", manifestProject.Path).Err()
 		}
 
-		manifestRepo := ManifestRepo{
+		manifestRepo := branch.ManifestRepo{
 			ProjectCheckout: manifestCheckout,
 			Project:         manifestProject,
 		}
@@ -317,11 +317,11 @@ func createRemoteBranchesWorker(
 	errs chan<- error,
 	dryRun, force bool) {
 	for projectBranch := range branches {
-		opts := &checkoutOptions{
-			depth: 1,
-			ref:   projectBranch.project.Revision,
+		opts := &branch.CheckoutOptions{
+			Depth: 1,
+			Ref:   projectBranch.project.Revision,
 		}
-		projectCheckout, err := getProjectCheckout(projectBranch.project.Path, opts)
+		projectCheckout, err := branch.GetProjectCheckout(projectBranch.project.Path, opts)
 		defer os.RemoveAll(projectCheckout)
 		if err != nil {
 			errs <- errors.Annotate(err, "could not checkout %s:%s",
@@ -343,7 +343,7 @@ func createRemoteBranchesWorker(
 			cmd = append(cmd, "--force")
 			logMode += " (with --force flag)"
 		}
-		logOut("%s ref %s for project %s\n", logMode, branchName, projectBranch.project.Path)
+		branch.LogOut("%s Ref %s for project %s\n", logMode, branchName, projectBranch.project.Path)
 
 		ctx, cancel := context.WithTimeout(context.Background(), gitTimeout)
 		defer cancel()

@@ -5,6 +5,7 @@ package main
 
 import (
 	"fmt"
+	"go.chromium.org/chromiumos/infra/go/internal/branch"
 	"go.chromium.org/luci/auth"
 	"os"
 
@@ -19,7 +20,7 @@ func getCmdRenameBranch(opts auth.Options) *subcommands.Command {
 		LongDesc:  "Rename a branch.",
 		CommandRun: func() subcommands.CommandRun {
 			c := &renameBranchRun{}
-			c.Init(opts)
+			c.InitFlags(opts)
 			return c
 		},
 	}
@@ -60,11 +61,11 @@ func (c *renameBranchRun) Run(a subcommands.Application, args []string,
 		return ret
 	}
 
-	if err := initWorkingManifest(c, c.old); err != nil {
-		logErr("%s\n", err.Error())
+	if err := branch.InitWorkingManifest(c.getManifestUrl(), c.old); err != nil {
+		branch.LogErr("%s\n", err.Error())
 		return 1
 	}
-	defer os.RemoveAll(manifestCheckout)
+	defer os.RemoveAll(branch.ManifestCheckout)
 
 	// There is no way to atomically rename a remote branch. This method
 	// creates new branches and deletes the old ones using portions of
@@ -72,7 +73,7 @@ func (c *renameBranchRun) Run(a subcommands.Application, args []string,
 
 	// Need to do this for testing, sadly -- don't want to rename real branches.
 	if c.ManifestUrl != defaultManifestUrl {
-		logErr("Warning: --manifest-url should not be used for branch renaming.\n")
+		branch.LogErr("Warning: --manifest-url should not be used for branch renaming.\n")
 	}
 
 	// Generate new git branch names.
@@ -82,19 +83,19 @@ func (c *renameBranchRun) Run(a subcommands.Application, args []string,
 	if !c.Force {
 		err := assertBranchesDoNotExist(newBranches)
 		if err != nil {
-			logErr(err.Error())
+			branch.LogErr(err.Error())
 			return 1
 		}
 	}
 
 	// Repair manifest repositories.
 	if err := repairManifestRepositories(newBranches, !c.Push, c.Force); err != nil {
-		logErr(err.Error())
+		branch.LogErr(err.Error())
 		return 1
 	}
 	// Create git branches for new branch.
 	if err := createRemoteBranches(newBranches, !c.Push, c.Force); err != nil {
-		logErr(err.Error())
+		branch.LogErr(err.Error())
 		return 1
 	}
 
@@ -105,23 +106,23 @@ func (c *renameBranchRun) Run(a subcommands.Application, args []string,
 	retCode := 0
 	for _, projectBranch := range oldBranches {
 		project := projectBranch.project
-		branch := git.NormalizeRef(projectBranch.branchName)
-		remote := workingManifest.GetRemoteByName(project.RemoteName)
+		br := git.NormalizeRef(projectBranch.branchName)
+		remote := branch.WorkingManifest.GetRemoteByName(project.RemoteName)
 		if remote == nil {
 			// Try and delete as many of the branches as possible, even if some fail.
-			logErr("Remote %s does not exist in working manifest.\n", project.RemoteName)
+			branch.LogErr("Remote %s does not exist in working manifest.\n", project.RemoteName)
 			retCode = 1
 			continue
 		}
 		projectRemote := fmt.Sprintf("%s/%s", remote.Fetch, project.Name)
-		cmd := []string{"push", projectRemote, "--delete", branch}
+		cmd := []string{"push", projectRemote, "--delete", br}
 		if !c.Push {
 			cmd = append(cmd, "--dry-run")
 		}
 
-		_, err := git.RunGit(manifestCheckout, cmd)
+		_, err := git.RunGit(branch.ManifestCheckout, cmd)
 		if err != nil {
-			logErr("Failed to delete branch %s in project %s.\n", branch, project.Name)
+			branch.LogErr("Failed to delete branch %s in project %s.\n", br, project.Name)
 			// Try and delete as many of the branches as possible, even if some fail.
 			retCode = 1
 		}

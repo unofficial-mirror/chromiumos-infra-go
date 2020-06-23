@@ -4,6 +4,7 @@
 package main
 
 import (
+	"go.chromium.org/chromiumos/infra/go/internal/branch"
 	"reflect"
 	"testing"
 
@@ -46,7 +47,7 @@ var canBranchTestManifest = repo.Manifest{
 
 func TestProjectBranchName(t *testing.T) {
 	manifest := branchNameTestManifest
-	workingManifest = manifest
+	branch.WorkingManifest = manifest
 	assert.Equal(t, projectBranchName("mybranch", manifest.Projects[0], ""), "mybranch")
 	assert.Equal(t, projectBranchName("mybranch", manifest.Projects[1], ""), "mybranch-factory-100")
 	assert.Equal(t, projectBranchName("mybranch", manifest.Projects[2], ""), "mybranch-101")
@@ -55,7 +56,7 @@ func TestProjectBranchName(t *testing.T) {
 
 func TestProjectBranchName_withOriginal(t *testing.T) {
 	manifest := branchNameTestManifest
-	workingManifest = manifest
+	branch.WorkingManifest = manifest
 	assert.Equal(t, projectBranchName("mybranch", manifest.Projects[3], "oldbranch"), "mybranch-factory-100")
 	assert.Equal(t, projectBranchName("mybranch", manifest.Projects[4], "oldbranch"), "mybranch-factory-101")
 	assert.Equal(t, projectBranchName("mybranch", manifest.Projects[6], "oldbranch"), "mybranch-myfactory-2.6")
@@ -90,7 +91,7 @@ var branchesTestManifest = repo.Manifest{
 
 func TestProjectBranches(t *testing.T) {
 	manifest := branchesTestManifest
-	workingManifest = manifest
+	branch.WorkingManifest = manifest
 	expected := []ProjectBranch{
 		{project: manifest.Projects[0], branchName: "mybranch"},
 		{project: manifest.Projects[1], branchName: "mybranch-factory-100"},

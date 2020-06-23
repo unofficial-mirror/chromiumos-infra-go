@@ -1,7 +1,7 @@
 // Copyright 2019 The Chromium OS Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-package main
+package branch
 
 import (
 	"fmt"
@@ -17,12 +17,12 @@ import (
 
 // var and not const for testing purposes
 var (
-	manifestVersionsRemote string = "https://chrome-internal.googlesource.com/chromeos/manifest-versions"
+	manifestVersionsRemote = "https://chrome-internal.googlesource.com/chromeos/manifest-versions"
 )
 
-// getWorkingManifestForVersion gets the manifest in manifest-versions/buildspecs for the
+// GetWorkingManifestForVersion gets the manifest in manifest-versions/buildspecs for the
 // given version string (of the format %d.%d.%d).
-func getWorkingManifestForVersion(version string) (*repo.Manifest, error) {
+func GetWorkingManifestForVersion(version string) (*repo.Manifest, error) {
 	tmpDir, err := ioutil.TempDir("", "tmp-manifest-version-repo")
 	defer os.RemoveAll(tmpDir)
 	if err != nil {

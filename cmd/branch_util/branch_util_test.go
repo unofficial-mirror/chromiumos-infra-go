@@ -376,7 +376,7 @@ func setUp(t *testing.T) *test.CrosRepoHarness {
 	// *NonMaster tests.
 	assert.NilError(t, ioutil.WriteFile(fullBranchedManifestPath(&r), []byte(fullBranchedXML), 0777))
 
-	// Create ref for each project.
+	// Create Ref for each project.
 	for _, project := range branchManifest.Projects {
 		projectBranch := git.StripRefs(project.Revision)
 		err = r.Harness.CreateRemoteRef(rh.GetRemoteProject(project), projectBranch, "")

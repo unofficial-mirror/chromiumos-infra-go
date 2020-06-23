@@ -1,7 +1,7 @@
 // Copyright 2019 The Chromium OS Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-package main
+package branch
 
 import (
 	"encoding/xml"
@@ -23,9 +23,8 @@ type ManifestRepo struct {
 }
 
 const (
-	manifestAttrBranchingTot = "tot"
-	defaultManifest          = "default.xml"
-	officialManifest         = "official.xml"
+	defaultManifest  = "default.xml"
+	officialManifest = "official.xml"
 )
 
 const (
@@ -41,7 +40,7 @@ func (m *ManifestRepo) gitRevision(project repo.Project) (string, error) {
 		return project.Revision, nil
 	}
 
-	remoteUrl, err := projectFetchUrl(project.Path)
+	remoteUrl, err := ProjectFetchUrl(project.Path)
 	if err != nil {
 		return "", err
 	}
@@ -52,7 +51,7 @@ func (m *ManifestRepo) gitRevision(project repo.Project) (string, error) {
 		return "", errors.Annotate(err, "failed to read remote branches for %s", remoteUrl).Err()
 	}
 	if strings.TrimSpace(output.Stdout) == "" {
-		return "", fmt.Errorf("no ref for %s in project %s", project.Revision, project.Path)
+		return "", fmt.Errorf("no Ref for %s in project %s", project.Revision, project.Path)
 	}
 	return strings.Fields(output.Stdout)[0], nil
 }
@@ -151,16 +150,16 @@ func (m *ManifestRepo) repairManifest(path string, branchesByPath map[string]str
 			project.Path = project.Name
 		}
 
-		workingProject, err := workingManifest.GetProjectByPath(project.Path)
+		workingProject, err := WorkingManifest.GetProjectByPath(project.Path)
 		if err != nil {
 			// We don't really know what to do with a project that doesn't exist in the working manifest,
 			// which is our source of truth. Our best bet is to just use what we have in the manifest
 			// we're repairing.
-			logErr("Warning: project %s does not exist in working manifest. Using it as it exists in %s.", project.Path, path)
+			LogErr("Warning: project %s does not exist in working manifest. Using it as it exists in %s.", project.Path, path)
 			continue
 		}
 
-		switch branchMode := workingManifest.ProjectBranchMode(project); branchMode {
+		switch branchMode := WorkingManifest.ProjectBranchMode(project); branchMode {
 		case repo.Create:
 			branchName, inDict := branchesByPath[project.Path]
 			if !inDict {

@@ -1,7 +1,7 @@
 // Copyright 2019 The Chromium OS Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-package main
+package branch
 
 import (
 	"encoding/xml"
@@ -54,8 +54,8 @@ func TestRepairManifest_success(t *testing.T) {
 	 </manifest>
 	`
 
-	err := xml.Unmarshal([]byte(originalManifest), &workingManifest)
-	workingManifest.ResolveImplicitLinks()
+	err := xml.Unmarshal([]byte(originalManifest), &WorkingManifest)
+	WorkingManifest.ResolveImplicitLinks()
 
 	assert.NilError(t, err)
 
@@ -189,7 +189,7 @@ func TestRepairManifestsOnDisk(t *testing.T) {
 	branchMap := make(map[string]string)
 	branchMap[fooProject.Path] = "newbranch"
 
-	workingManifest = fullManifest
+	WorkingManifest = fullManifest
 	err = manifestRepo.RepairManifestsOnDisk(branchMap)
 	assert.NilError(t, err)
 	// Read repaired manifests from disk, check expectations.

@@ -5,6 +5,7 @@ package main
 
 import (
 	"fmt"
+	"go.chromium.org/chromiumos/infra/go/internal/branch"
 	"go.chromium.org/luci/auth"
 	"os"
 
@@ -19,7 +20,7 @@ func getCmdDeleteBranch(opts auth.Options) *subcommands.Command {
 		LongDesc:  "Delete a branch.",
 		CommandRun: func() subcommands.CommandRun {
 			c := &deleteBranchRun{}
-			c.Init(opts)
+			c.InitFlags(opts)
 			return c
 		},
 	}
@@ -57,19 +58,19 @@ func (c *deleteBranchRun) Run(a subcommands.Application, args []string,
 		return ret
 	}
 	if c.Push && !c.Force {
-		logErr("Must set --force to delete remote branches.")
+		branch.LogErr("Must set --force to delete remote branches.")
 		return 1
 	}
 
-	if err := initWorkingManifest(c, ""); err != nil {
-		logErr("%s\n", err.Error())
+	if err := branch.InitWorkingManifest(c.getManifestUrl(), ""); err != nil {
+		branch.LogErr("%s\n", err.Error())
 		return 1
 	}
-	defer os.RemoveAll(manifestCheckout)
+	defer os.RemoveAll(branch.ManifestCheckout)
 
 	// Need to do this for testing, sadly -- don't want to delete real branches.
 	if c.ManifestUrl != defaultManifestUrl {
-		logErr("Warning: --manifest-url should not be used for branch deletion.\n")
+		branch.LogErr("Warning: --manifest-url should not be used for branch deletion.\n")
 	}
 
 	// Generate git branch names.
@@ -81,23 +82,23 @@ func (c *deleteBranchRun) Run(a subcommands.Application, args []string,
 	retCode := 0
 	for _, projectBranch := range branches {
 		project := projectBranch.project
-		branch := git.NormalizeRef(projectBranch.branchName)
-		remote := workingManifest.GetRemoteByName(project.RemoteName)
+		br := git.NormalizeRef(projectBranch.branchName)
+		remote := branch.WorkingManifest.GetRemoteByName(project.RemoteName)
 		if remote == nil {
 			// Try and delete as many of the branches as possible, even if some fail.
-			logErr("Remote %s does not exist in working manifest.\n", project.RemoteName)
+			branch.LogErr("Remote %s does not exist in working manifest.\n", project.RemoteName)
 			retCode = 1
 			continue
 		}
 		projectRemote := fmt.Sprintf("%s/%s", remote.Fetch, project.Name)
-		cmd := []string{"push", projectRemote, "--delete", branch}
+		cmd := []string{"push", projectRemote, "--delete", br}
 		if !c.Push {
 			cmd = append(cmd, "--dry-run")
 		}
 
-		_, err := git.RunGit(manifestCheckout, cmd)
+		_, err := git.RunGit(branch.ManifestCheckout, cmd)
 		if err != nil {
-			logErr("Failed to delete branch %s in project %s.\n", branch, project.Name)
+			branch.LogErr("Failed to delete branch %s in project %s.\n", br, project.Name)
 			// Try and delete as many of the branches as possible, even if some fail.
 			retCode = 1
 		}

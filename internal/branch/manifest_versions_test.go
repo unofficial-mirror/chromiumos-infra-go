@@ -1,7 +1,7 @@
 // Copyright 2019 The Chromium OS Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-package main
+package branch
 
 import (
 	"io/ioutil"
@@ -50,13 +50,13 @@ func TestGetWorkingManifestForVersion(t *testing.T) {
 
 	manifestVersionsRemote = tmpRepo
 	// Successful -- exactly one manifest exists.
-	manifest, err := getWorkingManifestForVersion("12345.0.0")
+	manifest, err := GetWorkingManifestForVersion("12345.0.0")
 	assert.NilError(t, err)
 	assert.Assert(t, reflect.DeepEqual(*manifest, parsedManifest))
 	// Error -- more than one manifest exists.
-	_, err = getWorkingManifestForVersion("12345.1.0")
+	_, err = GetWorkingManifestForVersion("12345.1.0")
 	assert.ErrorContains(t, err, "multiple manifests")
 	// Error -- no manifest exists.
-	_, err = getWorkingManifestForVersion("12345.2.0")
+	_, err = GetWorkingManifestForVersion("12345.2.0")
 	assert.ErrorContains(t, err, "does not exist")
 }

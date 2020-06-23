@@ -6,6 +6,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"go.chromium.org/chromiumos/infra/go/internal/branch"
+	"net/url"
 	"os"
 	"regexp"
 	"strings"
@@ -192,6 +194,35 @@ func assertBranchesDoNotExist(branches []ProjectBranch) error {
 	return nil
 }
 
+// gerritProjectBranches creates a slice of GerritProjectBranch objects, which
+// are representations of ProjectBranches that are useful for API based
+// branching.
+func gerritProjectBranches(pbs []ProjectBranch) ([]branch.GerritProjectBranch, error) {
+	var result []branch.GerritProjectBranch
+	for _, pb := range pbs {
+		remote := workingManifest.GetRemoteByName(pb.project.RemoteName)
+		if remote == nil {
+			return result, fmt.Errorf("remote %s does not exist in working manifest", pb.project.RemoteName)
+		}
+		remoteURL, err := url.Parse(remote.Fetch)
+		if err != nil {
+			return result, errors.Annotate(err, "failed to parse fetch location for remote %s", remote.Name).Err()
+		}
+		remoteStr := remoteURL.String()
+		remoteStr = strings.ReplaceAll(remoteStr,
+			"chromium.googlesource.com", "chromium-review.googlesource.com")
+		remoteStr = strings.ReplaceAll(remoteStr,
+			"chrome-internal.googlesource.com", "chrome-internal-review.googlesource.com")
+		result = append(result, branch.GerritProjectBranch{
+			GerritURL: remoteStr,
+			Project:   pb.project.Name,
+			Branch:    pb.branchName,
+			SrcRef:    pb.project.Revision,
+		})
+	}
+	return result, nil
+}
+
 // getBranchesByPath returns a map mapping project paths to git branch names.
 func getBranchesByPath(branches []ProjectBranch) map[string]string {
 	branchesByPath := make(map[string]string)
@@ -210,6 +241,18 @@ func getOriginRef(ref string) string {
 	}
 	// If the revision is a SHA, let it be.
 	return ref
+}
+
+// getNonManifestBranches filters out non-Manifest branches.
+func getNonManifestBranches(branches []branch.GerritProjectBranch) []branch.GerritProjectBranch {
+	var result []branch.GerritProjectBranch
+	for _, pb := range branches {
+		if _, ok := ManifestProjects[pb.Project]; ok {
+			continue
+		}
+		result = append(result, pb)
+	}
+	return result
 }
 
 // repairManifestRepositories repairs all manifests in all manifest repositories

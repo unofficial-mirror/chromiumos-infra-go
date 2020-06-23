@@ -5,21 +5,24 @@ package main
 
 import (
 	"fmt"
+	"go.chromium.org/luci/auth"
 	"os"
 
 	"github.com/maruel/subcommands"
 	"go.chromium.org/chromiumos/infra/go/internal/git"
 )
 
-var cmdRenameBranch = &subcommands.Command{
-	UsageLine: "rename <options> old new",
-	ShortDesc: "Rename a branch.",
-	LongDesc:  "Rename a branch.",
-	CommandRun: func() subcommands.CommandRun {
-		c := &renameBranchRun{}
-		c.Init()
-		return c
-	},
+func getCmdRenameBranch(opts auth.Options) *subcommands.Command {
+	return &subcommands.Command{
+		UsageLine: "rename <options> old new",
+		ShortDesc: "Rename a branch.",
+		LongDesc:  "Rename a branch.",
+		CommandRun: func() subcommands.CommandRun {
+			c := &renameBranchRun{}
+			c.Init(opts)
+			return c
+		},
+	}
 }
 
 type renameBranchRun struct {

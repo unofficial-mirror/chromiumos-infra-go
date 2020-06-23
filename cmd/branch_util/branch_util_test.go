@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"encoding/xml"
 	"fmt"
+	"go.chromium.org/luci/auth"
 	"io/ioutil"
 	"log"
 	"os"
@@ -185,6 +186,7 @@ var (
 		RemoteName:  "cros-internal",
 		ProjectName: "chromeos/manifest-internal",
 	}
+	application = getApplication(auth.Options{})
 )
 
 func getManifestFiles(crosFetch, crosInternalFetch string) (

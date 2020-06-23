@@ -55,7 +55,7 @@ func getWorkingManifestForVersion(version string) (*repo.Manifest, error) {
 		// i.e. if the line is buildspecs**<version>.xml
 		if strings.HasPrefix(line, "buildspecs/") && strings.HasSuffix(line, "/"+manifestName) {
 			if manifestPath != "" {
-				return nil, fmt.Errorf("multiple manifests with name %s exist in manifest-versions.", manifestName)
+				return nil, fmt.Errorf("multiple manifests with name %s exist in manifest-versions", manifestName)
 			}
 			manifestPath = line
 		}

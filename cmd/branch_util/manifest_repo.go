@@ -116,7 +116,6 @@ func findProjectTag(project *repo.Project, rawManifest string) string {
 // deleting any defaults.
 // branchesByPath maps project paths to branch names.
 func (m *ManifestRepo) repairManifest(path string, branchesByPath map[string]string) ([]byte, error) {
-	log.Printf("Repairing %s...", path)
 	manifestData, err := loadManifestFromFileRaw(path)
 	if err != nil {
 		return nil, errors.Annotate(err, "error loading manifest").Err()

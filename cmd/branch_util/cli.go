@@ -5,6 +5,10 @@ package main
 
 import (
 	"context"
+	"go.chromium.org/luci/auth"
+	"go.chromium.org/luci/auth/client/authcli"
+	"go.chromium.org/luci/common/api/gerrit"
+	"go.chromium.org/luci/hardcoded/chromeinfra"
 	"log"
 	"os"
 
@@ -15,15 +19,21 @@ var (
 	Context = context.Background()
 )
 
-var application = &subcommands.DefaultApplication{
-	Name:  "branch_util",
-	Title: "cros branch tool",
-	Commands: []*subcommands.Command{
-		subcommands.CmdHelp,
-		cmdCreateBranch,
-		cmdRenameBranch,
-		cmdDeleteBranch,
-	},
+func getApplication(authOpts auth.Options) *subcommands.DefaultApplication {
+	return &subcommands.DefaultApplication{
+		Name:  "branch_util",
+		Title: "cros branch tool",
+		Commands: []*subcommands.Command{
+			subcommands.CmdHelp,
+			getCmdCreateBranch(authOpts),
+			getCmdRenameBranch(authOpts),
+			getCmdDeleteBranch(authOpts),
+			getCmdCreateBranchV2(authOpts),
+			authcli.SubcommandInfo(authOpts, "auth-info", false),
+			authcli.SubcommandLogin(authOpts, "auth-login", false),
+			authcli.SubcommandLogout(authOpts, "auth-logout", false),
+		},
+	}
 }
 
 type branchApplication struct {
@@ -33,8 +43,10 @@ type branchApplication struct {
 }
 
 func main() {
+	opts := chromeinfra.DefaultAuthOptions()
+	opts.Scopes = []string{gerrit.OAuthScope, auth.OAuthScopeEmail}
 	s := &branchApplication{
-		application,
+		getApplication(opts),
 		log.New(os.Stdout, "", log.LstdFlags|log.Lmicroseconds),
 		log.New(os.Stderr, "", log.LstdFlags|log.Lmicroseconds)}
 	os.Exit(subcommands.Run(s, nil))

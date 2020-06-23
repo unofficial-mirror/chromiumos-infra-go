@@ -5,21 +5,24 @@ package main
 
 import (
 	"fmt"
+	"go.chromium.org/luci/auth"
 	"os"
 
 	"github.com/maruel/subcommands"
 	"go.chromium.org/chromiumos/infra/go/internal/git"
 )
 
-var cmdDeleteBranch = &subcommands.Command{
-	UsageLine: "delete <options> branchName",
-	ShortDesc: "Delete a branch.",
-	LongDesc:  "Delete a branch.",
-	CommandRun: func() subcommands.CommandRun {
-		c := &deleteBranchRun{}
-		c.Init()
-		return c
-	},
+func getCmdDeleteBranch(opts auth.Options) *subcommands.Command {
+	return &subcommands.Command{
+		UsageLine: "delete <options> branchName",
+		ShortDesc: "Delete a branch.",
+		LongDesc:  "Delete a branch.",
+		CommandRun: func() subcommands.CommandRun {
+			c := &deleteBranchRun{}
+			c.Init(opts)
+			return c
+		},
+	}
 }
 
 type deleteBranchRun struct {

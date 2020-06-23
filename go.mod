@@ -7,6 +7,7 @@ require (
 	cloud.google.com/go/storage v1.9.0
 	git.apache.org/thrift.git v0.12.0 // indirect
 	github.com/OneOfOne/xxhash v1.2.8 // indirect
+	github.com/andygrunwald/go-gerrit v0.0.0-20200503132804-ed2419acda39
 	github.com/apache/thrift v0.12.0 // indirect
 	github.com/bmatcuk/doublestar v1.1.1
 	github.com/cespare/xxhash v1.1.0 // indirect
@@ -18,7 +19,6 @@ require (
 	github.com/google/uuid v1.1.1
 	github.com/grpc-ecosystem/grpc-gateway v1.6.2 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
-	github.com/kr/pretty v0.1.0 // indirect
 	github.com/luci/gtreap v0.0.0-20161228054646-35df89791e8f // indirect
 	github.com/maruel/subcommands v0.0.0-20181220013616-967e945be48b
 	github.com/maruel/ut v1.0.0 // indirect

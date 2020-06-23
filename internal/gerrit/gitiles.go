@@ -9,6 +9,7 @@ import (
 	"compress/gzip"
 	"context"
 	"io"
+	"log"
 	"net/http"
 	"time"
 
@@ -49,6 +50,31 @@ func FetchFilesFromGitiles(authedClient *http.Client, ctx context.Context, host,
 	return extractGitilesArchive(ctx, contents, paths)
 }
 
+// DownloadFileFromGitiles downloads a file from Gitiles.
+func DownloadFileFromGitiles(authedClient *http.Client, ctx context.Context, host, project, ref string, path string) (string, error) {
+	var gc gitilespb.GitilesClient
+	var err error
+	if MockGitiles != nil {
+		gc = MockGitiles
+	} else {
+		if gc, err = gitiles.NewRESTClient(authedClient, host, true); err != nil {
+			return "", err
+		}
+	}
+	req := &gitilespb.DownloadFileRequest{
+		Project:    project,
+		Path:       path,
+		Committish: ref,
+		Format:     gitilespb.DownloadFileRequest_TEXT,
+	}
+	log.Printf("downloading file %v", req)
+	contents, err := gc.DownloadFile(ctx, req)
+	if err != nil {
+		return "", err
+	}
+	return contents.Contents, err
+}
+
 func obtainGitilesBytes(ctx context.Context, gc gitilespb.GitilesClient, project string, ref string) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(ctx, 8*time.Minute)
 	defer cancel()
@@ -64,6 +90,7 @@ func obtainGitilesBytes(ctx context.Context, gc gitilespb.GitilesClient, project
 			Ref:     ref,
 			Format:  gitilespb.ArchiveRequest_GZIP,
 		}
+		log.Printf("about to fetch %v", req)
 		a, err := gc.Archive(innerCtx, req)
 		if err != nil {
 			return errors.Annotate(err, "obtain gitiles archive").Err()

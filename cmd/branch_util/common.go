@@ -5,6 +5,8 @@ package main
 
 import (
 	"fmt"
+	"go.chromium.org/luci/auth"
+	"go.chromium.org/luci/auth/client/authcli"
 	"io/ioutil"
 	"log"
 	"net/url"
@@ -32,6 +34,7 @@ type CommonFlags struct {
 	Force       bool
 	Root        string
 	ManifestUrl string
+	authFlags   authcli.Flags
 }
 
 const (
@@ -49,7 +52,7 @@ var (
 	stderrLog        *log.Logger
 )
 
-func (c *CommonFlags) Init() {
+func (c *CommonFlags) Init(authOpts auth.Options) {
 	// Common flags
 	c.Flags.BoolVar(&c.Push, "push", false,
 		"Push branch modifications to remote repos. Before setting this flag, "+
@@ -64,6 +67,7 @@ func (c *CommonFlags) Init() {
 		"URL of the manifest to be checked out. Defaults to googlesource URL "+
 			"for manifest-internal.")
 	c.Flags.IntVar(&workerCount, "j", 1, "Number of jobs to run for parallel operations.")
+	c.authFlags.Register(c.GetFlags(), authOpts)
 }
 
 func logOut(format string, a ...interface{}) {

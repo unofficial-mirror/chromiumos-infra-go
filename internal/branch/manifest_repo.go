@@ -111,7 +111,7 @@ func findProjectTag(project *repo.Project, rawManifest string) string {
 
 // repairManifest reads the manifest at the given path and repairs it in memory.
 // Because humans rarely read branched manifests, this function optimizes for
-// code readibility and explicitly sets revision on every project in the manifest,
+// code readability and explicitly sets revision on every project in the manifest,
 // deleting any defaults.
 // branchesByPath maps project paths to branch names.
 func (m *ManifestRepo) repairManifest(path string, branchesByPath map[string]string) ([]byte, error) {

@@ -74,15 +74,15 @@ func (c *deleteBranchRun) Run(a subcommands.Application, args []string,
 	}
 
 	// Generate git branch names.
-	branches := projectBranches(c.branchName, "")
+	branches := branch.ProjectBranches(c.branchName, "")
 
 	// Delete branches on remote.
 	// TODO(@owner): Consider parallelizing this. It's not super important
 	// because delete is seldom used.
 	retCode := 0
 	for _, projectBranch := range branches {
-		project := projectBranch.project
-		br := git.NormalizeRef(projectBranch.branchName)
+		project := projectBranch.Project
+		br := git.NormalizeRef(projectBranch.BranchName)
 		remote := branch.WorkingManifest.GetRemoteByName(project.RemoteName)
 		if remote == nil {
 			// Try and delete as many of the branches as possible, even if some fail.

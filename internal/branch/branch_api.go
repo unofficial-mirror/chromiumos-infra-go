@@ -13,7 +13,7 @@ import (
 
 var (
 	gerritReadLimit  = time.Second / 40 // QPS for reads
-	gerritWriteLimit = time.Second / 5  // QPS for writes
+	gerritWriteLimit = time.Second / 1  // QPS for writes
 )
 
 // GerritProjectBranch contains all the details for creating a new Gerrit branch
@@ -43,8 +43,8 @@ func assertBranchDoesNotExist(authedClient *http.Client, b GerritProjectBranch) 
 }
 
 // AssertBranchesDoNotExist validates that the given branches do not exist on
-// the Gerrit hosts.
-func AssertBranchesDoNotExist(authedClient *http.Client, branches []GerritProjectBranch) error {
+// the Gerrit hosts using the Gerrit API.
+func AssertBranchesDoNotExistApi(authedClient *http.Client, branches []GerritProjectBranch) error {
 	log.Printf(
 		"Verifying that destination remote branches don't already exist for %v Gerrit repos. "+
 			"Use of --force skips this check.", len(branches))
@@ -93,8 +93,8 @@ func createRemoteBranch(authedClient *http.Client, b GerritProjectBranch, dryRun
 }
 
 // CreateRemoteBranches creates a bunch of branches on remote Gerrit instances
-// for the specified inputs.
-func CreateRemoteBranches(authedClient *http.Client, branches []GerritProjectBranch, dryRun, force bool) error {
+// for the specified inputs using the Gerrit API.
+func CreateRemoteBranchesApi(authedClient *http.Client, branches []GerritProjectBranch, dryRun, force bool) error {
 	if dryRun {
 		log.Printf("Dry run (no --push): would create remote branches for %v Gerrit repos", len(branches))
 		return nil

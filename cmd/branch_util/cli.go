@@ -6,6 +6,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/maruel/subcommands"
 	"go.chromium.org/chromiumos/infra/go/internal/branch"
 	"go.chromium.org/luci/auth"
 	"go.chromium.org/luci/auth/client/authcli"
@@ -13,14 +14,6 @@ import (
 	"go.chromium.org/luci/hardcoded/chromeinfra"
 	"log"
 	"os"
-	"time"
-
-	"github.com/maruel/subcommands"
-)
-
-const (
-	gitRetries = 3
-	gitTimeout = 30 * time.Second
 )
 
 var (

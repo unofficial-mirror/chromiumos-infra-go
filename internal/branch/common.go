@@ -13,6 +13,8 @@ import (
 	"strconv"
 )
 
+const VersionFileProjectPath = "src/third_party/chromiumos-overlay"
+
 var (
 	StdoutLog        *log.Logger
 	StderrLog        *log.Logger
@@ -44,7 +46,7 @@ func LogErr(format string, a ...interface{}) {
 	}
 }
 
-// ProjectFetchUrl returns the fetch URL for a remote project.
+// ProjectFetchUrl returns the fetch URL for a remote Project.
 func ProjectFetchUrl(projectPath string) (string, error) {
 	project, err := WorkingManifest.GetProjectByPath(projectPath)
 	if err != nil {

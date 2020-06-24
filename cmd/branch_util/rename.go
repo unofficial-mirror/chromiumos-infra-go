@@ -77,11 +77,11 @@ func (c *renameBranchRun) Run(a subcommands.Application, args []string,
 	}
 
 	// Generate new git branch names.
-	newBranches := projectBranches(c.new, c.old)
+	newBranches := branch.ProjectBranches(c.new, c.old)
 
 	// If not --force, validate branch names to ensure that they do not already exist.
 	if !c.Force {
-		err := assertBranchesDoNotExist(newBranches)
+		err := branch.AssertBranchesDoNotExist(newBranches, workerCount)
 		if err != nil {
 			branch.LogErr(err.Error())
 			return 1
@@ -89,12 +89,12 @@ func (c *renameBranchRun) Run(a subcommands.Application, args []string,
 	}
 
 	// Repair manifest repositories.
-	if err := repairManifestRepositories(newBranches, !c.Push, c.Force); err != nil {
+	if err := branch.RepairManifestRepositories(newBranches, !c.Push, c.Force); err != nil {
 		branch.LogErr(err.Error())
 		return 1
 	}
 	// Create git branches for new branch.
-	if err := createRemoteBranches(newBranches, !c.Push, c.Force); err != nil {
+	if err := branch.CreateRemoteBranches(newBranches, !c.Push, c.Force, workerCount); err != nil {
 		branch.LogErr(err.Error())
 		return 1
 	}
@@ -102,11 +102,11 @@ func (c *renameBranchRun) Run(a subcommands.Application, args []string,
 	// Delete old branches.
 	// TODO(@owner): Consider parallelizing this. It's not super important
 	// because rename is seldom used.
-	oldBranches := projectBranches(c.old, c.old)
+	oldBranches := branch.ProjectBranches(c.old, c.old)
 	retCode := 0
 	for _, projectBranch := range oldBranches {
-		project := projectBranch.project
-		br := git.NormalizeRef(projectBranch.branchName)
+		project := projectBranch.Project
+		br := git.NormalizeRef(projectBranch.BranchName)
 		remote := branch.WorkingManifest.GetRemoteByName(project.RemoteName)
 		if remote == nil {
 			// Try and delete as many of the branches as possible, even if some fail.

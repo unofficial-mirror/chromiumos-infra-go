@@ -1,10 +1,9 @@
 // Copyright 2019 The Chromium OS Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-package main
+package branch
 
 import (
-	"go.chromium.org/chromiumos/infra/go/internal/branch"
 	"reflect"
 	"testing"
 
@@ -47,7 +46,7 @@ var canBranchTestManifest = repo.Manifest{
 
 func TestProjectBranchName(t *testing.T) {
 	manifest := branchNameTestManifest
-	branch.WorkingManifest = manifest
+	WorkingManifest = manifest
 	assert.Equal(t, projectBranchName("mybranch", manifest.Projects[0], ""), "mybranch")
 	assert.Equal(t, projectBranchName("mybranch", manifest.Projects[1], ""), "mybranch-factory-100")
 	assert.Equal(t, projectBranchName("mybranch", manifest.Projects[2], ""), "mybranch-101")
@@ -56,7 +55,7 @@ func TestProjectBranchName(t *testing.T) {
 
 func TestProjectBranchName_withOriginal(t *testing.T) {
 	manifest := branchNameTestManifest
-	branch.WorkingManifest = manifest
+	WorkingManifest = manifest
 	assert.Equal(t, projectBranchName("mybranch", manifest.Projects[3], "oldbranch"), "mybranch-factory-100")
 	assert.Equal(t, projectBranchName("mybranch", manifest.Projects[4], "oldbranch"), "mybranch-factory-101")
 	assert.Equal(t, projectBranchName("mybranch", manifest.Projects[6], "oldbranch"), "mybranch-myfactory-2.6")
@@ -91,20 +90,20 @@ var branchesTestManifest = repo.Manifest{
 
 func TestProjectBranches(t *testing.T) {
 	manifest := branchesTestManifest
-	branch.WorkingManifest = manifest
+	WorkingManifest = manifest
 	expected := []ProjectBranch{
-		{project: manifest.Projects[0], branchName: "mybranch"},
-		{project: manifest.Projects[1], branchName: "mybranch-factory-100"},
+		{Project: manifest.Projects[0], BranchName: "mybranch"},
+		{Project: manifest.Projects[1], BranchName: "mybranch-factory-100"},
 	}
 
-	branchNames := projectBranches("mybranch", "oldbranch")
+	branchNames := ProjectBranches("mybranch", "oldbranch")
 	assert.Assert(t, reflect.DeepEqual(expected, branchNames))
 }
 
 func TestGetBranchesByPath(t *testing.T) {
 	branches := []ProjectBranch{
-		{project: repo.Project{Path: "foo/"}, branchName: "foo-branch"},
-		{project: repo.Project{Path: "bar/"}, branchName: "bar-branch"},
+		{Project: repo.Project{Path: "foo/"}, BranchName: "foo-branch"},
+		{Project: repo.Project{Path: "bar/"}, BranchName: "bar-branch"},
 	}
 	branchMap := map[string]string{
 		"foo/": "foo-branch",
@@ -121,7 +120,7 @@ func TestWhichVersionShouldBump_successPatch(t *testing.T) {
 		PatchNumber:       0x00,
 	}
 
-	component, err := whichVersionShouldBump(vinfo)
+	component, err := WhichVersionShouldBump(vinfo)
 	assert.NilError(t, err)
 	assert.Equal(t, component, mv.Patch)
 }
@@ -134,7 +133,7 @@ func TestWhichVersionShouldBump_successBranch(t *testing.T) {
 		PatchNumber:       0x00,
 	}
 
-	component, err := whichVersionShouldBump(vinfo)
+	component, err := WhichVersionShouldBump(vinfo)
 	assert.NilError(t, err)
 	assert.Equal(t, component, mv.Branch)
 }

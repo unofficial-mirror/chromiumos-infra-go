@@ -58,6 +58,10 @@ func getCmdCreateBranchV2(opts auth.Options) *subcommands.Command {
 					"names to determine which versions have already been branched. "+
 					"Version validation is not possible when the naming convention "+
 					"is broken. Use this at your own risk.")
+			c.Flags.Float64Var(&c.gerritReadQps, "gerrit-read-qps", 40.0,
+				"Maximum QPS to use for Gerrit API read operations.")
+			c.Flags.Float64Var(&c.gerritWriteQps, "gerrit-write-qps", 5.0,
+				"Maximum QPS to use for Gerrit API write operations.")
 			return c
 		},
 	}
@@ -74,6 +78,8 @@ type createBranchV2 struct {
 	firmware          bool
 	stabilize         bool
 	custom            string
+	gerritReadQps     float64
+	gerritWriteQps    float64
 }
 
 func (c *createBranchV2) getBranchType() (string, bool) {
@@ -302,7 +308,7 @@ func (c *createBranchV2) Run(a subcommands.Application, args []string,
 
 	// If not --force, validate branch names to ensure that they do not already exist.
 	if !c.Force {
-		err = branch.AssertBranchesDoNotExistApi(authedClient, projectBranches)
+		err = branch.AssertBranchesDoNotExistApi(authedClient, projectBranches, c.gerritReadQps)
 		if err != nil {
 			branch.LogErr(err.Error())
 			return 1
@@ -317,7 +323,7 @@ func (c *createBranchV2) Run(a subcommands.Application, args []string,
 	}
 
 	// Create git branches for new branch. Exclude the ManifestProjects, which we just updated.
-	if err = branch.CreateRemoteBranchesApi(authedClient, branch.GetNonManifestBranches(projectBranches), !c.Push, c.Force); err != nil {
+	if err = branch.CreateRemoteBranchesApi(authedClient, branch.GetNonManifestBranches(projectBranches), !c.Push, c.Force, c.gerritWriteQps); err != nil {
 		branch.LogErr(err.Error())
 		return 1
 	}

@@ -11,11 +11,6 @@ import (
 	"time"
 )
 
-var (
-	gerritReadLimit  = time.Second / 40 // QPS for reads
-	gerritWriteLimit = time.Second / 1  // QPS for writes
-)
-
 // GerritProjectBranch contains all the details for creating a new Gerrit branch
 // based on an existing one.
 type GerritProjectBranch struct {
@@ -23,6 +18,16 @@ type GerritProjectBranch struct {
 	Project   string
 	Branch    string
 	SrcRef    string
+}
+
+func qpsToPeriod(qps float64) time.Duration {
+	if qps <= 0 {
+		// some very generous default duration
+		LogErr("Got qps %v, <= 0. Using a default duration instead.", qps)
+		return time.Second * 10
+	}
+	periodSec := float64(time.Second)/qps
+	return time.Duration(int64(periodSec))
 }
 
 func assertBranchDoesNotExist(authedClient *http.Client, b GerritProjectBranch) error {
@@ -44,12 +49,12 @@ func assertBranchDoesNotExist(authedClient *http.Client, b GerritProjectBranch) 
 
 // AssertBranchesDoNotExist validates that the given branches do not exist on
 // the Gerrit hosts using the Gerrit API.
-func AssertBranchesDoNotExistApi(authedClient *http.Client, branches []GerritProjectBranch) error {
+func AssertBranchesDoNotExistApi(authedClient *http.Client, branches []GerritProjectBranch, gerritQps float64) error {
 	log.Printf(
 		"Verifying that destination remote branches don't already exist for %v Gerrit repos. "+
 			"Use of --force skips this check.", len(branches))
 	var g errgroup.Group
-	throttle := time.Tick(gerritReadLimit)
+	throttle := time.Tick(qpsToPeriod(gerritQps))
 	for _, b := range branches {
 		<-throttle
 		b := b
@@ -94,14 +99,14 @@ func createRemoteBranch(authedClient *http.Client, b GerritProjectBranch, dryRun
 
 // CreateRemoteBranches creates a bunch of branches on remote Gerrit instances
 // for the specified inputs using the Gerrit API.
-func CreateRemoteBranchesApi(authedClient *http.Client, branches []GerritProjectBranch, dryRun, force bool) error {
+func CreateRemoteBranchesApi(authedClient *http.Client, branches []GerritProjectBranch, dryRun, force bool, gerritQps float64) error {
 	if dryRun {
 		log.Printf("Dry run (no --push): would create remote branches for %v Gerrit repos", len(branches))
 		return nil
 	}
 	log.Printf("Creating remote branches for %v Gerrit repos. This will take a few minutes, since otherwise Gerrit would throttle us.", len(branches))
 	var g errgroup.Group
-	throttle := time.Tick(gerritWriteLimit)
+	throttle := time.Tick(qpsToPeriod(gerritQps))
 	for _, b := range branches {
 		<-throttle
 		b := b

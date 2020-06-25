@@ -6,6 +6,7 @@ package effects
 
 import (
 	"context"
+	"google.golang.org/api/option"
 	"testing"
 
 	"cloud.google.com/go/storage"
@@ -33,9 +34,9 @@ func TestDeleteEffect(t *testing.T) {
 		Name:   "test_object.txt",
 	}
 
-	client, err := storage.NewClient(ctx)
+	client, err := storage.NewClient(ctx, option.WithoutAuthentication())
 	if err != nil {
-		t.Error("couldn't construct client")
+		t.Errorf("couldn't construct client: %v", err)
 	}
 
 	deleteResult, err := de.Enact(ctx, client, attr)

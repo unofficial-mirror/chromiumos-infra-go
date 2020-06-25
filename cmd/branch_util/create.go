@@ -4,18 +4,14 @@
 package main
 
 import (
-	"fmt"
-	"go.chromium.org/chromiumos/infra/go/internal/branch"
-	"go.chromium.org/luci/auth"
-	"os"
-	"regexp"
-	"strings"
-
 	"github.com/maruel/subcommands"
+	"go.chromium.org/chromiumos/infra/go/internal/branch"
 	mv "go.chromium.org/chromiumos/infra/go/internal/chromeos_version"
 	"go.chromium.org/chromiumos/infra/go/internal/git"
 	"go.chromium.org/chromiumos/infra/go/internal/repo"
+	"go.chromium.org/luci/auth"
 	"go.chromium.org/luci/common/errors"
+	"os"
 )
 
 func getCmdCreateBranch(opts auth.Options) *subcommands.Command {
@@ -77,41 +73,11 @@ type createBranchRun struct {
 	custom     string
 }
 
-func (c *createBranchRun) getBranchType() (string, bool) {
-	var branchType string
-	branchTypesSelected := 0
-	if c.release {
-		branchTypesSelected++
-		branchType = "release"
-	}
-	if c.factory {
-		branchTypesSelected++
-		branchType = "factory"
-	}
-	if c.firmware {
-		branchTypesSelected++
-		branchType = "firmware"
-	}
-	if c.stabilize {
-		branchTypesSelected++
-		branchType = "stabilize"
-	}
-	if c.custom != "" {
-		branchTypesSelected++
-		branchType = "custom"
-	}
-	if branchTypesSelected != 1 {
-		return "", false
-	}
-
-	return branchType, true
-}
-
 func (c *createBranchRun) validate(args []string) (bool, string) {
 	if c.file == "" && c.version == "" || c.file != "" && c.version != "" {
 		return false, "must set exactly one of --file or --version."
 	}
-	_, ok := c.getBranchType()
+	_, ok := branch.BranchType(c.release, c.factory, c.firmware, c.stabilize, c.custom)
 	if !ok {
 		return false, "must select exactly one branch type " +
 			"(--release, --factory, --firmware, --stabilize, --custom)."
@@ -133,32 +99,6 @@ func (c *createBranchRun) getRoot() string {
 
 func (c *createBranchRun) getManifestUrl() string {
 	return c.ManifestUrl
-}
-
-// Determine the name for a branch.
-// By convention, standard branch names must end with the stripped version
-// string from which they were created, followed by '.B'.
-//
-// For example:
-//	- A branch created from 1.0.0 must end with -1.B
-//	- A branch created from 1.2.0 must end with -1.2.B
-//
-// Release branches have a slightly different naming scheme. They include
-//  the milestone from which they were created. Example: release-R12-1.2.B
-func (c *createBranchRun) newBranchName(vinfo mv.VersionInfo) string {
-	if c.custom != "" {
-		return c.custom
-	}
-	branchType, _ := c.getBranchType()
-	branchNameParts := []string{branchType}
-	if branchType == "release" {
-		branchNameParts = append(branchNameParts, fmt.Sprintf("R%d", vinfo.ChromeBranch))
-	}
-	if c.descriptor != "" {
-		branchNameParts = append(branchNameParts, c.descriptor)
-	}
-	branchNameParts = append(branchNameParts, vinfo.StrippedVersionString()+".B")
-	return strings.Join(branchNameParts, "-")
 }
 
 func (c *createBranchRun) Run(a subcommands.Application, args []string,
@@ -236,29 +176,12 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 	}
 	branch.LogOut("Version found: %s.\n", vinfo.VersionString())
 
-	// Check that we did not already branch from this version.
-	// manifest-internal serves as the sentinel project.
-	pattern := regexp.MustCompile(fmt.Sprintf(`.*-%s.B$`, vinfo.StrippedVersionString()))
-	exists, err := branch.BranchExists(manifestInternal, pattern)
-	if err != nil {
-		branch.LogErr(err.Error())
-		return 8
-	}
-	if exists {
-		if !c.Force {
-			branch.LogErr("Already branched %s. Please rerun with --force if you "+
-				"would like to proceed.", vinfo.VersionString())
-			return 9
-		} else {
-			branch.LogOut("Overwriting branch with version %s (--force was set).\n", vinfo.VersionString())
-		}
-	} else {
-		branch.LogOut("No branch exists for version %s. Continuing...\n", vinfo.VersionString())
+	if err = branch.CheckIfAlreadyBranched(vinfo, manifestInternal, c.Force); err != nil {
+		branch.LogErr("%v", err)
+		return 1
 	}
 
-	// Generate branch name.
-	branchName := c.newBranchName(vinfo)
-	// Create branch.
+	branchName := branch.NewBranchName(vinfo, c.custom, c.descriptor, c.release, c.factory, c.firmware, c.stabilize)
 	componentToBump, err := branch.WhichVersionShouldBump(vinfo)
 	if err != nil {
 		branch.LogErr(err.Error())

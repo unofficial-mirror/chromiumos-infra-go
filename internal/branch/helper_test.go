@@ -137,3 +137,30 @@ func TestWhichVersionShouldBump_successBranch(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Equal(t, component, mv.Branch)
 }
+
+func TestNewBranchName_Custom(t *testing.T) {
+	assert.Equal(t, NewBranchName(mv.VersionInfo{}, "custom-name", "", false, false, false, false), "custom-name")
+}
+
+var vinfo = mv.VersionInfo{
+	ChromeBranch:      77,
+	BuildNumber:       123,
+	BranchBuildNumber: 1,
+	PatchNumber:       0,
+}
+
+func TestNewBranchName_Release(t *testing.T) {
+	assert.Equal(t, NewBranchName(vinfo, "", "", true, false, false, false), "release-R77-123.1.B")
+}
+
+func TestNewBranchName_Factory(t *testing.T) {
+	assert.Equal(t, NewBranchName(vinfo, "", "foo", false, true, false, false), "factory-foo-123.1.B")
+}
+
+func TestNewBranchName_Firmware(t *testing.T) {
+	assert.Equal(t, NewBranchName(vinfo, "", "", false, false, true, false), "firmware-123.1.B")
+}
+
+func TestNewBranchName_Stabilize(t *testing.T) {
+	assert.Equal(t, NewBranchName(vinfo, "", "", false, false, false, true), "stabilize-123.1.B")
+}

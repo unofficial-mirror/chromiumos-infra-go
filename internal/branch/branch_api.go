@@ -26,7 +26,7 @@ func qpsToPeriod(qps float64) time.Duration {
 		LogErr("Got qps %v, <= 0. Using a default duration instead.", qps)
 		return time.Second * 10
 	}
-	periodSec := float64(time.Second)/qps
+	periodSec := float64(time.Second) / qps
 	return time.Duration(int64(periodSec))
 }
 

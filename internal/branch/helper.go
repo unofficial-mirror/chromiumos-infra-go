@@ -414,3 +414,85 @@ func WhichVersionShouldBump(vinfo mv.VersionInfo) (mv.VersionComponent, error) {
 		return mv.Branch, nil
 	}
 }
+
+// BranchType determines the type of branch to be created.
+func BranchType(release, factory, firmware, stabilize bool, custom string) (string, bool) {
+	var branchType string
+	branchTypesSelected := 0
+	if release {
+		branchTypesSelected++
+		branchType = "release"
+	}
+	if factory {
+		branchTypesSelected++
+		branchType = "factory"
+	}
+	if firmware {
+		branchTypesSelected++
+		branchType = "firmware"
+	}
+	if stabilize {
+		branchTypesSelected++
+		branchType = "stabilize"
+	}
+	if custom != "" {
+		branchTypesSelected++
+		branchType = "custom"
+	}
+	if branchTypesSelected != 1 {
+		return "", false
+	}
+
+	return branchType, true
+}
+
+// Determine the name for a new branch.
+// By convention, standard branch names must end with the stripped version
+// string from which they were created, followed by '.B'.
+//
+// For example:
+//	- A branch created from 1.0.0 must end with -1.B
+//	- A branch created from 1.2.0 must end with -1.2.B
+//
+// Release branches have a slightly different naming scheme. They include
+//  the milestone from which they were created. Example: release-R12-1.2.B
+func NewBranchName(vinfo mv.VersionInfo, custom, descriptor string, release, factory, firmware, stabilize bool) string {
+	if custom != "" {
+		return custom
+	}
+	branchType, _ := BranchType(release, factory, firmware, stabilize, custom)
+	branchNameParts := []string{branchType}
+	if branchType == "release" {
+		branchNameParts = append(branchNameParts, fmt.Sprintf("R%d", vinfo.ChromeBranch))
+	}
+	if descriptor != "" {
+		branchNameParts = append(branchNameParts, descriptor)
+	}
+	branchNameParts = append(branchNameParts, vinfo.StrippedVersionString()+".B")
+	return strings.Join(branchNameParts, "-")
+}
+
+// CheckIfAlreadyBranched checks if there's already a branch for the desired new
+// branch to create on the manifest-internal repo.
+func CheckIfAlreadyBranched(vinfo mv.VersionInfo, manifestInternal repo.Project, force bool) error {
+	// Check that we did not already branch from this version.
+	// manifest-internal serves as the sentinel project.
+	pattern := regexp.MustCompile(fmt.Sprintf(`.*-%s.B$`, vinfo.StrippedVersionString()))
+	exists, err := BranchExists(manifestInternal, pattern)
+	if err != nil {
+		return err
+		//LogErr(err.Error())
+		//return 8
+	}
+	if exists {
+		if !force {
+			return fmt.Errorf("already branched %s. Please rerun with --force if you "+
+				"would like to proceed", vinfo.VersionString())
+		} else {
+			LogErr("Overwriting branch with version %s (--force was set).\n", vinfo.VersionString())
+		}
+	} else {
+		LogErr("No branch exists for version %s. Continuing...\n", vinfo.VersionString())
+	}
+	return nil
+}

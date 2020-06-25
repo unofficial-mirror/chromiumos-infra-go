@@ -677,7 +677,7 @@ func TestCreateExistingVersion(t *testing.T) {
 		"--stabilize",
 	})
 	assert.Assert(t, ret != 0)
-	assert.Assert(t, strings.Contains(stderrBuf.String(), "Already branched 3.0.0"))
+	assert.Assert(t, strings.Contains(stderrBuf.String(), "already branched 3.0.0"))
 	assertNoRemoteDiff(t, r)
 }
 

@@ -30,45 +30,6 @@ func qpsToPeriod(qps float64) time.Duration {
 	return time.Duration(int64(periodSec))
 }
 
-func assertBranchDoesNotExist(authedClient *http.Client, b GerritProjectBranch) error {
-	agClient, err := gerritapi.NewClient(b.GerritURL, authedClient)
-	if err != nil {
-		return fmt.Errorf("failed to create Gerrit client: %v", err)
-	}
-	info, response, err := agClient.Projects.GetBranch(b.Project, b.Branch)
-	defer response.Body.Close()
-	if response.StatusCode == 404 {
-		// Success! We're hoping not to find a branch.
-		return nil
-	}
-	if info != nil {
-		return fmt.Errorf("branch found for %v/%v : %v", b.GerritURL, b.Project, b.Branch)
-	}
-	return fmt.Errorf("error %v (%v) while checking for branch %v/%v : %v", response.StatusCode, response.Status, b.GerritURL, b.Project, b.Branch)
-}
-
-// AssertBranchesDoNotExist validates that the given branches do not exist on
-// the Gerrit hosts using the Gerrit API.
-func AssertBranchesDoNotExistApi(authedClient *http.Client, branches []GerritProjectBranch, gerritQps float64) error {
-	log.Printf(
-		"Verifying that destination remote branches don't already exist for %v Gerrit repos. "+
-			"Use of --force skips this check.", len(branches))
-	var g errgroup.Group
-	throttle := time.Tick(qpsToPeriod(gerritQps))
-	for _, b := range branches {
-		<-throttle
-		b := b
-		g.Go(func() error {
-			err := assertBranchDoesNotExist(authedClient, b)
-			if err != nil {
-				return err
-			}
-			return nil
-		})
-	}
-	return g.Wait()
-}
-
 func createRemoteBranch(authedClient *http.Client, b GerritProjectBranch, dryRun, force bool) error {
 	agClient, err := gerritapi.NewClient(b.GerritURL, authedClient)
 	if err != nil {

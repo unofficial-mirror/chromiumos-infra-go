@@ -55,8 +55,6 @@ func getCmdCreateBranchV2(opts auth.Options) *subcommands.Command {
 					"names to determine which versions have already been branched. "+
 					"Version validation is not possible when the naming convention "+
 					"is broken. Use this at your own risk.")
-			c.Flags.Float64Var(&c.gerritReadQps, "gerrit-read-qps", 40.0,
-				"Maximum QPS to use for Gerrit API read operations.")
 			c.Flags.Float64Var(&c.gerritWriteQps, "gerrit-write-qps", 5.0,
 				"Maximum QPS to use for Gerrit API write operations.")
 			return c
@@ -75,7 +73,6 @@ type createBranchV2 struct {
 	firmware          bool
 	stabilize         bool
 	custom            string
-	gerritReadQps     float64
 	gerritWriteQps    float64
 }
 
@@ -133,7 +130,8 @@ func (c *createBranchV2) Run(a subcommands.Application, args []string,
 			return 1
 		}
 		if !inGroup {
-			branch.LogErr("you appear not to be in %v, and so you won't be able to create a branch", branchCreatorGroup)
+			branch.LogErr("you appear not to be in %v, and so you won't be able to create a branch.\n"+
+				"See http://go/cros-branch#access for instructions for gaining access.", branchCreatorGroup)
 			return 1
 		}
 	}
@@ -229,16 +227,6 @@ func (c *createBranchV2) Run(a subcommands.Application, args []string,
 		branch.LogErr(err.Error())
 		return 1
 	}
-
-	// If not --force, validate branch names to ensure that they do not already exist.
-	if !c.Force {
-		err = branch.AssertBranchesDoNotExistApi(authedClient, projectBranches, c.gerritReadQps)
-		if err != nil {
-			branch.LogErr(err.Error())
-			return 1
-		}
-	}
-	branch.LogOut("Done validating project branches.\n")
 
 	// Repair manifest repositories.
 	if err = branch.RepairManifestRepositories(branches, !c.Push, c.Force); err != nil {

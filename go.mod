@@ -37,6 +37,7 @@ require (
 	go.chromium.org/chromiumos/infra/proto/go v0.0.0-20200605151551-57f9b2ed946b
 	go.chromium.org/gae v0.0.0-20190826183307-50a499513efa // indirect
 	go.chromium.org/luci v0.0.0-20191118200800-9eaf449bf869
+	go.uber.org/atomic v1.6.0
 	golang.org/x/build v0.0.0-20190314133821-5284462c4bec // indirect
 	golang.org/x/net v0.0.0-20200602114024-627f9648deb9 // indirect
 	golang.org/x/sync v0.0.0-20200317015054-43a5402ce75a

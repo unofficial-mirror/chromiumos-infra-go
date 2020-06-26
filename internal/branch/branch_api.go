@@ -4,6 +4,7 @@ import (
 	"fmt"
 	gerritapi "github.com/andygrunwald/go-gerrit"
 	"go.chromium.org/luci/common/errors"
+	"go.uber.org/atomic"
 	"golang.org/x/sync/errgroup"
 	"io/ioutil"
 	"log"
@@ -48,7 +49,7 @@ func createRemoteBranch(authedClient *http.Client, b GerritProjectBranch, dryRun
 		}
 		if resp.StatusCode == http.StatusConflict {
 			if force {
-				log.Printf("Branch already exists and --force is enabled, so there's nothing to do for %v/%v : %v", b.GerritURL, b.Project, b.Branch)
+				// Branch already exists and --force is enabled, so there's nothing to do
 				return nil
 			}
 			return errors.Annotate(err, "Branch already exists for %v/%v : %v, so consider trying again with --force", b.GerritURL, b.Project, b.Branch).Err()
@@ -68,6 +69,7 @@ func CreateRemoteBranchesApi(authedClient *http.Client, branches []GerritProject
 	log.Printf("Creating remote branches for %v Gerrit repos. This will take a few minutes, since otherwise Gerrit would throttle us.", len(branches))
 	var g errgroup.Group
 	throttle := time.Tick(qpsToPeriod(gerritQps))
+	createCount := atomic.Int64{}
 	for _, b := range branches {
 		<-throttle
 		b := b
@@ -76,10 +78,16 @@ func CreateRemoteBranchesApi(authedClient *http.Client, branches []GerritProject
 			if err != nil {
 				return err
 			}
+			count := createCount.Inc()
+			if count%10 == 0 {
+				log.Printf("Created %v of %v remote branches", count, len(branches))
+			}
 			return nil
 		})
 	}
-	return g.Wait()
+	err := g.Wait()
+	log.Printf("Successfully created %v of %v remote branches", createCount.Load(), len(branches))
+	return err
 }
 
 // CheckSelfGroupMembership checks if the authenticated user is in the given

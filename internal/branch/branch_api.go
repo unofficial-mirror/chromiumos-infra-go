@@ -35,7 +35,7 @@ func qpsToPeriod(qps float64) time.Duration {
 	return time.Duration(int64(periodSec))
 }
 
-func createRemoteBranch(authedClient *http.Client, b GerritProjectBranch, dryRun, force bool) error {
+func createRemoteBranch(authedClient *http.Client, b GerritProjectBranch, dryRun bool) error {
 	agClient, err := gerritapi.NewClient(b.GerritURL, authedClient)
 	if err != nil {
 		return fmt.Errorf("failed to create Gerrit client: %v", err)
@@ -52,11 +52,8 @@ func createRemoteBranch(authedClient *http.Client, b GerritProjectBranch, dryRun
 			return err2
 		}
 		if resp.StatusCode == http.StatusConflict {
-			if force {
-				// Branch already exists and --force is enabled, so there's nothing to do
-				return nil
-			}
-			return errors.Annotate(err, "Branch already exists for %v/%v : %v, so consider trying again with --force", b.GerritURL, b.Project, b.Branch).Err()
+			// Branch already exists, so there's nothing to do.
+			return nil
 		}
 		return errors.Annotate(err, "failed to create branch. Got response %v and branch info %v", string(body), bi).Err()
 	}
@@ -65,7 +62,7 @@ func createRemoteBranch(authedClient *http.Client, b GerritProjectBranch, dryRun
 
 // CreateRemoteBranches creates a bunch of branches on remote Gerrit instances
 // for the specified inputs using the Gerrit API.
-func CreateRemoteBranchesApi(authedClient *http.Client, branches []GerritProjectBranch, dryRun, force bool, gerritQps float64) error {
+func CreateRemoteBranchesApi(authedClient *http.Client, branches []GerritProjectBranch, dryRun bool, gerritQps float64) error {
 	if dryRun {
 		log.Printf("Dry run (no --push): would create remote branches for %v Gerrit repos", len(branches))
 		return nil
@@ -78,7 +75,7 @@ func CreateRemoteBranchesApi(authedClient *http.Client, branches []GerritProject
 		<-throttle
 		b := b
 		g.Go(func() error {
-			err := createRemoteBranch(authedClient, b, dryRun, force)
+			err := createRemoteBranch(authedClient, b, dryRun)
 			if err != nil {
 				return err
 			}

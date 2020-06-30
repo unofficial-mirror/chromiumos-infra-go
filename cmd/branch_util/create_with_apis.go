@@ -235,7 +235,7 @@ func (c *createBranchV2) Run(a subcommands.Application, args []string,
 	}
 
 	// Create git branches for new branch. Exclude the ManifestProjects, which we just updated.
-	if err = branch.CreateRemoteBranchesApi(authedClient, branch.GetNonManifestBranches(projectBranches), !c.Push, c.Force, c.gerritWriteQps); err != nil {
+	if err = branch.CreateRemoteBranchesApi(authedClient, branch.GetNonManifestBranches(projectBranches), !c.Push, c.gerritWriteQps); err != nil {
 		branch.LogErr(err.Error())
 		return 1
 	}

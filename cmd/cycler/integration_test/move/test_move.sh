@@ -9,16 +9,24 @@ TEST_DIR=$PWD
 
 source ../common.sh || (echo "couldn't source common.sh"i; exit 1;)
 
-chill_test () {
-  echo "test: chill effect to nearline"
+move_test () {
+  echo "test: move effect"
 
   failures=0
 
   test_bucket=$(create_random_bucket)
   printf "created bucket: %s\n" "$test_bucket"
-
+  move_bucket=$(create_random_bucket)
+  printf "created destination bucket: %s\n" "$move_bucket"
   log_bucket=$(create_random_bucket)
   printf "created log bucket: %s\n" "$log_bucket"
+
+  # Make a temp file for the runconfig and update a temp file with the path.
+  run_config_tmp=$(mktemp)
+  move_bucket_name=$(echo "$move_bucket" | cut -c6-)
+  dest_tag=".policy_effect_configuration.move.destination_bucket"
+  jq "$dest_tag = \"$move_bucket_name\"" \
+    "$TEST_DIR/run_config.json" > "$run_config_tmp"
 
   log_url="$log_bucket/logs"
   logs_out=$(mktemp -d)
@@ -30,11 +38,12 @@ chill_test () {
 
   json_out=$(mktemp)
   stdout_out=$(mktemp)
-  printf "stdout will be in %s and json will be in %s" "$stdout_out" "$json_out"
+  printf "stdout will be in %s and json will be in %s\n" "$stdout_out" \
+    "$json_out"
 
   printf "running cycler\n"
   ./cycler  -bucket "$test_bucket" -iUnderstandCyclerIsInEarlyDevelopment \
-                --runConfigPath "$TEST_DIR/run_config.json" \
+                --runConfigPath "$run_config_tmp" \
                 --jsonOutFile "$json_out" \
                 --runlogURL "$log_url" >"$stdout_out" \
                 --mutationAllowed \
@@ -55,13 +64,25 @@ chill_test () {
     "$json_out"
   (( failures += $? ))
 
-  # Test that the chill effect was successful.
-  # Don't trust cycler itself, use gsutil.
-  nl_objs=$(gsutil ls -L "$test_bucket/**" | grep -c "Storage class:.*NEARLINE")
-  if [[ "$nl_objs" -ne "$expected_file_count" ]]; then
-    printf ""
+  # Don't trust cycler itself, use gsutil, this is expected to fail with an
+  # expection (somewhat unexpectedly).
+  gsutil ls "$test_bucket/**"
+  if [[ "$?" -ne "1" ]]; then
+    printf "The bucket still had objects in it, should have been moved.\n"
     (( failures++ ))
   fi
+
+  moved_objects=$(gsutil ls "$move_bucket/**" | wc -l)
+  if [[ "$moved_objects" -ne "$expected_file_count" ]]; then
+    printf "The destination expected %s objects, had %s.\n" \
+      "$expected_file_count" "$moved_objects"
+    (( failures++ ))
+  fi
+
+  printf "emptying destination bucket.\n"
+  empty_bucket "$move_bucket"
+  printf "removing destination bucket.\n"
+  remove_bucket "$move_bucket"
 
   # clean up
   clean_up_test "$test_bucket" "$log_bucket" "$logs_out" "$stdout_out" \
@@ -75,4 +96,4 @@ chill_test () {
   fi
 }
 
-chill_test
+move_test

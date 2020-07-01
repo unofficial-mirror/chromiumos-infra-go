@@ -8,8 +8,11 @@
     },
 
     "policy_effect_configuration": {
-        "delete": {},
-        "policy_document_path": "./test_noop/true.rego"
+        "duplicate": {
+            "destination_bucket": "random_destination_bucket",
+            "destination_prefix": "moved_here"
+        },
+        "policy_document_path": "./duplicate/true.rego"
     },
 
     "stats_configuration": {

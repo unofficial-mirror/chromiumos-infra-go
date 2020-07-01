@@ -8,10 +8,8 @@
     },
 
     "policy_effect_configuration": {
-        "chill": {
-            "to_storage_class": "NEARLINE"
-        },
-        "policy_document_path": "./test_noop/true.rego"
+        "delete": {},
+        "policy_document_path": "./delete/true.rego"
     },
 
     "stats_configuration": {

@@ -86,12 +86,14 @@ create_random_bucket() {
 #
 # Takes the following arguments:
 # $1 The number of objects.
-# $2 The max prefix depth (i.e. gs://one/two/three/four).
+# $2 The max prefix depth (e.g. gs://one/two/three/four).
 # $3 The name of the bucket.
 # $4 The count of 512 byte blocks (making up the total filesize).
+# $5 The object name prefix
+#      (e.g. for "prepre" files like "gs://one/two/prepreobject_name")
 create_random_object_in_bucket() {
   for ((i=0; i<$1; i++)); do
-    object_path=$(random_object_path "$2" "$3")
+    object_path=$(random_object_path "$2" "$3" "$5")
     tmp_file=$(mktemp)
     dd if=/dev/urandom of="$tmp_file" count="$4" >/dev/null 2>&1;
     gsutil cp "$tmp_file" "$object_path" >/dev/null 2>&1;
@@ -167,6 +169,7 @@ remove_bucket() {
 # Takes the following arguments:
 # $1 The max prefix depth.
 # $2 The bucket name.
+# $3 The last filename prefix.
 random_object_path() {
   if [[ $1 -lt 1 ]]; then
     die 1 "need more than 1 prefix"
@@ -177,6 +180,9 @@ random_object_path() {
   object_path=$2
   for ((i=0; i<n_prefixes; i++)); do
     this_suff=$(random_n_chars 12)
+    if [[ $i -eq $(( n_prefixes - 1 )) ]]; then
+      this_suff=$3$this_suff
+    fi
     object_path="$object_path/$this_suff"
   done
 
@@ -258,7 +264,7 @@ count_jsonl() {
 validate_size() {
   expected_rootsizebytes=$1
   json_out=$2
-  actual_rootsizebytes=$(jq '.PrefixStats.RootSizeBytes' "$json_out")
+  actual_rootsizebytes=$(jq '.ActionStats.RootSizeBytes' "$json_out")
   if [[ "$expected_rootsizebytes" -eq "$actual_rootsizebytes" ]]; then
     true
   else

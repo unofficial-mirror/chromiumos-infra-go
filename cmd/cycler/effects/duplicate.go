@@ -18,10 +18,6 @@ import (
 	"cloud.google.com/go/storage"
 )
 
-// Real or mock actor, non-test invocations use util.objectBucketToBucket.
-type DuplicateEffectActor func(ctx context.Context, client *storage.Client, srcAttr *storage.ObjectAttrs,
-	dstBucket string, prefix string, deleteAfter bool) error
-
 func (de DuplicateEffect) DefaultActor() interface{} {
 	return objectBucketToBucket
 }
@@ -29,7 +25,9 @@ func (de DuplicateEffect) DefaultActor() interface{} {
 // DuplicateEffect runtime and configuration state.
 type DuplicateEffect struct {
 	Config cycler_pb.DuplicateEffectConfiguration `json:"DuplicateEffectConfiguration"`
-	Actor  DuplicateEffectActor
+	// Real or mock actor, non-test invocations use util.objectBucketToBucket.
+	actor func(ctx context.Context, client *storage.Client, srcAttr *storage.ObjectAttrs,
+		dstBucket string, prefix string, deleteAfter bool) error
 }
 
 // Init the DuplicateEffect, duplicate doesn't mutate so skip checks.
@@ -45,7 +43,8 @@ func (de *DuplicateEffect) Initialize(config interface{}, actor interface{}, che
 	CheckMutationAllowed(checks)
 
 	de.Config = orig
-	de.Actor = actor.(DuplicateEffectActor)
+	de.actor = actor.(func(ctx context.Context, client *storage.Client, srcAttr *storage.ObjectAttrs,
+		dstBucket string, prefix string, deleteAfter bool) error)
 }
 
 // Enact does the duplicate operation on the attr, does not mutate existing object.
@@ -70,7 +69,7 @@ func (de *DuplicateEffect) Enact(ctx context.Context, client *storage.Client, at
 
 // Internal duplicate object command for google storage.
 func (de *DuplicateEffect) duplicateObject(ctx context.Context, client *storage.Client, attr *storage.ObjectAttrs) error {
-	return de.Actor(ctx, client, attr, de.Config.DestinationBucket, de.Config.DestinationPrefix, false)
+	return de.actor(ctx, client, attr, de.Config.DestinationBucket, de.Config.DestinationPrefix, false)
 }
 
 // DuplicateResult defines all outputs of an echo effect.

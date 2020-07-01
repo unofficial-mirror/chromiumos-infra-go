@@ -13,7 +13,7 @@ import (
 	cycler_pb "go.chromium.org/chromiumos/infra/proto/go/cycler"
 )
 
-func getMoveMock(t *testing.T) MoveEffectActor {
+func getMoveMock(t *testing.T) interface{} {
 	return func(ctx context.Context, client *storage.Client, srcAttr *storage.ObjectAttrs,
 		dstBucket string, prefix string, deleteAfter bool) error {
 		if deleteAfter == false {

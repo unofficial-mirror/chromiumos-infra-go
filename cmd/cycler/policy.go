@@ -96,7 +96,6 @@ func (ap *Policy) init(ctx context.Context, client *storage.Client,
 	ap.ActionStats.init(ctx, statsConfig)
 
 	var protoConfig interface{}
-	var actor interface{}
 	switch effectType := ap.Config.EffectConfiguration.(type) {
 	case *cycler_pb.PolicyEffectConfiguration_Noop:
 		ap.Effect = &effects.NoopEffect{}
@@ -124,7 +123,7 @@ func (ap *Policy) init(ctx context.Context, client *storage.Client,
 		os.Exit(2)
 	}
 
-	actor = ap.Effect.DefaultActor()
+	actor := ap.Effect.DefaultActor()
 	ap.Effect.Initialize(protoConfig, actor, runConfigMutationAllowed, cmdMutationAllowed)
 
 	// Parse the rego expression defined.

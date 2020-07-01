@@ -21,10 +21,6 @@ import (
 	"cloud.google.com/go/storage"
 )
 
-// Real or mock actor, non-test invocations use util.objectChangeStorageClass
-type ChillEffectActor func(context.Context, *storage.Client, *storage.ObjectAttrs,
-	cycler_pb.ChillEffectConfiguration_EnumStorageClass) error
-
 func (ce ChillEffect) DefaultActor() interface{} {
 	return objectChangeStorageClass
 }
@@ -32,7 +28,9 @@ func (ce ChillEffect) DefaultActor() interface{} {
 // ChillEffect runtime and configuration state.
 type ChillEffect struct {
 	Config cycler_pb.ChillEffectConfiguration `json:"ChillEffectConfiguration"`
-	Actor  ChillEffectActor
+	// Real or mock actor, non-test invocations use util.objectChangeStorageClass
+	actor func(ctx context.Context, client *storage.Client, srcAttr *storage.ObjectAttrs,
+		toStorageClass cycler_pb.ChillEffectConfiguration_EnumStorageClass) error
 }
 
 // Init the chill effect.
@@ -52,7 +50,9 @@ func (ce *ChillEffect) Initialize(config interface{}, actor interface{}, checks 
 	CheckMutationAllowed(checks)
 
 	ce.Config = orig
-	ce.Actor = actor.(ChillEffectActor)
+	ce.actor = actor.(func(ctx context.Context, client *storage.Client, srcAttr *storage.ObjectAttrs,
+		toStorageClass cycler_pb.ChillEffectConfiguration_EnumStorageClass) error)
+
 }
 
 // Enact does the move operation on the attr, _this deletes the old object_!
@@ -81,7 +81,7 @@ func (ce *ChillEffect) Enact(ctx context.Context, client *storage.Client, attr *
 
 // Internal copy object command for google storage.
 func (ce *ChillEffect) chillObject(ctx context.Context, client *storage.Client, attr *storage.ObjectAttrs) error {
-	return ce.Actor(ctx, client, attr, ce.Config.ToStorageClass)
+	return ce.actor(ctx, client, attr, ce.Config.ToStorageClass)
 }
 
 // ChillResult defines all outputs of a move effect.

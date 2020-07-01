@@ -18,10 +18,6 @@ import (
 	"cloud.google.com/go/storage"
 )
 
-// Real or mock actor, non-test invocations use util.objectBucketToBucket.
-type MoveEffectActor func(ctx context.Context, client *storage.Client, srcAttr *storage.ObjectAttrs,
-	dstBucket string, prefix string, deleteAfter bool) error
-
 func (me MoveEffect) DefaultActor() interface{} {
 	return objectBucketToBucket
 }
@@ -29,7 +25,9 @@ func (me MoveEffect) DefaultActor() interface{} {
 // MoveEffect runtime and configuration state.
 type MoveEffect struct {
 	Config cycler_pb.MoveEffectConfiguration `json:"MoveEffectConfiguration"`
-	Actor  MoveEffectActor
+	// Real or mock actor, non-test invocations use util.objectBucketToBucket.
+	actor func(ctx context.Context, client *storage.Client, srcAttr *storage.ObjectAttrs,
+		dstBucket string, prefix string, deleteAfter bool) error
 }
 
 // MoveEffectConfig configuration.
@@ -49,7 +47,8 @@ func (me *MoveEffect) Initialize(config interface{}, actor interface{}, checks .
 	CheckMutationAllowed(checks)
 
 	me.Config = orig
-	me.Actor = actor.(MoveEffectActor)
+	me.actor = actor.(func(ctx context.Context, client *storage.Client, srcAttr *storage.ObjectAttrs,
+		dstBucket string, prefix string, deleteAfter bool) error)
 }
 
 // Enact does the move operation on the attr, _this deletes the old object_!
@@ -78,7 +77,7 @@ func (me *MoveEffect) Enact(ctx context.Context, client *storage.Client, attr *s
 
 // Internal move object command for google storage.
 func (me *MoveEffect) moveObject(ctx context.Context, client *storage.Client, attr *storage.ObjectAttrs) error {
-	return me.Actor(ctx, client, attr, me.Config.DestinationBucket, me.Config.DestinationPrefix, true)
+	return me.actor(ctx, client, attr, me.Config.DestinationBucket, me.Config.DestinationPrefix, true)
 }
 
 // MoveResult defines all outputs of a move effect.

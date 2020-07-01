@@ -18,9 +18,6 @@ import (
 	"cloud.google.com/go/storage"
 )
 
-// Real or mock actor, non-test invocations use util.objectDelete.
-type DeleteEffectActor func(ctx context.Context, client *storage.Client, srcAttr *storage.ObjectAttrs) error
-
 func (de DeleteEffect) DefaultActor() interface{} {
 	return objectDelete
 }
@@ -28,7 +25,8 @@ func (de DeleteEffect) DefaultActor() interface{} {
 // DeleteEffect runtime and configuration state.
 type DeleteEffect struct {
 	Config cycler_pb.DeleteEffectConfiguration `json:"DeleteEffectConfiguration"`
-	Actor  DeleteEffectActor
+	// Real or mock actor, non-test invocations use util.objectBucketToBucket.
+	actor func(ctx context.Context, client *storage.Client, srcAttr *storage.ObjectAttrs) error
 }
 
 // Init the DeleteEffect
@@ -43,7 +41,7 @@ func (de *DeleteEffect) Initialize(config interface{}, actor interface{}, checks
 	CheckMutationAllowed(checks)
 
 	de.Config = orig
-	de.Actor = actor.(DeleteEffectActor)
+	de.actor = actor.(func(ctx context.Context, client *storage.Client, srcAttr *storage.ObjectAttrs) error)
 }
 
 // Enact does the delete operation on the attr.
@@ -68,7 +66,7 @@ func (de *DeleteEffect) Enact(ctx context.Context, client *storage.Client, attr 
 
 // Internal delete object command for google storage.
 func (de *DeleteEffect) deleteObject(ctx context.Context, client *storage.Client, attr *storage.ObjectAttrs) error {
-	return de.Actor(ctx, client, attr)
+	return de.actor(ctx, client, attr)
 }
 
 // DeleteResult defines all outputs of a delet eeffect.

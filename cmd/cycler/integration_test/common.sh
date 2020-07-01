@@ -105,9 +105,11 @@ create_random_object_in_bucket() {
 # $1 The object bucket name.
 # $2 The logging bucket name.
 # $3 The downloaded logs tmp directory.
+# $4 The stdout tmp file.
+# $5 The json_out tmp file.
 clean_up_test() {
-  if [[ $# -ne 3 ]]; then
-    die 1 "clean_up_test requires 3 arguments"
+  if [[ $# -ne 5 ]]; then
+    die 1 "clean_up_test requires 5 arguments"
   fi
 
   empty_bucket "$1"
@@ -119,6 +121,7 @@ clean_up_test() {
   if [[ "$LEAVELOGS" = false ]]; then
     echo "removing local cycler logs"
     rm -rf "$3"
+    rm "$4" "$5"
   fi
 
   if [[ "$REBUILD" = true ]]; then
@@ -132,6 +135,12 @@ clean_up_test() {
 # Takes the following arguments:
 # $1 The bucket name.
 empty_bucket() {
+  # If the bucket is already empty the subsequent calls to rm will fail with a
+  # command exception: https://github.com/GoogleCloudPlatform/gsutil/issues/417
+  if [[ $(gsutil ls "$1" | wc -l) -eq "0" ]]; then
+    return
+  fi
+
   if [[ $# -ne 1 ]]; then
     die 1 "empty_bucket requires 2 arguments"
   fi
@@ -239,4 +248,81 @@ count_jsonl() {
     echo "the number of objects $objects is not the expected $2"
     false
   fi
+}
+
+# Validate that the size of the bucket is expected.
+#
+# Takes the following arguments:
+# $1 The expected root size in bytes that cycler will report.
+# $2 The json output of cycler.
+validate_size() {
+  expected_rootsizebytes=$1
+  json_out=$2
+  actual_rootsizebytes=$(jq '.PrefixStats.RootSizeBytes' "$json_out")
+  if [[ "$expected_rootsizebytes" -eq "$actual_rootsizebytes" ]]; then
+    true
+  else
+    printf ".PrefixStats.RootSizeByte %s, " "$actual_rootsizebytes"
+    printf "expected %s\n" "$expected_rootsizebytes"
+    false
+  fi
+}
+
+# Validate that the count of the objects is expected.
+#
+# Takes the following arguments:
+# $1 The expected count of objects that cycler will report.
+# $2 The json output of cycler.
+validate_count() {
+  expected_file_count=$1
+  json_out=$2
+  actual_file_count=$(jq '.ActionStats.SizeBytesHistogram.Count' "$json_out")
+  if [[ "$expected_file_count" -eq "$actual_file_count" ]]; then
+    true
+  else
+    printf ".SizeBytesHistogram.Count %s, " "$actual_file_count"
+    printf "expected %s\n" "$expected_file_count"
+    false
+  fi
+}
+
+# Runs common tests against a cycler run returns failure counts.
+#
+# This also has the side effect of decompressing the logs.
+#
+# Takes the following arguments:
+# $1 The expected count of objects that cycler will report.
+# $2 The expected root size in bytes that cycler will report.
+# $3 The logs output of cycler.
+# $4 The json output of cycler.
+common_checks() {
+  local failures=0
+  expected_file_count=$1
+  expected_rootsizebytes=$2
+  logs_out=$3
+  json_out=$4
+
+  # make some assertions on the output gathered.
+  if ! validate_size "$expected_rootsizebytes" "$json_out"; then
+    (( failures++ ))
+  fi
+
+  if ! validate_count "$expected_file_count" "$json_out"; then
+    (( failures++ ))
+  fi
+
+  # decompress logs in place
+  if ! decompress_logs "$logs_out"; then
+    (( failures++ ))
+  fi
+
+  if ! validate_jsonl "$logs_out"; then
+    (( failures++ ))
+  fi
+
+  if ! count_jsonl "$logs_out" "$expected_file_count"; then
+    (( failures++ ))
+  fi
+
+  return "$failures"
 }

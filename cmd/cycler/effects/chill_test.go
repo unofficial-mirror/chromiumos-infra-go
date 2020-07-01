@@ -13,7 +13,7 @@ import (
 	cycler_pb "go.chromium.org/chromiumos/infra/proto/go/cycler"
 )
 
-func getChillMock(t *testing.T) ChillEffectActor {
+func getChillMock(t *testing.T) interface{} {
 	return func(ctx context.Context, client *storage.Client, srcAttr *storage.ObjectAttrs,
 		toStorageClass cycler_pb.ChillEffectConfiguration_EnumStorageClass) error {
 		if toStorageClass != cycler_pb.ChillEffectConfiguration_COLDLINE {

@@ -13,7 +13,7 @@ import (
 	cycler_pb "go.chromium.org/chromiumos/infra/proto/go/cycler"
 )
 
-func getDeleteMock(t *testing.T) DeleteEffectActor {
+func getDeleteMock(t *testing.T) interface{} {
 	return func(ctx context.Context, client *storage.Client, srcAttr *storage.ObjectAttrs) error {
 		if srcAttr.Bucket != "test_bucket" || srcAttr.Name != "test_object.txt" {
 			t.Error("The bucket or object name did not match configured.")

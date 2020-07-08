@@ -36,7 +36,7 @@ func CheckBuilders(
 
 builderLoop:
 	for _, b := range builders {
-		if isImageBuilder(b) && ignoreImageBuilders {
+		if eligibleForGlobalIrrelevance(b) && ignoreImageBuilders {
 			log.Printf("Ignoring %v because it's an image builder and the changes don't affect Portage", b.GetId().GetName())
 			response.SkipForGlobalBuildIrrelevance = append(response.SkipForGlobalBuildIrrelevance, b.GetId())
 			continue builderLoop
@@ -63,28 +63,15 @@ builderLoop:
 	return response, nil
 }
 
-func isImageBuilder(b *cros_pb.BuilderConfig) bool {
-	// consider grunt-unittest-only builds to be image builders, since we want
-	// to rule these builds out by build irrelevance rules.
-	if strings.Contains(b.GetId().GetName(), "grunt-unittest-only") {
-		return true
+func eligibleForGlobalIrrelevance(b *cros_pb.BuilderConfig) bool {
+	// As of 2020-07-08, the chromite builders are the only ones that should still trigger on matches
+	// to global build irrelevance rules. The chromite builders just run unit tests; they don't build
+	// the OS. If there are ever more such builders introduced, it would be much more useful to include
+	// in the builderconfig something that indicates that property about the builder.
+	if strings.HasPrefix(b.GetId().GetName(), "chromite-") {
+		return false
 	}
-	for _, art := range b.GetArtifacts().GetArtifactTypes() {
-		if art == cros_pb.BuilderConfig_Artifacts_IMAGE_ZIP {
-			return true
-		}
-	}
-	for _, ai := range b.GetArtifacts().GetArtifactsInfo().GetLegacy().GetOutputArtifacts() {
-		for _, art := range ai.GetArtifactTypes() {
-			if art == cros_pb.ArtifactsByService_Legacy_IMAGE_ZIP {
-				return true
-			}
-		}
-	}
-	// TODO: use the new output artifacts IMAGE_ZIP item when it's ready.
-	//for _, _ := range b.GetArtifacts().GetArtifactsInfo().GetImage().GetOutputArtifacts() {
-	//}
-	return false
+	return true
 }
 
 func ignoreImageBuilders(affectedFiles []string, cfg testplans_pb.BuildIrrelevanceCfg) bool {

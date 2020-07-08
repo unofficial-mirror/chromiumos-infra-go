@@ -12,7 +12,7 @@ import (
 	bbproto "go.chromium.org/luci/buildbucket/proto"
 )
 
-func makeBuilderConfig(name string, isImageBuilder bool, rwMode cros_pb.BuilderConfig_General_RunWhen_Mode, rwPatterns []string) *cros_pb.BuilderConfig {
+func makeBuilderConfig(name string, rwMode cros_pb.BuilderConfig_General_RunWhen_Mode, rwPatterns []string) *cros_pb.BuilderConfig {
 	b := &cros_pb.BuilderConfig{
 		Id: &cros_pb.BuilderConfig_Id{
 			Name: name,
@@ -24,9 +24,6 @@ func makeBuilderConfig(name string, isImageBuilder bool, rwMode cros_pb.BuilderC
 			},
 		},
 		Artifacts: &cros_pb.BuilderConfig_Artifacts{},
-	}
-	if isImageBuilder {
-		b.Artifacts.ArtifactTypes = append(b.GetArtifacts().GetArtifactTypes(), cros_pb.BuilderConfig_Artifacts_IMAGE_ZIP)
 	}
 	return b
 }
@@ -59,8 +56,8 @@ func TestCheckBuilders_imageBuilderFiltering(t *testing.T) {
 	}
 
 	b := []*cros_pb.BuilderConfig{
-		makeBuilderConfig("my_image_builder", true, cros_pb.BuilderConfig_General_RunWhen_ALWAYS_RUN, []string{}),
-		makeBuilderConfig("not_an_image_builder", false, cros_pb.BuilderConfig_General_RunWhen_ALWAYS_RUN, []string{}),
+		makeBuilderConfig("my_image_builder", cros_pb.BuilderConfig_General_RunWhen_ALWAYS_RUN, []string{}),
+		makeBuilderConfig("chromite-not_an_image_builder", cros_pb.BuilderConfig_General_RunWhen_ALWAYS_RUN, []string{}),
 	}
 
 	res, err := CheckBuilders(b, changes, chRevData, repoToBranchToSrcRoot, cfg)
@@ -70,8 +67,8 @@ func TestCheckBuilders_imageBuilderFiltering(t *testing.T) {
 	if len(res.BuildsToRun) != 1 {
 		t.Errorf("Expected BuildsToRun to have 1 element. Instead, %v", res.BuildsToRun)
 	}
-	if res.BuildsToRun[0].GetName() != "not_an_image_builder" {
-		t.Errorf("Expected res.BuildsToRun[0].GetName() == \"not_an_image_builder\". Instead, %v", res.BuildsToRun[0].GetName())
+	if res.BuildsToRun[0].GetName() != "chromite-not_an_image_builder" {
+		t.Errorf("Expected res.BuildsToRun[0].GetName() == \"chromite-not_an_image_builder\". Instead, %v", res.BuildsToRun[0].GetName())
 	}
 	if len(res.SkipForRunWhenRules) != 0 {
 		t.Errorf("Expected SkipForRunWhenRules to be empty. Instead, %v", res.SkipForRunWhenRules)
@@ -98,10 +95,10 @@ func TestCheckBuilders_noGerritChanges(t *testing.T) {
 	}
 
 	b := []*cros_pb.BuilderConfig{
-		makeBuilderConfig("my_image_builder", true, cros_pb.BuilderConfig_General_RunWhen_ALWAYS_RUN, []string{}),
-		makeBuilderConfig("not_an_image_builder", false, cros_pb.BuilderConfig_General_RunWhen_ALWAYS_RUN, []string{}),
-		makeBuilderConfig("only_run_on_match", true, cros_pb.BuilderConfig_General_RunWhen_ONLY_RUN_ON_FILE_MATCH, []string{"**/match_me.txt"}),
-		makeBuilderConfig("no_run_on_match", true, cros_pb.BuilderConfig_General_RunWhen_NO_RUN_ON_FILE_MATCH, []string{"not/a/real/dir"}),
+		makeBuilderConfig("my_image_builder", cros_pb.BuilderConfig_General_RunWhen_ALWAYS_RUN, []string{}),
+		makeBuilderConfig("not_an_image_builder", cros_pb.BuilderConfig_General_RunWhen_ALWAYS_RUN, []string{}),
+		makeBuilderConfig("only_run_on_match", cros_pb.BuilderConfig_General_RunWhen_ONLY_RUN_ON_FILE_MATCH, []string{"**/match_me.txt"}),
+		makeBuilderConfig("no_run_on_match", cros_pb.BuilderConfig_General_RunWhen_NO_RUN_ON_FILE_MATCH, []string{"not/a/real/dir"}),
 	}
 
 	res, err := CheckBuilders(b, changes, chRevData, repoToBranchToSrcRoot, cfg)
@@ -143,8 +140,8 @@ func TestCheckBuilders_onlyRunOnFileMatch(t *testing.T) {
 	cfg := testplans_pb.BuildIrrelevanceCfg{}
 
 	b := []*cros_pb.BuilderConfig{
-		makeBuilderConfig("board_to_run", true, cros_pb.BuilderConfig_General_RunWhen_ONLY_RUN_ON_FILE_MATCH, []string{"**/match_me.txt"}),
-		makeBuilderConfig("board_to_skip", true, cros_pb.BuilderConfig_General_RunWhen_ONLY_RUN_ON_FILE_MATCH, []string{"not/a/real/dir"}),
+		makeBuilderConfig("board_to_run", cros_pb.BuilderConfig_General_RunWhen_ONLY_RUN_ON_FILE_MATCH, []string{"**/match_me.txt"}),
+		makeBuilderConfig("board_to_skip", cros_pb.BuilderConfig_General_RunWhen_ONLY_RUN_ON_FILE_MATCH, []string{"not/a/real/dir"}),
 	}
 
 	res, err := CheckBuilders(b, changes, chRevData, repoToBranchToSrcRoot, cfg)
@@ -193,8 +190,8 @@ func TestCheckBuilders_NoRunOnFileMatch(t *testing.T) {
 	cfg := testplans_pb.BuildIrrelevanceCfg{}
 
 	b := []*cros_pb.BuilderConfig{
-		makeBuilderConfig("board_to_skip", true, cros_pb.BuilderConfig_General_RunWhen_NO_RUN_ON_FILE_MATCH, []string{"**/match_me_1.txt", "**/match_me_2.txt"}),
-		makeBuilderConfig("board_to_run", true, cros_pb.BuilderConfig_General_RunWhen_NO_RUN_ON_FILE_MATCH, []string{"not/a/real/dir"}),
+		makeBuilderConfig("board_to_skip", cros_pb.BuilderConfig_General_RunWhen_NO_RUN_ON_FILE_MATCH, []string{"**/match_me_1.txt", "**/match_me_2.txt"}),
+		makeBuilderConfig("board_to_run", cros_pb.BuilderConfig_General_RunWhen_NO_RUN_ON_FILE_MATCH, []string{"not/a/real/dir"}),
 	}
 
 	res, err := CheckBuilders(b, changes, chRevData, repoToBranchToSrcRoot, cfg)

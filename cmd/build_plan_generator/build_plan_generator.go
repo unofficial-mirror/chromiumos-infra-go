@@ -29,7 +29,9 @@ import (
 )
 
 const (
-	buildIrrelevanceConfigPath = "testingconfig/generated/build_irrelevance_config.binaryproto"
+	buildIrrelevanceConfigPath       = "testingconfig/generated/build_irrelevance_config.binaryproto"
+	builderConfigsPath               = "generated/builder_configs.binaryproto"
+	targetTestRequirementsConfigPath = "testingconfig/generated/target_test_requirements.binaryproto"
 )
 
 var (
@@ -70,7 +72,7 @@ func (c *checkBuild) Run(a subcommands.Application, args []string, env subcomman
 		return 1
 	}
 
-	cfg, err := c.fetchConfigFromGitiles()
+	buildIrrelevanceCfg, testReqsCfg, builderConfigs, err := c.fetchConfigFromGitiles()
 	if err != nil {
 		log.Print(err)
 		return 2
@@ -100,7 +102,7 @@ func (c *checkBuild) Run(a subcommands.Application, args []string, env subcomman
 		return 6
 	}
 
-	resp, err := build_plan.CheckBuilders(req.BuilderConfigs, changes, changeRevs, *repoToSrcRoot, *cfg)
+	resp, err := build_plan.CheckBuilders(req.BuilderConfigs, changes, changeRevs, *repoToSrcRoot, *buildIrrelevanceCfg, *testReqsCfg, *builderConfigs)
 	if err != nil {
 		log.Printf("Error checking which builds can be skipped:\n%v", err)
 		return 7
@@ -175,31 +177,40 @@ func (c *checkBuild) readInput() (*cros_pb.GenerateBuildPlanRequest, error) {
 	return req, nil
 }
 
-func (c *checkBuild) fetchConfigFromGitiles() (*testplans_pb.BuildIrrelevanceCfg, error) {
+func (c *checkBuild) fetchConfigFromGitiles() (*testplans_pb.BuildIrrelevanceCfg, *testplans_pb.TargetTestRequirementsCfg, *cros_pb.BuilderConfigs, error) {
 	// Create an authenticated client for Gerrit RPCs, then fetch all required CL data from Gerrit.
 	ctx := context.Background()
 	authOpts, err := c.authFlags.Options()
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
 	authedClient, err := auth.NewAuthenticator(ctx, auth.SilentLogin, authOpts).Client()
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
 	m, err := igerrit.FetchFilesFromGitiles(authedClient, ctx,
 		"chrome-internal.googlesource.com",
 		"chromeos/infra/config",
 		"master",
-		[]string{buildIrrelevanceConfigPath})
+		[]string{buildIrrelevanceConfigPath, targetTestRequirementsConfigPath, builderConfigsPath})
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
 	buildIrrelevanceConfig := &testplans_pb.BuildIrrelevanceCfg{}
 	if err := proto.Unmarshal([]byte((*m)[buildIrrelevanceConfigPath]), buildIrrelevanceConfig); err != nil {
-		return nil, fmt.Errorf("Couldn't decode %s as a BuildIrrelevanceCfg\n%v", (*m)[buildIrrelevanceConfigPath], err)
+		return nil, nil, nil, fmt.Errorf("Couldn't decode %s as a BuildIrrelevanceCfg\n%v", (*m)[buildIrrelevanceConfigPath], err)
 	}
-	log.Printf("Fetched config from Gitiles:\n%s\n", proto.MarshalTextString(buildIrrelevanceConfig))
-	return buildIrrelevanceConfig, nil
+	targetTestRequirementsConfig := &testplans_pb.TargetTestRequirementsCfg{}
+	if err := proto.Unmarshal([]byte((*m)[targetTestRequirementsConfigPath]), targetTestRequirementsConfig); err != nil {
+		return nil, nil, nil, fmt.Errorf("Couldn't decode %s as a TargetTestRequirementsCfg\n%v", (*m)[targetTestRequirementsConfigPath], err)
+	}
+	builderConfigs := &cros_pb.BuilderConfigs{}
+	if err := proto.Unmarshal([]byte((*m)[builderConfigsPath]), builderConfigs); err != nil {
+		return nil, nil, nil, fmt.Errorf("Couldn't decode %s as a BuilderConfigs\n%v", (*m)[builderConfigsPath], err)
+	}
+	log.Printf("Fetched config from Gitiles:\n%s\n\n%s\n\n%s",
+		proto.MarshalTextString(buildIrrelevanceConfig), proto.MarshalTextString(targetTestRequirementsConfig), proto.MarshalTextString(builderConfigs))
+	return buildIrrelevanceConfig, targetTestRequirementsConfig, builderConfigs, nil
 }
 
 func readGerritChanges(changeBytes []*cros_pb.ProtoBytes) ([]*bbproto.GerritChange, error) {

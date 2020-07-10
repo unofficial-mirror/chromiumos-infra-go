@@ -16,13 +16,19 @@ import (
 	bbproto "go.chromium.org/luci/buildbucket/proto"
 )
 
+var (
+	slimEligiblePaths []string = []string{"src/platform2/**", "src/third_party/kernel/**"}
+)
+
 // CheckBuilders determines which builders can be skipped and which must be run.
 func CheckBuilders(
 	builders []*cros_pb.BuilderConfig,
 	changes []*bbproto.GerritChange,
 	changeRevs *gerrit.ChangeRevData,
 	repoToBranchToSrcRoot map[string]map[string]string,
-	cfg testplans_pb.BuildIrrelevanceCfg) (*cros_pb.GenerateBuildPlanResponse, error) {
+	buildIrrelevanceCfg testplans_pb.BuildIrrelevanceCfg,
+	testReqsCfg testplans_pb.TargetTestRequirementsCfg,
+	builderConfigs cros_pb.BuilderConfigs) (*cros_pb.GenerateBuildPlanResponse, error) {
 
 	response := &cros_pb.GenerateBuildPlanResponse{}
 
@@ -32,7 +38,8 @@ func CheckBuilders(
 		return nil, fmt.Errorf("error in extractAffectedFiles: %+v", err)
 	}
 	hasAffectedFiles := len(affectedFiles) > 0
-	ignoreImageBuilders := ignoreImageBuilders(affectedFiles, cfg)
+	ignoreImageBuilders := ignoreImageBuilders(affectedFiles, buildIrrelevanceCfg)
+	allowSlimBuilds := allowSlimBuilds(affectedFiles)
 
 builderLoop:
 	for _, b := range builders {
@@ -57,10 +64,52 @@ builderLoop:
 		case cros_pb.BuilderConfig_General_RunWhen_ALWAYS_RUN, cros_pb.BuilderConfig_General_RunWhen_MODE_UNSPECIFIED:
 			log.Printf("Builder %v has %v RunWhen mode", b.GetId().GetName(), b.GetGeneral().GetRunWhen().GetMode())
 		}
+		if allowSlimBuilds && eligibleForSlimBuild(b, testReqsCfg) {
+			slimB := getSlimBuilder(b.GetId().GetName(), builderConfigs)
+			if slimB != nil {
+				log.Printf("Must run builder %v", slimB.GetId().GetName())
+				response.BuildsToRun = append(response.BuildsToRun, slimB.GetId())
+				continue builderLoop
+			}
+		}
 		log.Printf("Must run builder %v", b.GetId().GetName())
 		response.BuildsToRun = append(response.BuildsToRun, b.GetId())
 	}
 	return response, nil
+}
+
+// Slim builds are only allows in select repos.
+func allowSlimBuilds(affectedFiles []string) bool {
+	if len(affectedFiles) == 0 {
+		return false
+	}
+	matchedFiles := findFilesMatchingPatterns(affectedFiles, slimEligiblePaths)
+	return len(matchedFiles) == len(affectedFiles)
+}
+
+// Given a builder name, returns the builder config for the slim variant if it exists.
+func getSlimBuilder(b string, builderConfigs cros_pb.BuilderConfigs) *cros_pb.BuilderConfig {
+	suffixIndex := strings.LastIndex(b, "-")
+	slimName := b[:suffixIndex] + "-slim" + b[suffixIndex:]
+	for _, builderConfig := range builderConfigs.BuilderConfigs {
+		if slimName == builderConfig.GetId().GetName() {
+			return builderConfig
+		}
+	}
+	return nil
+}
+
+// A CQ build target can be run as slim build if no HW or VM tests are configured for it.
+func eligibleForSlimBuild(b *cros_pb.BuilderConfig, testReqsCfg testplans_pb.TargetTestRequirementsCfg) bool {
+	if b.GetId().GetType() != cros_pb.BuilderConfig_Id_CQ {
+		return false
+	}
+	for _, targetTestReq := range testReqsCfg.PerTargetTestRequirements {
+		if b.GetId().GetName() == targetTestReq.GetTargetCriteria().GetBuilderName() {
+			return false
+		}
+	}
+	return true
 }
 
 func eligibleForGlobalIrrelevance(b *cros_pb.BuilderConfig) bool {
@@ -144,6 +193,16 @@ func sliceDiff(a, b []string) []string {
 		}
 	}
 	return diff
+}
+
+// stringInSlice returns a bool if a string exists in a slice.
+func stringInSlice(a string, list []string) bool {
+	for _, b := range list {
+		if b == a {
+			return true
+		}
+	}
+	return false
 }
 
 func extractAffectedFiles(changes []*bbproto.GerritChange, changeRevs *gerrit.ChangeRevData, repoToSrcRoot map[string]map[string]string) ([]string, error) {

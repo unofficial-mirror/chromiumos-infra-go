@@ -14,7 +14,13 @@
 			},
 			"general": {
 				"critical": true,
-				"environment": "PRODUCTION"
+				"environment": "PRODUCTION",
+				"runWhen": {
+					"mode": "ONLY_RUN_ON_FILE_MATCH",
+					"filePatterns": [
+						"src/project/dedede/boten/sw_build_config/**"
+					]
+				}
 			},
 			"artifacts": {
 				"prebuilts": "PUBLIC",
@@ -26,7 +32,9 @@
 			},
 			"chrome": {},
 			"build": {
-				"installPackages": "RUN_EXIT"
+				"installPackages": {
+					"runSpec": "RUN_EXIT"
+				}
 			},
 			"unitTests": {
 				"ebuildsRunSpec": "RUN"
@@ -40,7 +48,10 @@
 			},
 			"general": {
 				"critical": true,
-				"environment": "PRODUCTION"
+				"environment": "PRODUCTION",
+				"runWhen": {
+					"mode": "ALWAYS_RUN"
+				}
 			},
 			"artifacts": {
 				"prebuilts": "NONE",
@@ -56,11 +67,15 @@
 			},
 			"chrome": {},
 			"build": {
-				"imageTypes": [
-					"TEST",
-					"TEST_VM"
-				],
-				"installPackages": "RUN",
+				"buildImages": {
+					"imageTypes": [
+						"TEST",
+						"TEST_VM"
+					]
+				},
+				"installPackages": {
+					"runSpec": "RUN"
+				},
 				"applyGerritChanges": true
 			},
 			"unitTests": {

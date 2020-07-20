@@ -34,7 +34,7 @@ require (
 	github.com/smartystreets/assertions v0.0.0-20190401211740-f487f9de1cd3 // indirect
 	github.com/smartystreets/goconvey v0.0.0-20190330032615-68dc04aab96a // indirect
 	github.com/texttheater/golang-levenshtein v0.0.0-20180516184445-d188e65d659e // indirect
-	go.chromium.org/chromiumos/infra/proto/go v0.0.0-20200605151551-57f9b2ed946b
+	go.chromium.org/chromiumos/infra/proto/go v0.0.0-20200720182058-bd303e0b0700
 	go.chromium.org/gae v0.0.0-20190826183307-50a499513efa // indirect
 	go.chromium.org/luci v0.0.0-20191118200800-9eaf449bf869
 	go.uber.org/atomic v1.6.0

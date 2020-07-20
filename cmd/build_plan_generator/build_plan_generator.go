@@ -46,6 +46,10 @@ func cmdCheckSkip(authOpts auth.Options) *subcommands.Command {
 				"Path to JSON proto representing a GenerateBuildPlanRequest")
 			c.Flags.StringVar(&c.outputJson, "output_json", "",
 				"Path to file to write output GenerateBuildPlanResponse JSON proto")
+			c.Flags.StringVar(&c.inputTextPb, "input_text_pb", "",
+				"Path to text proto representing a GenerateBuildPlanRequest")
+			c.Flags.StringVar(&c.outputTextPb, "output_text_pb", "",
+				"Path to file to write output GenerateBuildPlanResponse text proto")
 			c.Flags.StringVar(&c.inputBinaryPb, "input_binary_pb", "",
 				"Path to binaryproto file representing a GenerateTestPlanRequest")
 			c.Flags.StringVar(&c.outputBinaryPb, "output_binary_pb", "",
@@ -104,11 +108,27 @@ type checkBuild struct {
 	authFlags      authcli.Flags
 	inputJson      string
 	outputJson     string
+	inputTextPb    string
+	outputTextPb   string
 	inputBinaryPb  string
 	outputBinaryPb string
 }
 
+func nonEmptyCount(strs ...string) int64 {
+	var count int64
+	for _, str := range strs {
+		if len(str) > 0 {
+			count++
+		}
+	}
+	return count
+}
+
 func (c *checkBuild) readInput() (*cros_pb.GenerateBuildPlanRequest, error) {
+	numInputs := nonEmptyCount(c.inputBinaryPb, c.inputTextPb, c.inputJson)
+	if numInputs != 1 {
+		return nil, fmt.Errorf("expected 1 input-related flag, found %v", numInputs)
+	}
 	// use input_binary_pb if it's specified
 	if len(c.inputBinaryPb) > 0 {
 		inputPb, err := ioutil.ReadFile(c.inputBinaryPb)
@@ -120,19 +140,29 @@ func (c *checkBuild) readInput() (*cros_pb.GenerateBuildPlanRequest, error) {
 			return nil, fmt.Errorf("Failed parsing input_binary_pb as proto\n%v", err)
 		}
 		return req, nil
-		// otherwise use input_json
-	} else {
-		inputBytes, err := ioutil.ReadFile(c.inputJson)
+	}
+	if len(c.inputTextPb) > 0 {
+		inputBytes, err := ioutil.ReadFile(c.inputTextPb)
 		log.Printf("Request is:\n%s", string(inputBytes))
 		if err != nil {
-			return nil, fmt.Errorf("Failed reading input_json\n%v", err)
+			return nil, fmt.Errorf("Failed reading input_text_pb\n%v", err)
 		}
 		req := &cros_pb.GenerateBuildPlanRequest{}
-		if err := unmarshaler.Unmarshal(bytes.NewReader(inputBytes), req); err != nil {
+		if err := proto.UnmarshalText(string(inputBytes), req); err != nil {
 			return nil, fmt.Errorf("Couldn't decode %s as a chromiumos.GenerateBuildPlanRequest\n%v", c.inputJson, err)
 		}
 		return req, nil
 	}
+	inputBytes, err := ioutil.ReadFile(c.inputJson)
+	log.Printf("Request is:\n%s", string(inputBytes))
+	if err != nil {
+		return nil, fmt.Errorf("Failed reading input_json\n%v", err)
+	}
+	req := &cros_pb.GenerateBuildPlanRequest{}
+	if err := unmarshaler.Unmarshal(bytes.NewReader(inputBytes), req); err != nil {
+		return nil, fmt.Errorf("Couldn't decode %s as a chromiumos.GenerateBuildPlanRequest\n%v", c.inputJson, err)
+	}
+	return req, nil
 }
 
 func (c *checkBuild) fetchConfigFromGitiles() (*testplans_pb.BuildIrrelevanceCfg, error) {
@@ -232,6 +262,12 @@ func (c *checkBuild) writeOutput(resp *cros_pb.GenerateBuildPlanResponse) error 
 			return fmt.Errorf("Failed to write output JSON!\n%v", err)
 		}
 		log.Printf("Wrote JSON output to %s", c.outputJson)
+	}
+
+	if len(c.outputTextPb) > 0 {
+		if err := ioutil.WriteFile(c.outputTextPb, []byte(proto.MarshalTextString(resp)), 0644); err != nil {
+			return fmt.Errorf("Failed to write output text proto!\n%v", err)
+		}
 	}
 
 	if len(c.outputBinaryPb) > 0 {

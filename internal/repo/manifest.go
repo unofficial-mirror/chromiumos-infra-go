@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"go.chromium.org/chromiumos/infra/go/internal/gerrit"
+	bbproto "go.chromium.org/luci/buildbucket/proto"
 	"go.chromium.org/luci/common/errors"
 )
 
@@ -384,15 +385,15 @@ func LoadManifestTree(file string) (map[string]*Manifest, error) {
 	return results, nil
 }
 
-func fetchManifestRecursive(authedClient *http.Client, ctx context.Context, manifestCommit string, file string) (map[string]*Manifest, error) {
+func fetchManifestRecursive(authedClient *http.Client, ctx context.Context, gc *bbproto.GitilesCommit, file string) (map[string]*Manifest, error) {
 	results := make(map[string]*Manifest)
-	log.Printf("Fetching manifest file %s at revision '%s'", file, manifestCommit)
+	log.Printf("Fetching manifest file %s at revision '%s'", file, gc.Id)
 	files, err := gerrit.FetchFilesFromGitiles(
 		authedClient,
 		ctx,
-		"chrome-internal.googlesource.com",
-		"chromeos/manifest-internal",
-		manifestCommit,
+		gc.Host,
+		gc.Project,
+		gc.Id,
 		[]string{file})
 	if err != nil {
 		return nil, errors.Annotate(err, "failed to fetch %s", file).Err()
@@ -405,7 +406,7 @@ func fetchManifestRecursive(authedClient *http.Client, ctx context.Context, mani
 	results[file] = manifest
 	// Recursively fetch manifests listed in "include" elements.
 	for _, incl := range manifest.Includes {
-		subResults, err := fetchManifestRecursive(authedClient, ctx, manifestCommit, incl.Name)
+		subResults, err := fetchManifestRecursive(authedClient, ctx, gc, incl.Name)
 		if err != nil {
 			return nil, err
 		}
@@ -418,8 +419,8 @@ func fetchManifestRecursive(authedClient *http.Client, ctx context.Context, mani
 
 // GetRepoToSourceRootFromManifests constructs a Gerrit project to path mapping by fetching manifest
 // XML files from Gitiles.
-func GetRepoToRemoteBranchToSourceRootFromManifests(authedClient *http.Client, ctx context.Context, manifestCommit string) (map[string]map[string]string, error) {
-	manifests, err := fetchManifestRecursive(authedClient, ctx, manifestCommit, rootXml)
+func GetRepoToRemoteBranchToSourceRootFromManifests(authedClient *http.Client, ctx context.Context, gc *bbproto.GitilesCommit) (map[string]map[string]string, error) {
+	manifests, err := fetchManifestRecursive(authedClient, ctx, gc, rootXml)
 	if err != nil {
 		return nil, err
 	}

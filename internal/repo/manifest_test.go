@@ -17,6 +17,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"go.chromium.org/chromiumos/infra/go/internal/gerrit"
 	"go.chromium.org/chromiumos/infra/go/internal/util"
+	bbproto "go.chromium.org/luci/buildbucket/proto"
 	gitilespb "go.chromium.org/luci/common/proto/gitiles"
 	"gotest.tools/assert"
 )
@@ -44,8 +45,13 @@ func TestFetchFilesFromGitiles_success(t *testing.T) {
 		nil,
 	)
 	gerrit.MockGitiles = gitilesMock
+	gitilesCommit := &bbproto.GitilesCommit{
+		Host:    "chrome-internal.googlesource.com",
+		Project: "chromeos/manifest-internal",
+		Id:      "snapshot",
+	}
 
-	m, err := GetRepoToRemoteBranchToSourceRootFromManifests(http.DefaultClient, context.Background(), "master")
+	m, err := GetRepoToRemoteBranchToSourceRootFromManifests(http.DefaultClient, context.Background(), gitilesCommit)
 	if err != nil {
 		t.Error(err)
 	}

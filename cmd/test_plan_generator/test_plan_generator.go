@@ -85,21 +85,28 @@ func (c *getTestPlanRun) Run(a subcommands.Application, args []string, env subco
 		log.Print(err)
 		return 4
 	}
-	repoToSrcRoot, err := c.getRepoToSourceRoot(req.ManifestCommit)
+
+	gitilesCommit, err := readGitilesCommit(req.GitilesCommit)
 	if err != nil {
 		log.Print(err)
 		return 5
 	}
 
+	repoToSrcRoot, err := c.getRepoToSourceRoot(gitilesCommit)
+	if err != nil {
+		log.Print(err)
+		return 6
+	}
+
 	testPlan, err := generator.CreateTestPlan(testReqsConfig, sourceTreeConfig, bbBuilds, gerritChanges, changeRevs, *repoToSrcRoot)
 	if err != nil {
 		log.Printf("Error creating test plan:\n%v", err)
-		return 6
+		return 7
 	}
 
 	if err = c.writeOutput(testPlan); err != nil {
 		log.Print(err)
-		return 7
+		return 8
 	}
 	return 0
 }
@@ -224,7 +231,16 @@ func (c *getTestPlanRun) fetchGerritData(changes []*bbproto.GerritChange) (*iger
 	return chRevData, nil
 }
 
-func (c *getTestPlanRun) getRepoToSourceRoot(manifestCommit string) (*map[string]map[string]string, error) {
+func readGitilesCommit(gitilesBytes *testplans.ProtoBytes) (*bbproto.GitilesCommit, error) {
+	gc := &bbproto.GitilesCommit{}
+	if err := proto.Unmarshal(gitilesBytes.SerializedProto, gc); err != nil {
+		return nil, fmt.Errorf("Couldn't decode %s as a GitilesCommit\n%v", gitilesBytes.String(), err)
+	}
+	log.Printf("Got GitilesCommit proto:\n%s", proto.MarshalTextString(gc))
+	return gc, nil
+}
+
+func (c *getTestPlanRun) getRepoToSourceRoot(gc *bbproto.GitilesCommit) (*map[string]map[string]string, error) {
 	ctx := context.Background()
 	authOpts, err := c.authFlags.Options()
 	if err != nil {
@@ -234,17 +250,16 @@ func (c *getTestPlanRun) getRepoToSourceRoot(manifestCommit string) (*map[string
 	if err != nil {
 		return nil, err
 	}
-	if manifestCommit == "" {
-		log.Print("No manifestCommit provided. Using 'snapshot' instead.")
-		manifestCommit = "snapshot"
+	if gc.Id == "" {
+		log.Print("No manifest commit provided. Using 'snapshot' instead.")
+		gc.Id = "snapshot"
 	}
-	repoToSrcRoot, err := repo.GetRepoToRemoteBranchToSourceRootFromManifests(authedClient, ctx, manifestCommit)
+	repoToRemoteBranchToSrcRoot, err := repo.GetRepoToRemoteBranchToSourceRootFromManifests(authedClient, ctx, gc)
 	if err != nil {
 		return nil, fmt.Errorf("Error with repo tool call\n%v", err)
 	}
-	return &repoToSrcRoot, nil
+	return &repoToRemoteBranchToSrcRoot, nil
 }
-
 func (c *getTestPlanRun) writeOutput(tp *testplans.GenerateTestPlanResponse) error {
 	if len(c.outputJson) > 0 {
 		marshal := &jsonpb.Marshaler{EmitDefaults: true, Indent: "  "}

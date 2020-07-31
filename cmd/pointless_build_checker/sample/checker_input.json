@@ -153,5 +153,8 @@
             "serializedProto": "CiBjaHJvbWl1bS1yZXZpZXcuZ29vZ2xlc291cmNlLmNvbRIdY2hyb21pdW1vcy90aGlyZF9wYXJ0eS9rZXJuZWwYhpZ1IAE="
         }
     ],
+    "gitiles_commit": {
+        "serializedProto": "CiBjaHJvbWUtaW50ZXJuYWwuZ29vZ2xlc291cmNlLmNvbRIaY2hyb21lb3MvbWFuaWZlc3QtaW50ZXJuYWwaKGE3N2VlYjUzMTcyMjFlYzhiNmFlMGMwNjI3OTczY2M3YjczYjNlZWY="
+    },
     "manifestCommit": "a77eeb5317221ec8b6ae0c0627973cc7b73b3eef"
 }

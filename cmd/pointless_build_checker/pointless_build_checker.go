@@ -83,21 +83,28 @@ func (c *checkBuild) Run(a subcommands.Application, args []string, env subcomman
 		log.Print(err)
 		return 4
 	}
-	repoToSrcRoot, err := c.getRepoToSourceRoot(req.ManifestCommit)
+
+	gitilesCommit, err := readGitilesCommit(req.GitilesCommit)
 	if err != nil {
 		log.Print(err)
 		return 5
 	}
 
+	repoToSrcRoot, err := c.getRepoToSourceRoot(gitilesCommit)
+	if err != nil {
+		log.Print(err)
+		return 6
+	}
+
 	resp, err := pointless.CheckBuilder(changes, changeRevs, req.RelevantPaths, *repoToSrcRoot, *cfg)
 	if err != nil {
 		log.Printf("Error checking if build is pointless:\n%v", err)
-		return 6
+		return 7
 	}
 
 	if err = c.writeOutput(resp); err != nil {
 		log.Print(err)
-		return 7
+		return 8
 	}
 	return 0
 }
@@ -201,7 +208,16 @@ func (c *checkBuild) fetchGerritData(changes []*bbproto.GerritChange) (*igerrit.
 	return chRevData, nil
 }
 
-func (c *checkBuild) getRepoToSourceRoot(manifestCommit string) (*map[string]map[string]string, error) {
+func readGitilesCommit(gitilesBytes *testplans_pb.ProtoBytes) (*bbproto.GitilesCommit, error) {
+	gc := &bbproto.GitilesCommit{}
+	if err := proto.Unmarshal(gitilesBytes.SerializedProto, gc); err != nil {
+		return nil, fmt.Errorf("Couldn't decode %s as a GitilesCommit\n%v", gitilesBytes.String(), err)
+	}
+	log.Printf("Got GitilesCommit proto:\n%s", proto.MarshalTextString(gc))
+	return gc, nil
+}
+
+func (c *checkBuild) getRepoToSourceRoot(gc *bbproto.GitilesCommit) (*map[string]map[string]string, error) {
 	ctx := context.Background()
 	authOpts, err := c.authFlags.Options()
 	if err != nil {
@@ -211,11 +227,11 @@ func (c *checkBuild) getRepoToSourceRoot(manifestCommit string) (*map[string]map
 	if err != nil {
 		return nil, err
 	}
-	if manifestCommit == "" {
-		log.Print("No manifestCommit provided. Using 'snapshot' instead.")
-		manifestCommit = "snapshot"
+	if gc.Id == "" {
+		log.Print("No manifest commit provided. Using 'snapshot' instead.")
+		gc.Id = "snapshot"
 	}
-	repoToRemoteBranchToSrcRoot, err := repo.GetRepoToRemoteBranchToSourceRootFromManifests(authedClient, ctx, manifestCommit)
+	repoToRemoteBranchToSrcRoot, err := repo.GetRepoToRemoteBranchToSourceRootFromManifests(authedClient, ctx, gc)
 	if err != nil {
 		return nil, fmt.Errorf("Error with repo tool call\n%v", err)
 	}

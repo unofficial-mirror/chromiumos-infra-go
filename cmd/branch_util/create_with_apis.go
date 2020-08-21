@@ -55,7 +55,7 @@ func getCmdCreateBranchV2(opts auth.Options) *subcommands.Command {
 					"names to determine which versions have already been branched. "+
 					"Version validation is not possible when the naming convention "+
 					"is broken. Use this at your own risk.")
-			c.Flags.Float64Var(&c.gerritWriteQps, "gerrit-write-qps", 2.0,
+			c.Flags.Float64Var(&c.gerritWriteQps, "gerrit-write-qps", 1.0,
 				"Maximum QPS to use for Gerrit API write operations.")
 			return c
 		},

@@ -102,7 +102,16 @@ func (c *checkBuild) Run(a subcommands.Application, args []string, env subcomman
 		return 6
 	}
 
-	resp, err := build_plan.CheckBuilders(req.BuilderConfigs, changes, changeRevs, *repoToSrcRoot, *buildIrrelevanceCfg, *testReqsCfg, *builderConfigs)
+	checkBuildersInput := build_plan.CheckBuildersInput{
+		Builders:              req.BuilderConfigs,
+		Changes:               changes,
+		ChangeRevs:            changeRevs,
+		RepoToBranchToSrcRoot: *repoToSrcRoot,
+		BuildIrrelevanceCfg:   *buildIrrelevanceCfg,
+		TestReqsCfg:           *testReqsCfg,
+		BuilderConfigs:        *builderConfigs,
+	}
+	resp, err := checkBuildersInput.CheckBuilders()
 	if err != nil {
 		log.Printf("Error checking which builds can be skipped:\n%v", err)
 		return 7

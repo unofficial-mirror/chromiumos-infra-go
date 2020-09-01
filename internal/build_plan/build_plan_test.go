@@ -65,7 +65,17 @@ func TestCheckBuilders_imageBuilderFiltering(t *testing.T) {
 		makeBuilderConfig("chromite-not_an_image_builder", cros_pb.BuilderConfig_Id_TYPE_UNSPECIFIED, cros_pb.BuilderConfig_General_RunWhen_ALWAYS_RUN, []string{}),
 	}
 
-	res, err := CheckBuilders(b, changes, chRevData, repoToBranchToSrcRoot, buildIrrelevanceCfg, testReqsCfg, builderConfigs)
+	checkBuildersInput := &CheckBuildersInput{
+		Builders:              b,
+		Changes:               changes,
+		ChangeRevs:            chRevData,
+		RepoToBranchToSrcRoot: repoToBranchToSrcRoot,
+		BuildIrrelevanceCfg:   buildIrrelevanceCfg,
+		TestReqsCfg:           testReqsCfg,
+		BuilderConfigs:        builderConfigs,
+	}
+
+	res, err := checkBuildersInput.CheckBuilders()
 	if err != nil {
 		t.Error(err)
 	}
@@ -110,7 +120,17 @@ func TestCheckBuilders_noGerritChanges(t *testing.T) {
 		makeBuilderConfig("no_run_on_match", cros_pb.BuilderConfig_Id_CQ, cros_pb.BuilderConfig_General_RunWhen_NO_RUN_ON_FILE_MATCH, []string{"not/a/real/dir"}),
 	}
 
-	res, err := CheckBuilders(b, changes, chRevData, repoToBranchToSrcRoot, buildIrrelevanceCfg, testReqsCfg, builderConfigs)
+	checkBuildersInput := &CheckBuildersInput{
+		Builders:              b,
+		Changes:               changes,
+		ChangeRevs:            chRevData,
+		RepoToBranchToSrcRoot: repoToBranchToSrcRoot,
+		BuildIrrelevanceCfg:   buildIrrelevanceCfg,
+		TestReqsCfg:           testReqsCfg,
+		BuilderConfigs:        builderConfigs,
+	}
+
+	res, err := checkBuildersInput.CheckBuilders()
 	if err != nil {
 		t.Error(err)
 	}
@@ -163,7 +183,17 @@ func TestCheckBuilders_onlyRunOnFileMatch(t *testing.T) {
 		makeBuilderConfig("board_to_skip", cros_pb.BuilderConfig_Id_TYPE_UNSPECIFIED, cros_pb.BuilderConfig_General_RunWhen_ONLY_RUN_ON_FILE_MATCH, []string{"not/a/real/dir"}),
 	}
 
-	res, err := CheckBuilders(b, changes, chRevData, repoToBranchToSrcRoot, buildIrrelevanceCfg, testReqsCfg, builderConfigs)
+	checkBuildersInput := &CheckBuildersInput{
+		Builders:              b,
+		Changes:               changes,
+		ChangeRevs:            chRevData,
+		RepoToBranchToSrcRoot: repoToBranchToSrcRoot,
+		BuildIrrelevanceCfg:   buildIrrelevanceCfg,
+		TestReqsCfg:           testReqsCfg,
+		BuilderConfigs:        builderConfigs,
+	}
+
+	res, err := checkBuildersInput.CheckBuilders()
 	if err != nil {
 		t.Error(err)
 	}
@@ -252,7 +282,17 @@ func TestCheckBuilders_slimBuildersEligiblePaths(t *testing.T) {
 		makeBuilderConfig("non-testable-builder-with-slim-variant-cq", cros_pb.BuilderConfig_Id_CQ, cros_pb.BuilderConfig_General_RunWhen_ALWAYS_RUN, []string{}),
 	}
 
-	res, err := CheckBuilders(b, changes, chRevData, repoToBranchToSrcRoot, buildIrrelevanceCfg, testReqsCfg, builderConfigs)
+	checkBuildersInput := &CheckBuildersInput{
+		Builders:              b,
+		Changes:               changes,
+		ChangeRevs:            chRevData,
+		RepoToBranchToSrcRoot: repoToBranchToSrcRoot,
+		BuildIrrelevanceCfg:   buildIrrelevanceCfg,
+		TestReqsCfg:           testReqsCfg,
+		BuilderConfigs:        builderConfigs,
+	}
+
+	res, err := checkBuildersInput.CheckBuilders()
 	if err != nil {
 		t.Error(err)
 	}
@@ -332,7 +372,17 @@ func TestCheckBuilders_slimBuildersIneligiblePaths(t *testing.T) {
 		makeBuilderConfig("non-testable-builder-cq", cros_pb.BuilderConfig_Id_CQ, cros_pb.BuilderConfig_General_RunWhen_ALWAYS_RUN, []string{}),
 	}
 
-	res, err := CheckBuilders(b, changes, chRevData, repoToBranchToSrcRoot, buildIrrelevanceCfg, testReqsCfg, builderConfigs)
+	checkBuildersInput := &CheckBuildersInput{
+		Builders:              b,
+		Changes:               changes,
+		ChangeRevs:            chRevData,
+		RepoToBranchToSrcRoot: repoToBranchToSrcRoot,
+		BuildIrrelevanceCfg:   buildIrrelevanceCfg,
+		TestReqsCfg:           testReqsCfg,
+		BuilderConfigs:        builderConfigs,
+	}
+
+	res, err := checkBuildersInput.CheckBuilders()
 	if err != nil {
 		t.Error(err)
 	}
@@ -388,7 +438,17 @@ func TestCheckBuilders_NoRunOnFileMatch(t *testing.T) {
 		makeBuilderConfig("board_to_run", cros_pb.BuilderConfig_Id_TYPE_UNSPECIFIED, cros_pb.BuilderConfig_General_RunWhen_NO_RUN_ON_FILE_MATCH, []string{"not/a/real/dir"}),
 	}
 
-	res, err := CheckBuilders(b, changes, chRevData, repoToBranchToSrcRoot, buildIrrelevanceCfg, testReqsCfg, builderConfigs)
+	checkBuildersInput := &CheckBuildersInput{
+		Builders:              b,
+		Changes:               changes,
+		ChangeRevs:            chRevData,
+		RepoToBranchToSrcRoot: repoToBranchToSrcRoot,
+		BuildIrrelevanceCfg:   buildIrrelevanceCfg,
+		TestReqsCfg:           testReqsCfg,
+		BuilderConfigs:        builderConfigs,
+	}
+
+	res, err := checkBuildersInput.CheckBuilders()
 	if err != nil {
 		t.Error(err)
 	}

@@ -20,29 +20,32 @@ var (
 	slimEligiblePaths []string = []string{"src/platform2/**", "src/third_party/kernel/**"}
 )
 
+type CheckBuildersInput struct {
+	Builders              []*cros_pb.BuilderConfig
+	Changes               []*bbproto.GerritChange
+	ChangeRevs            *gerrit.ChangeRevData
+	RepoToBranchToSrcRoot map[string]map[string]string
+	BuildIrrelevanceCfg   testplans_pb.BuildIrrelevanceCfg
+	TestReqsCfg           testplans_pb.TargetTestRequirementsCfg
+	BuilderConfigs        cros_pb.BuilderConfigs
+}
+
 // CheckBuilders determines which builders can be skipped and which must be run.
-func CheckBuilders(
-	builders []*cros_pb.BuilderConfig,
-	changes []*bbproto.GerritChange,
-	changeRevs *gerrit.ChangeRevData,
-	repoToBranchToSrcRoot map[string]map[string]string,
-	buildIrrelevanceCfg testplans_pb.BuildIrrelevanceCfg,
-	testReqsCfg testplans_pb.TargetTestRequirementsCfg,
-	builderConfigs cros_pb.BuilderConfigs) (*cros_pb.GenerateBuildPlanResponse, error) {
+func (c *CheckBuildersInput) CheckBuilders() (*cros_pb.GenerateBuildPlanResponse, error) {
 
 	response := &cros_pb.GenerateBuildPlanResponse{}
 
 	// Get all of the files referenced by each GerritCommit in the Build.
-	affectedFiles, err := extractAffectedFiles(changes, changeRevs, repoToBranchToSrcRoot)
+	affectedFiles, err := extractAffectedFiles(c.Changes, c.ChangeRevs, c.RepoToBranchToSrcRoot)
 	if err != nil {
 		return nil, fmt.Errorf("error in extractAffectedFiles: %+v", err)
 	}
 	hasAffectedFiles := len(affectedFiles) > 0
-	ignoreImageBuilders := ignoreImageBuilders(affectedFiles, buildIrrelevanceCfg)
+	ignoreImageBuilders := ignoreImageBuilders(affectedFiles, c.BuildIrrelevanceCfg)
 	allowSlimBuilds := allowSlimBuilds(affectedFiles)
 
 builderLoop:
-	for _, b := range builders {
+	for _, b := range c.Builders {
 		if eligibleForGlobalIrrelevance(b) && ignoreImageBuilders {
 			log.Printf("Ignoring %v because it's an image builder and the changes don't affect Portage", b.GetId().GetName())
 			response.SkipForGlobalBuildIrrelevance = append(response.SkipForGlobalBuildIrrelevance, b.GetId())
@@ -64,8 +67,8 @@ builderLoop:
 		case cros_pb.BuilderConfig_General_RunWhen_ALWAYS_RUN, cros_pb.BuilderConfig_General_RunWhen_MODE_UNSPECIFIED:
 			log.Printf("Builder %v has %v RunWhen mode", b.GetId().GetName(), b.GetGeneral().GetRunWhen().GetMode())
 		}
-		if allowSlimBuilds && eligibleForSlimBuild(b, testReqsCfg) {
-			slimB := getSlimBuilder(b.GetId().GetName(), builderConfigs)
+		if allowSlimBuilds && eligibleForSlimBuild(b, c.TestReqsCfg) {
+			slimB := getSlimBuilder(b.GetId().GetName(), c.BuilderConfigs)
 			if slimB != nil {
 				log.Printf("Must run builder %v", slimB.GetId().GetName())
 				response.BuildsToRun = append(response.BuildsToRun, slimB.GetId())

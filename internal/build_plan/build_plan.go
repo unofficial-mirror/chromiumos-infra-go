@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	slimEligiblePaths []string = []string{"src/platform2/**", "src/third_party/kernel/**"}
+	slimEligiblePaths []string = []string{"src/third_party/kernel/v4.14/**"}
 )
 
 type CheckBuildersInput struct {
@@ -67,7 +67,8 @@ builderLoop:
 		case cros_pb.BuilderConfig_General_RunWhen_ALWAYS_RUN, cros_pb.BuilderConfig_General_RunWhen_MODE_UNSPECIFIED:
 			log.Printf("Builder %v has %v RunWhen mode", b.GetId().GetName(), b.GetGeneral().GetRunWhen().GetMode())
 		}
-		if allowSlimBuilds && eligibleForSlimBuild(b, c.TestReqsCfg) {
+		// TODO(crbug.com/1094321) Only schedule slim builds in staging through 16-Sept-2020 as a part of go/cros-slim-rollout.
+		if (b.General.Environment == cros_pb.BuilderConfig_General_STAGING) && allowSlimBuilds && eligibleForSlimBuild(b, c.TestReqsCfg) {
 			slimB := getSlimBuilder(b.GetId().GetName(), c.BuilderConfigs)
 			if slimB != nil {
 				log.Printf("Must run builder %v", slimB.GetId().GetName())

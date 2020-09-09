@@ -16,16 +16,13 @@ import (
 	bbproto "go.chromium.org/luci/buildbucket/proto"
 )
 
-var (
-	slimEligiblePaths []string = []string{"src/third_party/kernel/v4.14/**"}
-)
-
 type CheckBuildersInput struct {
 	Builders              []*cros_pb.BuilderConfig
 	Changes               []*bbproto.GerritChange
 	ChangeRevs            *gerrit.ChangeRevData
 	RepoToBranchToSrcRoot map[string]map[string]string
 	BuildIrrelevanceCfg   testplans_pb.BuildIrrelevanceCfg
+	SlimBuildCfg          testplans_pb.SlimBuildCfg
 	TestReqsCfg           testplans_pb.TargetTestRequirementsCfg
 	BuilderConfigs        cros_pb.BuilderConfigs
 }
@@ -42,7 +39,7 @@ func (c *CheckBuildersInput) CheckBuilders() (*cros_pb.GenerateBuildPlanResponse
 	}
 	hasAffectedFiles := len(affectedFiles) > 0
 	ignoreImageBuilders := ignoreImageBuilders(affectedFiles, c.BuildIrrelevanceCfg)
-	allowSlimBuilds := allowSlimBuilds(affectedFiles)
+	allowSlimBuilds := allowSlimBuilds(affectedFiles, c.SlimBuildCfg)
 
 builderLoop:
 	for _, b := range c.Builders {
@@ -83,12 +80,26 @@ builderLoop:
 }
 
 // Slim builds are only allows in select repos.
-func allowSlimBuilds(affectedFiles []string) bool {
+func allowSlimBuilds(affectedFiles []string, cfg testplans_pb.SlimBuildCfg) bool {
 	if len(affectedFiles) == 0 {
+		log.Print("Cannot schedule slim builds since no affected files were provided")
 		return false
 	}
-	matchedFiles := findFilesMatchingPatterns(affectedFiles, slimEligiblePaths)
-	return len(matchedFiles) == len(affectedFiles)
+affectedFile:
+	for _, f := range affectedFiles {
+		for _, pattern := range cfg.SlimEligibleFilePatterns {
+			match, err := doublestar.Match(pattern.Pattern, f)
+			if err != nil {
+			}
+			if match {
+				continue affectedFile
+			}
+		}
+		log.Printf("Not all affected files match slim-eligible patterns")
+		return false
+	}
+	log.Printf("All files matched slim-eligible patterns.")
+	return true
 }
 
 // Given a builder name, returns the builder config for the slim variant if it exists.

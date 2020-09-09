@@ -59,6 +59,8 @@ func TestCheckBuilders_imageBuilderFiltering(t *testing.T) {
 		},
 	}
 
+	slimBuildCfg := testplans_pb.SlimBuildCfg{}
+
 	testReqsCfg := testplans_pb.TargetTestRequirementsCfg{}
 
 	builderConfigs := cros_pb.BuilderConfigs{}
@@ -74,6 +76,7 @@ func TestCheckBuilders_imageBuilderFiltering(t *testing.T) {
 		ChangeRevs:            chRevData,
 		RepoToBranchToSrcRoot: repoToBranchToSrcRoot,
 		BuildIrrelevanceCfg:   buildIrrelevanceCfg,
+		SlimBuildCfg:          slimBuildCfg,
 		TestReqsCfg:           testReqsCfg,
 		BuilderConfigs:        builderConfigs,
 	}
@@ -112,6 +115,8 @@ func TestCheckBuilders_noGerritChanges(t *testing.T) {
 		},
 	}
 
+	slimBuildCfg := testplans_pb.SlimBuildCfg{}
+
 	testReqsCfg := testplans_pb.TargetTestRequirementsCfg{}
 
 	builderConfigs := cros_pb.BuilderConfigs{}
@@ -129,6 +134,7 @@ func TestCheckBuilders_noGerritChanges(t *testing.T) {
 		ChangeRevs:            chRevData,
 		RepoToBranchToSrcRoot: repoToBranchToSrcRoot,
 		BuildIrrelevanceCfg:   buildIrrelevanceCfg,
+		SlimBuildCfg:          slimBuildCfg,
 		TestReqsCfg:           testReqsCfg,
 		BuilderConfigs:        builderConfigs,
 	}
@@ -178,6 +184,7 @@ func TestCheckBuilders_onlyRunOnFileMatch(t *testing.T) {
 	}
 
 	buildIrrelevanceCfg := testplans_pb.BuildIrrelevanceCfg{}
+	slimBuildCfg := testplans_pb.SlimBuildCfg{}
 	testReqsCfg := testplans_pb.TargetTestRequirementsCfg{}
 	builderConfigs := cros_pb.BuilderConfigs{}
 
@@ -192,6 +199,7 @@ func TestCheckBuilders_onlyRunOnFileMatch(t *testing.T) {
 		ChangeRevs:            chRevData,
 		RepoToBranchToSrcRoot: repoToBranchToSrcRoot,
 		BuildIrrelevanceCfg:   buildIrrelevanceCfg,
+		SlimBuildCfg:          slimBuildCfg,
 		TestReqsCfg:           testReqsCfg,
 		BuilderConfigs:        builderConfigs,
 	}
@@ -241,6 +249,12 @@ func TestCheckBuilders_slimBuildersEligiblePaths(t *testing.T) {
 	}
 	buildIrrelevanceCfg := testplans_pb.BuildIrrelevanceCfg{}
 
+	slimBuildCfg := testplans_pb.SlimBuildCfg{
+		SlimEligibleFilePatterns: []*testplans_pb.FilePattern{
+			{Pattern: "src/third_party/kernel/**"},
+		},
+	}
+
 	testReqsCfg := testplans_pb.TargetTestRequirementsCfg{
 		PerTargetTestRequirements: []*testplans_pb.PerTargetTestRequirements{
 			&testplans_pb.PerTargetTestRequirements{
@@ -278,6 +292,7 @@ func TestCheckBuilders_slimBuildersEligiblePaths(t *testing.T) {
 		ChangeRevs:            chRevData,
 		RepoToBranchToSrcRoot: repoToBranchToSrcRoot,
 		BuildIrrelevanceCfg:   buildIrrelevanceCfg,
+		SlimBuildCfg:          slimBuildCfg,
 		TestReqsCfg:           testReqsCfg,
 		BuilderConfigs:        builderConfigs,
 	}
@@ -331,6 +346,12 @@ func TestCheckBuilders_slimBuildersNotStaging(t *testing.T) {
 	}
 	buildIrrelevanceCfg := testplans_pb.BuildIrrelevanceCfg{}
 
+	slimBuildCfg := testplans_pb.SlimBuildCfg{
+		SlimEligibleFilePatterns: []*testplans_pb.FilePattern{
+			{Pattern: "src/third_party/kernel/**"},
+		},
+	}
+
 	testReqsCfg := testplans_pb.TargetTestRequirementsCfg{
 		PerTargetTestRequirements: []*testplans_pb.PerTargetTestRequirements{
 			&testplans_pb.PerTargetTestRequirements{
@@ -363,6 +384,7 @@ func TestCheckBuilders_slimBuildersNotStaging(t *testing.T) {
 		ChangeRevs:            chRevData,
 		RepoToBranchToSrcRoot: repoToBranchToSrcRoot,
 		BuildIrrelevanceCfg:   buildIrrelevanceCfg,
+		SlimBuildCfg:          slimBuildCfg,
 		TestReqsCfg:           testReqsCfg,
 		BuilderConfigs:        builderConfigs,
 	}
@@ -425,6 +447,12 @@ func TestCheckBuilders_slimBuildersIneligiblePaths(t *testing.T) {
 	}
 	buildIrrelevanceCfg := testplans_pb.BuildIrrelevanceCfg{}
 
+	slimBuildCfg := testplans_pb.SlimBuildCfg{
+		SlimEligibleFilePatterns: []*testplans_pb.FilePattern{
+			{Pattern: "src/third_party/kernel/**"},
+		},
+	}
+
 	testReqsCfg := testplans_pb.TargetTestRequirementsCfg{
 		PerTargetTestRequirements: []*testplans_pb.PerTargetTestRequirements{
 			&testplans_pb.PerTargetTestRequirements{
@@ -452,6 +480,7 @@ func TestCheckBuilders_slimBuildersIneligiblePaths(t *testing.T) {
 		ChangeRevs:            chRevData,
 		RepoToBranchToSrcRoot: repoToBranchToSrcRoot,
 		BuildIrrelevanceCfg:   buildIrrelevanceCfg,
+		SlimBuildCfg:          slimBuildCfg,
 		TestReqsCfg:           testReqsCfg,
 		BuilderConfigs:        builderConfigs,
 	}
@@ -503,6 +532,8 @@ func TestCheckBuilders_NoRunOnFileMatch(t *testing.T) {
 
 	buildIrrelevanceCfg := testplans_pb.BuildIrrelevanceCfg{}
 
+	slimBuildCfg := testplans_pb.SlimBuildCfg{}
+
 	testReqsCfg := testplans_pb.TargetTestRequirementsCfg{}
 
 	builderConfigs := cros_pb.BuilderConfigs{}
@@ -518,6 +549,7 @@ func TestCheckBuilders_NoRunOnFileMatch(t *testing.T) {
 		ChangeRevs:            chRevData,
 		RepoToBranchToSrcRoot: repoToBranchToSrcRoot,
 		BuildIrrelevanceCfg:   buildIrrelevanceCfg,
+		SlimBuildCfg:          slimBuildCfg,
 		TestReqsCfg:           testReqsCfg,
 		BuilderConfigs:        builderConfigs,
 	}

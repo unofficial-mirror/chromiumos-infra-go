@@ -29,7 +29,7 @@ import (
 )
 
 const (
-	buildIrrelevanceConfigPath       = "testingconfig/generated/build_irrelevance_config.binaryproto"
+	buildIrrelevanceConfigPath       = "buildplanconfig/generated/build_irrelevance_config.binaryproto"
 	builderConfigsPath               = "generated/builder_configs.binaryproto"
 	targetTestRequirementsConfigPath = "testingconfig/generated/target_test_requirements.binaryproto"
 )

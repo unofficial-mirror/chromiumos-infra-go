@@ -28,7 +28,7 @@ import (
 )
 
 const (
-	buildIrrelevanceConfigPath = "testingconfig/generated/build_irrelevance_config.binaryproto"
+	buildIrrelevanceConfigPath = "buildplanconfig/generated/build_irrelevance_config.binaryproto"
 )
 
 var (

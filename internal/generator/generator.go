@@ -441,6 +441,7 @@ func srcPaths(
 	changeRevs *gerrit.ChangeRevData,
 	repoToBranchToSrcRoot map[string]map[string]string) ([]string, error) {
 	srcPaths := make([]string, 0)
+changeLoop:
 	for _, commit := range changes {
 		chRev, err := changeRevs.GetChangeRev(commit.Host, commit.Change, int32(commit.Patchset))
 		if err != nil {
@@ -453,7 +454,8 @@ func srcPaths(
 			}
 			srcRootMapping, found := branchMapping[chRev.Branch]
 			if !found {
-				return srcPaths, fmt.Errorf("Found no source mapping for project %s and branch %s", chRev.Project, chRev.Branch)
+				log.Printf("Found no source mapping for project %s and branch %s", chRev.Project, chRev.Branch)
+				continue changeLoop
 			}
 			srcPaths = append(srcPaths, fmt.Sprintf("%s/%s", srcRootMapping, file))
 		}

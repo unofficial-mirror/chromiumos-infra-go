@@ -38,12 +38,12 @@ func (c *CheckBuildersInput) CheckBuilders() (*cros_pb.GenerateBuildPlanResponse
 		return nil, fmt.Errorf("error in extractAffectedFiles: %+v", err)
 	}
 	hasAffectedFiles := len(affectedFiles) > 0
-	ignoreImageBuilders := ignoreImageBuilders(affectedFiles, c.BuildIrrelevanceCfg)
+	ignoreImageBuilders := ignoreImageBuilders(affectedFiles, c.BuildIrrelevanceCfg, c.Changes)
 	allowSlimBuilds := allowSlimBuilds(affectedFiles, c.SlimBuildCfg)
 
 builderLoop:
 	for _, b := range c.Builders {
-		if eligibleForGlobalIrrelevance(b) && ignoreImageBuilders {
+		if (eligibleForGlobalIrrelevance(b) || !hasAffectedFiles) && ignoreImageBuilders {
 			log.Printf("Ignoring %v because it's an image builder and the changes don't affect Portage", b.GetId().GetName())
 			response.SkipForGlobalBuildIrrelevance = append(response.SkipForGlobalBuildIrrelevance, b.GetId())
 			continue builderLoop
@@ -138,9 +138,10 @@ func eligibleForGlobalIrrelevance(b *cros_pb.BuilderConfig) bool {
 	return true
 }
 
-func ignoreImageBuilders(affectedFiles []string, cfg testplans_pb.BuildIrrelevanceCfg) bool {
-	if len(affectedFiles) == 0 {
-		log.Print("Cannot ignore image builders, since no affected files were provided")
+func ignoreImageBuilders(affectedFiles []string, cfg testplans_pb.BuildIrrelevanceCfg, changes []*bbproto.GerritChange) bool {
+	if len(changes) == 0 {
+		// This happens during postsubmit runs, for example.
+		log.Print("Cannot ignore image builders, since no changes were provided")
 		return false
 	}
 	// Filter out files that are irrelevant to Portage because of the config.
@@ -222,6 +223,7 @@ func stringInSlice(a string, list []string) bool {
 
 func extractAffectedFiles(changes []*bbproto.GerritChange, changeRevs *gerrit.ChangeRevData, repoToSrcRoot map[string]map[string]string) ([]string, error) {
 	allAffectedFiles := make([]string, 0)
+changeLoop:
 	for _, gc := range changes {
 		rev, err := changeRevs.GetChangeRev(gc.Host, gc.Change, int32(gc.Patchset))
 		if err != nil {
@@ -233,7 +235,8 @@ func extractAffectedFiles(changes []*bbproto.GerritChange, changeRevs *gerrit.Ch
 		}
 		srcRootMapping, found := branchMapping[rev.Branch]
 		if !found {
-			return nil, fmt.Errorf("Found no source mapping for project %s and branch %s", rev.Project, rev.Branch)
+			log.Printf("Found no source mapping for project %s and branch %s", rev.Project, rev.Branch)
+			continue changeLoop
 		}
 		affectedFiles := make([]string, 0, len(rev.Files))
 		for _, file := range rev.Files {

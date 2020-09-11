@@ -162,6 +162,75 @@ func TestCheckBuilders_noGerritChanges(t *testing.T) {
 	}
 }
 
+func TestCheckBuilders_withGerritChangesNoAffectedFiles(t *testing.T) {
+	// When there are GerritChanges, but no affected files, we run no builds.
+
+	changes := []*bbproto.GerritChange{
+		{Host: "test-review.googlesource.com", Change: 123, Patchset: 2, Project: "chromiumos/public/example"}}
+	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{
+		{
+			ChangeRevKey: gerrit.ChangeRevKey{
+				Host:      "test-review.googlesource.com",
+				ChangeNum: 123,
+				Revision:  2,
+			},
+			Branch:  "refs/heads/master",
+			Project: "chromiumos/public/example",
+			Files: []string{
+				"chromite-maybe/someotherdir/ignore_me.txt",
+			},
+		},
+	})
+	repoToBranchToSrcRoot := map[string]map[string]string{
+		"chromiumos/public/example": {"refs/heads/other": "src/pub/ex"},
+	}
+
+	buildIrrelevanceCfg := testplans_pb.BuildIrrelevanceCfg{}
+	slimBuildCfg := testplans_pb.SlimBuildCfg{}
+	testReqsCfg := testplans_pb.TargetTestRequirementsCfg{}
+	builderConfigs := cros_pb.BuilderConfigs{}
+
+	b := []*cros_pb.BuilderConfig{
+		makeBuilderConfig("my_image_builder", cros_pb.BuilderConfig_Id_CQ, cros_pb.BuilderConfig_General_RunWhen_ALWAYS_RUN, []string{}),
+		makeBuilderConfig("not_an_image_builder", cros_pb.BuilderConfig_Id_CQ, cros_pb.BuilderConfig_General_RunWhen_ALWAYS_RUN, []string{}),
+		makeBuilderConfig("only_run_on_match", cros_pb.BuilderConfig_Id_CQ, cros_pb.BuilderConfig_General_RunWhen_ONLY_RUN_ON_FILE_MATCH, []string{"**/match_me.txt"}),
+		makeBuilderConfig("no_run_on_match", cros_pb.BuilderConfig_Id_CQ, cros_pb.BuilderConfig_General_RunWhen_NO_RUN_ON_FILE_MATCH, []string{"not/a/real/dir"}),
+	}
+
+	checkBuildersInput := &CheckBuildersInput{
+		Builders:              b,
+		Changes:               changes,
+		ChangeRevs:            chRevData,
+		RepoToBranchToSrcRoot: repoToBranchToSrcRoot,
+		BuildIrrelevanceCfg:   buildIrrelevanceCfg,
+		SlimBuildCfg:          slimBuildCfg,
+		TestReqsCfg:           testReqsCfg,
+		BuilderConfigs:        builderConfigs,
+	}
+
+	res, err := checkBuildersInput.CheckBuilders()
+	if err != nil {
+		t.Error(err)
+	}
+	if len(res.BuildsToRun) != 0 {
+		t.Errorf("Expected BuildsToRun to be empty. Instead, %v", res.BuildsToRun)
+	}
+	if len(res.SkipForRunWhenRules) != 0 {
+		t.Errorf("Expected SkipForRunWhenRules to be empty. Instead, %v", res.SkipForRunWhenRules)
+	}
+	if len(res.SkipForGlobalBuildIrrelevance) != 4 {
+		t.Errorf("Expected SkipForGlobalBuildIrrelevance to have 4 elements. Instead, %v", res.SkipForGlobalBuildIrrelevance)
+	}
+	expectedBuilderNames := []string{"my_image_builder", "not_an_image_builder", "only_run_on_match", "no_run_on_match"}
+	actualBuilderNames := make([]string, 0)
+	for _, b := range res.SkipForGlobalBuildIrrelevance {
+		actualBuilderNames = append(actualBuilderNames, b.GetName())
+	}
+	if len(sliceDiff(expectedBuilderNames, actualBuilderNames)) != 0 {
+		t.Errorf("Expected res.SkipForGlobalBuildIrrelevance to contain builder names %v. Instead, %v", expectedBuilderNames, actualBuilderNames)
+	}
+}
+
 func TestCheckBuilders_onlyRunOnFileMatch(t *testing.T) {
 	changes := []*bbproto.GerritChange{
 		{Host: "test-review.googlesource.com", Change: 123, Patchset: 2, Project: "chromiumos/public/example"}}

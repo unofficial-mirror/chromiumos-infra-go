@@ -11,6 +11,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path"
 
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/golang/protobuf/proto"
@@ -49,6 +50,7 @@ func cmdGenTestPlan(authOpts auth.Options) *subcommands.Command {
 			c.Flags.StringVar(&c.outputJson, "output_json", "", "Path to file to write output GenerateTestPlanResponse JSON proto")
 			c.Flags.StringVar(&c.inputBinaryPb, "input_binary_pb", "", "Path to binaryproto file representing a GenerateTestPlanRequest")
 			c.Flags.StringVar(&c.outputBinaryPb, "output_binary_pb", "", "Path to file to write output GenerateTestPlanResponse binaryproto")
+			c.Flags.StringVar(&c.localConfigDir, "local_config_dir", "", "Path to an infra/config checkout, to be used rather than origin HEAD")
 			return c
 		}}
 }
@@ -62,7 +64,13 @@ func (c *getTestPlanRun) Run(a subcommands.Application, args []string, env subco
 		return 1
 	}
 
-	sourceTreeConfig, testReqsConfig, err := c.fetchConfigFromGitiles()
+	var sourceTreeConfig *testplans.SourceTreeTestCfg
+	var testReqsConfig *testplans.TargetTestRequirementsCfg
+	if c.localConfigDir == "" {
+		sourceTreeConfig, testReqsConfig, err = c.fetchConfigFromGitiles()
+	} else {
+		sourceTreeConfig, testReqsConfig, err = c.readLocalConfigFiles()
+	}
 	if err != nil {
 		log.Print(err)
 		return 2
@@ -118,6 +126,7 @@ type getTestPlanRun struct {
 	outputJson     string
 	inputBinaryPb  string
 	outputBinaryPb string
+	localConfigDir string
 }
 
 func (c *getTestPlanRun) readInput() (*testplans.GenerateTestPlanRequest, error) {
@@ -174,6 +183,34 @@ func (c *getTestPlanRun) fetchConfigFromGitiles() (*testplans.SourceTreeTestCfg,
 		return nil, nil, fmt.Errorf("Couldn't decode %s as a TargetTestRequirementsCfg\n%v", (*m)[targetTestRequirementsPath], err)
 	}
 	log.Printf("Fetched config from Gitiles:\n%s\n\n%s",
+		proto.MarshalTextString(sourceTreeConfig), proto.MarshalTextString(testReqsConfig))
+	return sourceTreeConfig, testReqsConfig, nil
+}
+
+func (c *getTestPlanRun) readLocalConfigFiles() (*testplans.SourceTreeTestCfg, *testplans.TargetTestRequirementsCfg, error) {
+	log.Print("--------------------------------------------")
+	log.Print("WARNING: Reading config from local dir.")
+	log.Print("Be sure that you've run `./regenerate_configs.sh -b` first to generate binaryproto files")
+	log.Print("--------------------------------------------")
+
+	stcBytes, err := ioutil.ReadFile(path.Join(c.localConfigDir, sourceTreeTestConfigPath))
+	if err != nil {
+		return nil, nil, fmt.Errorf("couldn't read SourceTreeTestCfg file: %v", err)
+	}
+	sourceTreeConfig := &testplans.SourceTreeTestCfg{}
+	if err := proto.Unmarshal(stcBytes, sourceTreeConfig); err != nil {
+		return nil, nil, fmt.Errorf("couldn't decode file as SourceTreeTestCfg: %v", err)
+	}
+
+	ttrBytes, err := ioutil.ReadFile(path.Join(c.localConfigDir, targetTestRequirementsPath))
+	if err != nil {
+		return nil, nil, fmt.Errorf("couldn't read TargetTestRequirementsCfg file: %v", err)
+	}
+	testReqsConfig := &testplans.TargetTestRequirementsCfg{}
+	if err := proto.Unmarshal(ttrBytes, testReqsConfig); err != nil {
+		return nil, nil, fmt.Errorf("couldn't decode file as TargetTestRequirementsCfg: %v", err)
+	}
+	log.Printf("Read local config:\n%s\n\n%s",
 		proto.MarshalTextString(sourceTreeConfig), proto.MarshalTextString(testReqsConfig))
 	return sourceTreeConfig, testReqsConfig, nil
 }

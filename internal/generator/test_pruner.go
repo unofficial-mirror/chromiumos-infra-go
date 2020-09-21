@@ -13,6 +13,8 @@ import (
 
 type testType int
 
+type testGroup string
+
 const (
 	hw testType = iota
 	vm
@@ -35,8 +37,13 @@ type testPruneResult struct {
 	disableHWTests      bool
 	disableVMTests      bool
 	disableNonTastTests bool
-	onlyTestGroups      map[string]bool
-	alsoTestGroups      map[string]bool
+	onlyTestGroups      map[testGroup]bool
+	oneofTestGroups     map[testGroup]bool
+	alsoTestGroups      map[testGroup]bool
+}
+
+func (tpr testPruneResult) hasOneofOrOnlyTestRules() bool {
+	return len(tpr.oneofTestGroups) > 0 || len(tpr.onlyTestGroups) > 0
 }
 
 func (tpr testPruneResult) canSkipForOnlyTestRule(groups []*testplans.TestSuiteCommon_TestSuiteGroup) bool {
@@ -45,7 +52,7 @@ func (tpr testPruneResult) canSkipForOnlyTestRule(groups []*testplans.TestSuiteC
 		return false
 	}
 	for _, g := range groups {
-		if tpr.onlyTestGroups[g.TestSuiteGroup] {
+		if tpr.onlyTestGroups[testGroup(g.TestSuiteGroup)] {
 			return false
 		}
 	}
@@ -54,7 +61,7 @@ func (tpr testPruneResult) canSkipForOnlyTestRule(groups []*testplans.TestSuiteC
 
 func (tpr testPruneResult) mustAddForAlsoTestRule(groups []*testplans.TestSuiteCommon_TestSuiteGroup) bool {
 	for _, g := range groups {
-		if tpr.alsoTestGroups[g.TestSuiteGroup] {
+		if tpr.alsoTestGroups[testGroup(g.TestSuiteGroup)] {
 			return true
 		}
 	}
@@ -114,26 +121,34 @@ func extractPruneResult(
 	}
 
 	canOnlyTestSomeBuilders := true
-	onlyTestGroups := make(map[string]bool)
+	onlyTestGroups := make(map[testGroup]bool)
+	oneofTestGroups := make(map[testGroup]bool)
 	for _, fileSrcPath := range srcPaths {
 		if canOnlyTestSomeBuilders {
 			fileOnlyTestGroups, err := getOnlyTestGroups(fileSrcPath, sourceTreeCfg)
 			if err != nil {
 				return result, err
 			}
-			if len(fileOnlyTestGroups) == 0 {
+			fileOneofTestGroups, err := getOneofTestGroups(fileSrcPath, sourceTreeCfg)
+			if err != nil {
+				return result, err
+			}
+			if len(fileOnlyTestGroups) == 0 && len(fileOneofTestGroups) == 0 {
 				log.Printf("cannot limit set of builders for testing due to %s", fileSrcPath)
 				canOnlyTestSomeBuilders = false
-				onlyTestGroups = make(map[string]bool)
+				onlyTestGroups = make(map[testGroup]bool)
 			} else {
-				for k, v := range fileOnlyTestGroups {
-					onlyTestGroups[k] = v
+				for g, include := range fileOnlyTestGroups {
+					onlyTestGroups[g] = include
+				}
+				for g, include := range fileOneofTestGroups {
+					oneofTestGroups[g] = include
 				}
 			}
 		}
 	}
 
-	alsoTestGroups := make(map[string]bool)
+	alsoTestGroups := make(map[testGroup]bool)
 	for _, fileSrcPath := range srcPaths {
 		fileAlsoTestGroups, err := getAlsoTestGroups(fileSrcPath, sourceTreeCfg)
 		if err != nil {
@@ -141,7 +156,7 @@ func extractPruneResult(
 		}
 		for k, v := range fileAlsoTestGroups {
 			alsoTestGroups[k] = v
-			log.Printf("will also test group %v due to file %v", k, fileSrcPath)
+			log.Printf("will also test testGroup %v due to file %v", k, fileSrcPath)
 		}
 	}
 
@@ -150,37 +165,60 @@ func extractPruneResult(
 			disableVMTests:      disableVM,
 			disableNonTastTests: disableNonTastTests,
 			onlyTestGroups:      onlyTestGroups,
+			oneofTestGroups:     oneofTestGroups,
 			alsoTestGroups:      alsoTestGroups},
 		nil
 }
 
 func getOnlyTestGroups(
 	sourcePath string,
-	sourceTreeCfg *testplans.SourceTreeTestCfg) (map[string]bool, error) {
-	onlyTestGroups := make(map[string]bool)
+	sourceTreeCfg *testplans.SourceTreeTestCfg) (map[testGroup]bool, error) {
+	onlyTestGroups := make(map[testGroup]bool)
 	for _, sourceTreeRestriction := range sourceTreeCfg.SourceTreeTestRestriction {
 		match, err := doublestar.Match(sourceTreeRestriction.GetFilePattern().GetPattern(), sourcePath)
 		if err != nil {
 			return onlyTestGroups, err
 		}
 		if match && sourceTreeRestriction.TestRestriction.GetCqOnlyTestGroup() != "" {
-			onlyTestGroups[sourceTreeRestriction.TestRestriction.GetCqOnlyTestGroup()] = true
+			onlyTestGroups[testGroup(sourceTreeRestriction.TestRestriction.GetCqOnlyTestGroup())] = true
 		}
 	}
 	return onlyTestGroups, nil
 }
 
+// getOneofTestGroups extracts rules from config about any type of oneof testing
+// that can be done for the provided path. For each of the keys in the returned
+// map, at least one test suite must be tested.
+func getOneofTestGroups(
+	sourcePath string,
+	sourceTreeCfg *testplans.SourceTreeTestCfg) (map[testGroup]bool, error) {
+	oneofTestGroups := make(map[testGroup]bool)
+	for _, sourceTreeRestriction := range sourceTreeCfg.SourceTreeTestRestriction {
+		match, err := doublestar.Match(sourceTreeRestriction.GetFilePattern().GetPattern(), sourcePath)
+		if err != nil {
+			return oneofTestGroups, err
+		}
+		otg := sourceTreeRestriction.TestRestriction.GetCqOneofTestGroups()
+		if match && otg != nil && len(otg.GetName()) != 0 {
+			for _, g := range otg.GetName() {
+				oneofTestGroups[testGroup(g)] = true
+			}
+		}
+	}
+	return oneofTestGroups, nil
+}
+
 func getAlsoTestGroups(
 	sourcePath string,
-	sourceTreeCfg *testplans.SourceTreeTestCfg) (map[string]bool, error) {
-	alsoTestGroups := make(map[string]bool)
+	sourceTreeCfg *testplans.SourceTreeTestCfg) (map[testGroup]bool, error) {
+	alsoTestGroups := make(map[testGroup]bool)
 	for _, sourceTreeRestriction := range sourceTreeCfg.SourceTreeTestRestriction {
 		match, err := doublestar.Match(sourceTreeRestriction.GetFilePattern().GetPattern(), sourcePath)
 		if err != nil {
 			return alsoTestGroups, err
 		}
 		if match && sourceTreeRestriction.TestRestriction.GetCqAlsoTestGroup() != "" {
-			alsoTestGroups[sourceTreeRestriction.TestRestriction.GetCqAlsoTestGroup()] = true
+			alsoTestGroups[testGroup(sourceTreeRestriction.TestRestriction.GetCqAlsoTestGroup())] = true
 		}
 	}
 	return alsoTestGroups, nil

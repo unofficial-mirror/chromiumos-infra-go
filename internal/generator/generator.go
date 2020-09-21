@@ -38,22 +38,9 @@ func CreateTestPlan(
 	repoToBranchToSrcRoot map[string]map[string]string) (*testplans.GenerateTestPlanResponse, error) {
 	testPlan := &testplans.GenerateTestPlanResponse{}
 
-	buildResults := eligibleTestBuilds(unfilteredBbBuilds)
-
-	// All the files in the GerritChanges, in source tree form.
-	srcPaths, err := srcPaths(gerritChanges, changeRevs, repoToBranchToSrcRoot)
-	if err != nil {
-		return testPlan, err
-	}
-
-	// For those changes, what pruning optimizations can be done?
-	pruneResult, err := extractPruneResult(sourceTreeCfg, srcPaths)
-	if err != nil {
-		return testPlan, err
-	}
-
-	// List of builds that will actually be tested, e.g. one per builder name.
+	// Match up the builds from the input to test requirements in the config.
 	targetBuildResults := make([]buildResult, 0)
+	buildResults := eligibleTestBuilds(unfilteredBbBuilds)
 perTargetTestReq:
 	for _, pttr := range targetTestReqs.PerTargetTestRequirements {
 		tbr, err := selectBuildForRequirements(pttr, buildResults)
@@ -67,7 +54,57 @@ perTargetTestReq:
 		targetBuildResults = append(targetBuildResults, *tbr)
 	}
 
-	return createResponse(targetBuildResults, pruneResult)
+	// Get the source paths of files in the CL(s), and figure out any test pruning
+	// possibilities based on those files.
+	srcPaths, err := srcPaths(gerritChanges, changeRevs, repoToBranchToSrcRoot)
+	if err != nil {
+		return testPlan, err
+	}
+	pruneResult, err := extractPruneResult(sourceTreeCfg, srcPaths)
+	if err != nil {
+		return testPlan, err
+	}
+
+	// If oneof or only rules were found for the provided source paths, figure
+	// out the right suites to test for those rules.
+	suitesForOneofAndOnly := make(map[string]bool)
+	if pruneResult.hasOneofOrOnlyTestRules() {
+		suitesForOneofAndOnly, err = oneofAndOnly(targetBuildResults, pruneResult)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return createResponse(targetBuildResults, pruneResult, suitesForOneofAndOnly)
+}
+
+func oneofAndOnly(targetBuildResults []buildResult, pruneResult *testPruneResult) (map[string]bool, error) {
+	// Test group --> test suites, sorted in descending order of preference that the
+	// planner should use to pick from the group.
+	groupsToSortedSuites, err := groupAndSort(targetBuildResults)
+	if err != nil {
+		return nil, err
+	}
+
+	suitesForOneofAndOnly := make(map[string]bool)
+	if pruneResult.hasOneofOrOnlyTestRules() {
+		for onlyGroup := range pruneResult.onlyTestGroups {
+			sorted := groupsToSortedSuites[onlyGroup]
+			for _, s := range sorted {
+				suitesForOneofAndOnly[s.tsc.GetDisplayName()] = true
+				log.Printf("Using OnlyTest rule for testGroup %v, adding %v", onlyGroup, s.tsc.GetDisplayName())
+			}
+		}
+		for oneofGroup := range pruneResult.oneofTestGroups {
+			sorted := groupsToSortedSuites[oneofGroup]
+			if len(sorted) > 0 {
+				suitesForOneofAndOnly[sorted[0].tsc.GetDisplayName()] = true
+				log.Printf("Using OneOfTest rule for testGroup %v, adding %v", oneofGroup, sorted[0].tsc.GetDisplayName())
+			}
+		}
+	}
+	log.Printf("SuitesForOneofAndOnly: %v", suitesForOneofAndOnly)
+	return suitesForOneofAndOnly, nil
 }
 
 func eligibleTestBuilds(unfilteredBbBuilds []*bbproto.Build) map[buildId]*bbproto.Build {
@@ -134,9 +171,7 @@ func getBuildTarget(bb *bbproto.Build) string {
 }
 
 // createResponse creates the final GenerateTestPlanResponse.
-func createResponse(
-	targetBuildResults []buildResult,
-	pruneResult *testPruneResult) (*testplans.GenerateTestPlanResponse, error) {
+func createResponse(targetBuildResults []buildResult, pruneResult *testPruneResult, only map[string]bool) (*testplans.GenerateTestPlanResponse, error) {
 
 	resp := &testplans.GenerateTestPlanResponse{}
 	// loop over the merged (Buildbucket build, TargetTestRequirements).
@@ -173,19 +208,20 @@ func createResponse(
 		}
 
 		if pttr.HwTestCfg != nil {
-			hwTestUnit := getHwTestUnit(tuc, pttr.HwTestCfg.HwTest, pruneResult, criticalBuild)
+			hwTestUnit := getHwTestUnit(tuc, pttr.HwTestCfg.HwTest, pruneResult, only, criticalBuild)
 			if hwTestUnit != nil {
 				resp.HwTestUnits = append(resp.HwTestUnits, hwTestUnit)
 			}
 		}
+
 		if pttr.DirectTastVmTestCfg != nil {
-			directTastVmTestUnit := getTastVmTestUnit(tuc, pttr.DirectTastVmTestCfg.TastVmTest, pruneResult, criticalBuild)
+			directTastVmTestUnit := getTastVmTestUnit(tuc, pttr.DirectTastVmTestCfg.TastVmTest, pruneResult, only, criticalBuild)
 			if directTastVmTestUnit != nil {
 				resp.DirectTastVmTestUnits = append(resp.DirectTastVmTestUnits, directTastVmTestUnit)
 			}
 		}
 		if pttr.VmTestCfg != nil {
-			vmTestUnit := getVmTestUnit(tuc, pttr.VmTestCfg.VmTest, pruneResult, criticalBuild)
+			vmTestUnit := getVmTestUnit(tuc, pttr.VmTestCfg.VmTest, pruneResult, only, criticalBuild)
 			if vmTestUnit != nil {
 				resp.VmTestUnits = append(resp.VmTestUnits, vmTestUnit)
 			}
@@ -194,7 +230,7 @@ func createResponse(
 	return resp, nil
 }
 
-func getHwTestUnit(tuc *testplans.TestUnitCommon, tests []*testplans.HwTestCfg_HwTest, pruneResult *testPruneResult, criticalBuild bool) *testplans.HwTestUnit {
+func getHwTestUnit(tuc *testplans.TestUnitCommon, tests []*testplans.HwTestCfg_HwTest, pruneResult *testPruneResult, only map[string]bool, criticalBuild bool) *testplans.HwTestUnit {
 	if tests == nil {
 		return nil
 	}
@@ -212,15 +248,25 @@ testLoop:
 			log.Printf("skipping non-Tast testing for %v", t.Common.DisplayName)
 			continue testLoop
 		}
-		mustTest := pruneResult.mustAddForAlsoTestRule(t.Common.TestSuiteGroups)
-		if !mustTest {
-			if pruneResult.canSkipForOnlyTestRule(t.Common.TestSuiteGroups) {
-				log.Printf("using OnlyTest rule to skip HW testing for %v", t.Common.DisplayName)
-				continue testLoop
-			}
-			if t.Common.DisableByDefault {
-				log.Printf("%v is disabled by default, and it was not triggered to be enabled", t.Common.DisplayName)
-				continue testLoop
+		// Always test if there's an alsoTest rule.
+		mustAlsoTest := pruneResult.mustAddForAlsoTestRule(t.Common.TestSuiteGroups)
+		if !mustAlsoTest {
+			inOnlyTestMode := len(only) > 0
+			if inOnlyTestMode {
+				// If there are only/oneof rules in effect, we keep the suite if that
+				// suite is in the `only` map, but not otherwise.
+				testNotNeeded := !only[t.Common.GetDisplayName()]
+				if testNotNeeded {
+					log.Printf("using OnlyTest rule to skip HW testing for %v", t.Common.DisplayName)
+					continue testLoop
+				}
+			} else {
+				// If we have no only/oneof rules in effect, we keep the suite unless
+				// there's a disableByDefault rule in effect.
+				if t.Common.DisableByDefault {
+					log.Printf("%v is disabled by default, and it was not triggered to be enabled", t.Common.DisplayName)
+					continue testLoop
+				}
 			}
 		}
 		log.Printf("adding testing for %v", t.Common.DisplayName)
@@ -233,7 +279,7 @@ testLoop:
 	return nil
 }
 
-func getTastVmTestUnit(tuc *testplans.TestUnitCommon, tests []*testplans.TastVmTestCfg_TastVmTest, pruneResult *testPruneResult, criticalBuild bool) *testplans.TastVmTestUnit {
+func getTastVmTestUnit(tuc *testplans.TestUnitCommon, tests []*testplans.TastVmTestCfg_TastVmTest, pruneResult *testPruneResult, only map[string]bool, criticalBuild bool) *testplans.TastVmTestUnit {
 	if tests == nil {
 		return nil
 	}
@@ -247,15 +293,25 @@ testLoop:
 			log.Printf("no Tast VM testing needed for %v", t.Common.DisplayName)
 			continue testLoop
 		}
-		mustTest := pruneResult.mustAddForAlsoTestRule(t.Common.TestSuiteGroups)
-		if !mustTest {
-			if pruneResult.canSkipForOnlyTestRule(t.Common.TestSuiteGroups) {
-				log.Printf("using OnlyTest rule to skip Tast VM testing for %v", t.Common.DisplayName)
-				continue testLoop
-			}
-			if t.Common.DisableByDefault {
-				log.Printf("%v is disabled by default, and it was not triggered to be enabled", t.Common.DisplayName)
-				continue testLoop
+		// Always test if there's an alsoTest rule.
+		mustAlsoTest := pruneResult.mustAddForAlsoTestRule(t.Common.TestSuiteGroups)
+		if !mustAlsoTest {
+			inOnlyTestMode := len(only) > 0
+			if inOnlyTestMode {
+				// If there are only/oneof rules in effect, we keep the suite if that
+				// suite is in the `only` map, but not otherwise.
+				testNotNeeded := !only[t.Common.GetDisplayName()]
+				if testNotNeeded {
+					log.Printf("using OnlyTest rule to skip HW testing for %v", t.Common.DisplayName)
+					continue testLoop
+				}
+			} else {
+				// If we have no only/oneof rules in effect, we keep the suite unless
+				// there's a disableByDefault rule in effect.
+				if t.Common.DisableByDefault {
+					log.Printf("%v is disabled by default, and it was not triggered to be enabled", t.Common.DisplayName)
+					continue testLoop
+				}
 			}
 		}
 		log.Printf("adding testing for %v", t.Common.DisplayName)
@@ -268,7 +324,7 @@ testLoop:
 	return nil
 }
 
-func getVmTestUnit(tuc *testplans.TestUnitCommon, tests []*testplans.VmTestCfg_VmTest, pruneResult *testPruneResult, criticalBuild bool) *testplans.VmTestUnit {
+func getVmTestUnit(tuc *testplans.TestUnitCommon, tests []*testplans.VmTestCfg_VmTest, pruneResult *testPruneResult, only map[string]bool, criticalBuild bool) *testplans.VmTestUnit {
 	if tests == nil {
 		return nil
 	}
@@ -286,15 +342,25 @@ testLoop:
 			log.Printf("skipping non-Tast testing for %v", t.Common.DisplayName)
 			continue testLoop
 		}
-		mustTest := pruneResult.mustAddForAlsoTestRule(t.Common.TestSuiteGroups)
-		if !mustTest {
-			if pruneResult.canSkipForOnlyTestRule(t.Common.TestSuiteGroups) {
-				log.Printf("using OnlyTest rule to skip VM testing for %v", t.Common.DisplayName)
-				continue testLoop
-			}
-			if t.Common.DisableByDefault {
-				log.Printf("%v is disabled by default, and it was not triggered to be enabled", t.Common.DisplayName)
-				continue testLoop
+		// Always test if there's an alsoTest rule.
+		mustAlsoTest := pruneResult.mustAddForAlsoTestRule(t.Common.TestSuiteGroups)
+		if !mustAlsoTest {
+			inOnlyTestMode := len(only) > 0
+			if inOnlyTestMode {
+				// If there are only/oneof rules in effect, we keep the suite if that
+				// suite is in the `only` map, but not otherwise.
+				testNotNeeded := !only[t.Common.GetDisplayName()]
+				if testNotNeeded {
+					log.Printf("using OnlyTest rule to skip HW testing for %v", t.Common.DisplayName)
+					continue testLoop
+				}
+			} else {
+				// If we have no only/oneof rules in effect, we keep the suite unless
+				// there's a disableByDefault rule in effect.
+				if t.Common.DisableByDefault {
+					log.Printf("%v is disabled by default, and it was not triggered to be enabled", t.Common.DisplayName)
+					continue testLoop
+				}
 			}
 		}
 		log.Printf("adding testing for %v", t.Common.DisplayName)

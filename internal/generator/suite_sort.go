@@ -5,6 +5,7 @@
 package generator
 
 import (
+	"fmt"
 	"sort"
 
 	"go.chromium.org/chromiumos/infra/proto/go/testplans"
@@ -31,9 +32,7 @@ type testSuite struct {
 	isVm        bool
 }
 
-type group string
-
-func tsc(buildResult buildResult, skylabBoard string, tsc *testplans.TestSuiteCommon, isVm bool, m map[group][]testSuite) map[group][]testSuite {
+func tsc(buildResult buildResult, skylabBoard string, tsc *testplans.TestSuiteCommon, isVm bool, m map[testGroup][]testSuite) map[testGroup][]testSuite {
 	ts := testSuite{
 		tsc:         tsc,
 		build:       buildResult.build,
@@ -41,7 +40,7 @@ func tsc(buildResult buildResult, skylabBoard string, tsc *testplans.TestSuiteCo
 		isVm:        isVm,
 	}
 	for _, tsg := range tsc.GetTestSuiteGroups() {
-		g := group(tsg.GetTestSuiteGroup())
+		g := testGroup(tsg.GetTestSuiteGroup())
 		m[g] = append(m[g], ts)
 	}
 	return m
@@ -51,13 +50,13 @@ func (ts testSuite) String() string {
 	return ts.tsc.GetDisplayName()
 }
 
-// groupAndSort groups known test suites by the test group(s) they're in, then
-// sorts each group by the preference that the test plan generator should show
-// toward elements in that group. The first element in each group is the one
+// groupAndSort groups known test suites by the test testGroup(s) they're in, then
+// sorts each testGroup by the preference that the test plan generator should show
+// toward elements in that testGroup. The first element in each testGroup is the one
 // that the test plan generator is encouraged to schedule against first.
 // This all supports oneof-based testing. See go/cq-oneof
-func groupAndSort(buildResult []buildResult) map[group][]testSuite {
-	m := make(map[group][]testSuite)
+func groupAndSort(buildResult []buildResult) (map[testGroup][]testSuite, error) {
+	m := make(map[testGroup][]testSuite)
 	for _, br := range buildResult {
 		req := br.perTargetTestReqs
 		for _, t := range req.GetHwTestCfg().GetHwTest() {
@@ -77,6 +76,13 @@ func groupAndSort(buildResult []buildResult) map[group][]testSuite {
 		}
 	}
 	for _, suites := range m {
+		for _, s := range suites {
+			if s.tsc.GetDisplayName() == "" {
+				// Display name is required in the generator as a key for referring to
+				// each suite. All suites in the config therefore must have a display name.
+				return nil, fmt.Errorf("missing display name for test suite %v", s)
+			}
+		}
 		sort.Slice(suites, func(i, j int) bool {
 			if suites[i].tsc.GetCritical().GetValue() != suites[j].tsc.GetCritical().GetValue() {
 				// critical test suites at the front
@@ -100,5 +106,5 @@ func groupAndSort(buildResult []buildResult) map[group][]testSuite {
 			return suites[i].tsc.GetDisplayName() < suites[j].tsc.GetDisplayName()
 		})
 	}
-	return m
+	return m, nil
 }

@@ -158,9 +158,9 @@ func TestCreateCombinedTestPlan_manyUnitSuccess(t *testing.T) {
 				TargetCriteria: &testplans.TargetCriteria{
 					BuilderName: "kevin-cq",
 					TargetType:  &testplans.TargetCriteria_BuildTarget{BuildTarget: "kevin"}},
-				HwTestCfg:     kevinHWTestCfg,
+				HwTestCfg:           kevinHWTestCfg,
 				DirectTastVmTestCfg: kevinTastVMTestCfg,
-				VmTestCfg:     kevinVMTestCfg},
+				VmTestCfg:           kevinVMTestCfg},
 		},
 	}
 	sourceTreeTestCfg := &testplans.SourceTreeTestCfg{
@@ -382,7 +382,8 @@ func TestCreateCombinedTestPlan_doesOnlyTest(t *testing.T) {
 	kevinHWTestCfg := &testplans.HwTestCfg{HwTest: []*testplans.HwTestCfg_HwTest{
 		{
 			Common: &testplans.TestSuiteCommon{
-				TestSuiteGroups: []*testplans.TestSuiteCommon_TestSuiteGroup{{TestSuiteGroup: "my-test-group"}},
+				DisplayName:     "kev-cq.bvt-some-suite",
+				TestSuiteGroups: []*testplans.TestSuiteCommon_TestSuiteGroup{{TestSuiteGroup: "my-test-testGroup"}},
 			},
 			Suite:           "HW kevin",
 			SkylabBoard:     "kev",
@@ -392,7 +393,8 @@ func TestCreateCombinedTestPlan_doesOnlyTest(t *testing.T) {
 	bobHWTestCfg := &testplans.HwTestCfg{HwTest: []*testplans.HwTestCfg_HwTest{
 		{
 			Common: &testplans.TestSuiteCommon{
-				TestSuiteGroups: []*testplans.TestSuiteCommon_TestSuiteGroup{{TestSuiteGroup: "some-other-test-group"}},
+				DisplayName:     "bob-cq.bvt-some-suite",
+				TestSuiteGroups: []*testplans.TestSuiteCommon_TestSuiteGroup{{TestSuiteGroup: "some-other-test-testGroup"}},
 			},
 			Suite:           "HW bob",
 			SkylabBoard:     "bob board",
@@ -418,7 +420,101 @@ func TestCreateCombinedTestPlan_doesOnlyTest(t *testing.T) {
 			{
 				FilePattern: &testplans.FilePattern{Pattern: "no/hw/tests/here/some/**"},
 				TestRestriction: &testplans.TestRestriction{
-					CqTestWhen: &testplans.TestRestriction_CqOnlyTestGroup{CqOnlyTestGroup: "my-test-group"},
+					CqTestWhen: &testplans.TestRestriction_CqOnlyTestGroup{CqOnlyTestGroup: "my-test-testGroup"},
+				}}}}
+	bbBuilds := []*bbproto.Build{
+		makeBuildbucketBuild("kevin", "kevin-cq", bbproto.Status_SUCCESS, true),
+		makeBuildbucketBuild("bob", "bob-cq", bbproto.Status_SUCCESS, true),
+	}
+	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{
+		{
+			ChangeRevKey: gerrit.ChangeRevKey{
+				Host:      "test-review.googlesource.com",
+				ChangeNum: 123,
+				Revision:  2,
+			},
+			Branch:  "refs/heads/master",
+			Project: "chromiumos/test/repo/name",
+			Files:   []string{"some/file"},
+		},
+	})
+	repoToBranchToSrcRoot := map[string]map[string]string{"chromiumos/test/repo/name": {"refs/heads/master": "no/hw/tests/here"}}
+	gerritChanges := []*bbproto.GerritChange{
+		{Host: "test-review.googlesource.com", Change: 123, Patchset: 2},
+	}
+
+	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, gerritChanges, chRevData, repoToBranchToSrcRoot)
+	if err != nil {
+		t.Error(err)
+	}
+
+	expectedTestPlan := &testplans.GenerateTestPlanResponse{
+		HwTestUnits: []*testplans.HwTestUnit{
+			{
+				Common: &testplans.TestUnitCommon{
+					BuildPayload: &testplans.BuildPayload{
+						ArtifactsGsBucket: GS_BUCKET,
+						ArtifactsGsPath:   GS_PATH_PREFIX + "kevin",
+						FilesByArtifact:   &simpleFilesByArtifact,
+					},
+					BuilderName: "kevin-cq",
+					BuildTarget: &chromiumos.BuildTarget{Name: "kevin"}},
+				HwTestCfg: kevinHWTestCfg},
+		},
+	}
+
+	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, cmpopts.EquateEmpty(), cmpopts.IgnoreUnexported(_struct.Value{}, _struct.Struct{}, wrappers.BoolValue{})); diff != "" {
+		t.Errorf("CreateCombinedTestPlan bad result (-want/+got)\n%s", diff)
+	}
+}
+
+func TestCreateCombinedTestPlan_doesOneofTest(t *testing.T) {
+	boardPriorities = map[string]int32{
+		"kev": -1,
+		"bob": 1,
+	}
+	kevinHWTestCfg := &testplans.HwTestCfg{HwTest: []*testplans.HwTestCfg_HwTest{
+		{
+			Common: &testplans.TestSuiteCommon{
+				DisplayName:     "kev-cq.bvt-some-suite",
+				TestSuiteGroups: []*testplans.TestSuiteCommon_TestSuiteGroup{{TestSuiteGroup: "my-test-testGroup"}},
+			},
+			Suite:           "HW kevin",
+			SkylabBoard:     "kev",
+			HwTestSuiteType: testplans.HwTestCfg_AUTOTEST,
+		},
+	}}
+	bobHWTestCfg := &testplans.HwTestCfg{HwTest: []*testplans.HwTestCfg_HwTest{
+		{
+			Common: &testplans.TestSuiteCommon{
+				DisplayName:     "bob-cq.bvt-some-suite",
+				TestSuiteGroups: []*testplans.TestSuiteCommon_TestSuiteGroup{{TestSuiteGroup: "my-test-testGroup"}},
+			},
+			Suite:           "HW bob",
+			SkylabBoard:     "bob board",
+			HwTestSuiteType: testplans.HwTestCfg_AUTOTEST,
+		},
+	}}
+	testReqs := &testplans.TargetTestRequirementsCfg{
+		PerTargetTestRequirements: []*testplans.PerTargetTestRequirements{
+			{
+				TargetCriteria: &testplans.TargetCriteria{
+					BuilderName: "kevin-cq",
+					TargetType:  &testplans.TargetCriteria_BuildTarget{BuildTarget: "kevin"}},
+				HwTestCfg: kevinHWTestCfg},
+			{
+				TargetCriteria: &testplans.TargetCriteria{
+					BuilderName: "bob-cq",
+					TargetType:  &testplans.TargetCriteria_BuildTarget{BuildTarget: "bob"}},
+				HwTestCfg: bobHWTestCfg},
+		},
+	}
+	sourceTreeTestCfg := &testplans.SourceTreeTestCfg{
+		SourceTreeTestRestriction: []*testplans.SourceTreeTestRestriction{
+			{
+				FilePattern: &testplans.FilePattern{Pattern: "no/hw/tests/here/some/**"},
+				TestRestriction: &testplans.TestRestriction{
+					CqTestWhen: &testplans.TestRestriction_CqOneofTestGroups{CqOneofTestGroups: &testplans.TestGroups{Name: []string{"my-test-testGroup", "irrelevant-test-testGroup"}}},
 				}}}}
 	bbBuilds := []*bbproto.Build{
 		makeBuildbucketBuild("kevin", "kevin-cq", bbproto.Status_SUCCESS, true),
@@ -470,7 +566,7 @@ func TestCreateCombinedTestPlan_doesAlsoTest(t *testing.T) {
 	kevinHWTestCfg := &testplans.HwTestCfg{HwTest: []*testplans.HwTestCfg_HwTest{
 		{
 			Common: &testplans.TestSuiteCommon{
-				TestSuiteGroups:  []*testplans.TestSuiteCommon_TestSuiteGroup{{TestSuiteGroup: "my-test-group"}},
+				TestSuiteGroups:  []*testplans.TestSuiteCommon_TestSuiteGroup{{TestSuiteGroup: "my-test-testGroup"}},
 				DisableByDefault: true,
 			},
 			Suite:           "HW kevin",
@@ -481,7 +577,7 @@ func TestCreateCombinedTestPlan_doesAlsoTest(t *testing.T) {
 	bobHWTestCfg := &testplans.HwTestCfg{HwTest: []*testplans.HwTestCfg_HwTest{
 		{
 			Common: &testplans.TestSuiteCommon{
-				TestSuiteGroups:  []*testplans.TestSuiteCommon_TestSuiteGroup{{TestSuiteGroup: "some-other-test-group"}},
+				TestSuiteGroups:  []*testplans.TestSuiteCommon_TestSuiteGroup{{TestSuiteGroup: "some-other-test-testGroup"}},
 				DisableByDefault: true,
 			},
 			Suite:           "HW bob",
@@ -508,7 +604,7 @@ func TestCreateCombinedTestPlan_doesAlsoTest(t *testing.T) {
 		SourceTreeTestRestriction: []*testplans.SourceTreeTestRestriction{
 			{FilePattern: &testplans.FilePattern{Pattern: "no/hw/tests/here/some/**"},
 				TestRestriction: &testplans.TestRestriction{
-					CqTestWhen: &testplans.TestRestriction_CqAlsoTestGroup{CqAlsoTestGroup: "my-test-group"},
+					CqTestWhen: &testplans.TestRestriction_CqAlsoTestGroup{CqAlsoTestGroup: "my-test-testGroup"},
 				}}}}
 	bbBuilds := []*bbproto.Build{
 		makeBuildbucketBuild("kevin", "kevin-cq", bbproto.Status_SUCCESS, true),

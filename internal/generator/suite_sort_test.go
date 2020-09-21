@@ -84,38 +84,41 @@ func Test_SortOrder(t *testing.T) {
 
 	br := []buildResult{
 		// This will be the second ranked suite, since it's hw (vm goes first) and coral is a very common board.
-		hwBuildResult("coral-arc-r", "coral-arc-r-cq", "coral", true, true, []string{"group 1", "group 5"}),
-		hwBuildResult("sarien", "sarien-cq", "sarien", true, true, []string{"group 1"}),
+		hwBuildResult("coral-arc-r", "coral-arc-r-cq", "coral", true, true, []string{"testGroup 1", "testGroup 5"}),
+		hwBuildResult("sarien", "sarien-cq", "sarien", true, true, []string{"testGroup 1"}),
 		// This will be last overall, since it's a noncritical suite.
-		hwBuildResult("ocean", "ocean-cq", "ocean", false, true, []string{"group 1"}),
-		hwBuildResult("ocean-bark-r", "ocean-bark-r-cq", "ocean", true, false, []string{"group 1"}),
-		hwBuildResult("coral", "coral-cq", "coral", true, true, []string{"group 1"}),
+		hwBuildResult("ocean", "ocean-cq", "ocean", false, true, []string{"testGroup 1"}),
+		hwBuildResult("ocean-bark-r", "ocean-bark-r-cq", "ocean", true, false, []string{"testGroup 1"}),
+		hwBuildResult("coral", "coral-cq", "coral", true, true, []string{"testGroup 1"}),
 		// This will be the overall top priority, since it's a critical VM test suite.
-		vmBuildResult("betty", "betty-arc-b-cq", true, true, []string{"group 1"}),
-		vmBuildResult("betty", "betty-shark-cq", false, true, []string{"group 1"}),
+		vmBuildResult("betty", "betty-arc-b-cq", true, true, []string{"testGroup 1"}),
+		vmBuildResult("betty", "betty-shark-cq", false, true, []string{"testGroup 1"}),
 	}
 
-	r := groupAndSort(br)
+	r, err := groupAndSort(br)
+	if err != nil {
+		t.Error(err)
+	}
 
-	group5 := r["group 5"]
+	group5 := r["testGroup 5"]
 	if len(group5) != 1 {
-		t.Errorf("wanted %v suites in group 5, got %v", 1, len(group5))
+		t.Errorf("wanted %v suites in testGroup 5, got %v", 1, len(group5))
 	}
 	if group5[0].tsc.GetDisplayName() != "coral-arc-r-cq.bvt-tast-cq" {
-		t.Errorf("wanted %v as suite in group 5, got %v", "coral-arc-r-cq.bvt-tast-cq", group5[0].tsc.GetDisplayName())
+		t.Errorf("wanted %v as suite in testGroup 5, got %v", "coral-arc-r-cq.bvt-tast-cq", group5[0].tsc.GetDisplayName())
 	}
 
-	group1 := r["group 1"]
+	group1 := r["testGroup 1"]
 	if len(group1) != 7 {
-		t.Errorf("wanted %v suites in group 1, got %v", 7, len(group1))
+		t.Errorf("wanted %v suites in testGroup 1, got %v", 7, len(group1))
 	}
 	if group1[0].tsc.GetDisplayName() != "betty-arc-b-cq.bvt-tast-vm-cq" {
-		t.Errorf("wanted %v as first suite in group 1, got %v", "betty-arc-b-cq.bvt-tast-vm-cq", group1[0].tsc.GetDisplayName())
+		t.Errorf("wanted %v as first suite in testGroup 1, got %v", "betty-arc-b-cq.bvt-tast-vm-cq", group1[0].tsc.GetDisplayName())
 	}
 	if group1[1].tsc.GetDisplayName() != "coral-arc-r-cq.bvt-tast-cq" {
-		t.Errorf("wanted %v as second suite in group 1, got %v", "coral-arc-r-cq.bvt-tast-cq", group1[1].tsc.GetDisplayName())
+		t.Errorf("wanted %v as second suite in testGroup 1, got %v", "coral-arc-r-cq.bvt-tast-cq", group1[1].tsc.GetDisplayName())
 	}
 	if group1[len(group1)-1].tsc.GetDisplayName() != "ocean-cq.bvt-tast-cq" {
-		t.Errorf("wanted %v as last suite in group 1, got %v", "ocean-cq.bvt-tast-cq", group1[len(group1)-1].tsc.GetDisplayName())
+		t.Errorf("wanted %v as last suite in testGroup 1, got %v", "ocean-cq.bvt-tast-cq", group1[len(group1)-1].tsc.GetDisplayName())
 	}
 }

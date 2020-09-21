@@ -65,12 +65,6 @@ func groupAndSort(buildResult []buildResult) (map[testGroup][]testSuite, error) 
 		for _, t := range req.GetDirectTastVmTestCfg().GetTastVmTest() {
 			m = tsc(br, br.buildId.buildTarget, t.GetCommon(), true, m)
 		}
-		for _, t := range req.GetMoblabVmTestCfg().GetMoblabTest() {
-			m = tsc(br, br.buildId.buildTarget, t.GetCommon(), true, m)
-		}
-		for _, t := range req.GetTastVmTestCfg().GetTastVmTest() {
-			m = tsc(br, br.buildId.buildTarget, t.GetCommon(), true, m)
-		}
 		for _, t := range req.GetVmTestCfg().GetVmTest() {
 			m = tsc(br, br.buildId.buildTarget, t.GetCommon(), true, m)
 		}

@@ -127,8 +127,8 @@ func TestCreateCombinedTestPlan_oneUnitSuccess(t *testing.T) {
 }
 
 func TestCreateCombinedTestPlan_manyUnitSuccess(t *testing.T) {
-	kevinDebugMoblabVmTestCfg := &testplans.MoblabVmTestCfg{MoblabTest: []*testplans.MoblabVmTestCfg_MoblabTest{
-		{TestType: "Moblab kevin debug kernel", Common: &testplans.TestSuiteCommon{Critical: &wrappers.BoolValue{Value: true}}},
+	kevinDebugVmTestCfg := &testplans.VmTestCfg{VmTest: []*testplans.VmTestCfg_VmTest{
+		{TestSuite: "VM kevin debug kernel", Common: &testplans.TestSuiteCommon{Critical: &wrappers.BoolValue{Value: true}}},
 	}}
 	kevinHWTestCfg := &testplans.HwTestCfg{HwTest: []*testplans.HwTestCfg_HwTest{
 		{
@@ -153,13 +153,13 @@ func TestCreateCombinedTestPlan_manyUnitSuccess(t *testing.T) {
 				TargetCriteria: &testplans.TargetCriteria{
 					BuilderName: "kevin-debug-kernel-cq",
 					TargetType:  &testplans.TargetCriteria_BuildTarget{BuildTarget: "kevin"}},
-				MoblabVmTestCfg: kevinDebugMoblabVmTestCfg},
+				VmTestCfg: kevinDebugVmTestCfg},
 			{
 				TargetCriteria: &testplans.TargetCriteria{
 					BuilderName: "kevin-cq",
 					TargetType:  &testplans.TargetCriteria_BuildTarget{BuildTarget: "kevin"}},
 				HwTestCfg:     kevinHWTestCfg,
-				TastVmTestCfg: kevinTastVMTestCfg,
+				DirectTastVmTestCfg: kevinTastVMTestCfg,
 				VmTestCfg:     kevinVMTestCfg},
 		},
 	}
@@ -193,18 +193,6 @@ func TestCreateCombinedTestPlan_manyUnitSuccess(t *testing.T) {
 	}
 
 	expectedTestPlan := &testplans.GenerateTestPlanResponse{
-		MoblabVmTestUnits: []*testplans.MoblabVmTestUnit{
-			{
-				Common: &testplans.TestUnitCommon{
-					BuildPayload: &testplans.BuildPayload{
-						ArtifactsGsBucket: GS_BUCKET,
-						ArtifactsGsPath:   GS_PATH_PREFIX + "kevin",
-						FilesByArtifact:   &simpleFilesByArtifact,
-					},
-					BuilderName: "kevin-debug-kernel-cq",
-					BuildTarget: &chromiumos.BuildTarget{Name: "kevin"}},
-				MoblabVmTestCfg: kevinDebugMoblabVmTestCfg},
-		},
 		HwTestUnits: []*testplans.HwTestUnit{
 			{
 				Common: &testplans.TestUnitCommon{
@@ -217,7 +205,7 @@ func TestCreateCombinedTestPlan_manyUnitSuccess(t *testing.T) {
 					BuildTarget: &chromiumos.BuildTarget{Name: "kevin"}},
 				HwTestCfg: kevinHWTestCfg},
 		},
-		TastVmTestUnits: []*testplans.TastVmTestUnit{
+		DirectTastVmTestUnits: []*testplans.TastVmTestUnit{
 			{
 				Common: &testplans.TestUnitCommon{
 					BuildPayload: &testplans.BuildPayload{
@@ -230,6 +218,16 @@ func TestCreateCombinedTestPlan_manyUnitSuccess(t *testing.T) {
 				TastVmTestCfg: kevinTastVMTestCfg},
 		},
 		VmTestUnits: []*testplans.VmTestUnit{
+			{
+				Common: &testplans.TestUnitCommon{
+					BuildPayload: &testplans.BuildPayload{
+						ArtifactsGsBucket: GS_BUCKET,
+						ArtifactsGsPath:   GS_PATH_PREFIX + "kevin",
+						FilesByArtifact:   &simpleFilesByArtifact,
+					},
+					BuilderName: "kevin-debug-kernel-cq",
+					BuildTarget: &chromiumos.BuildTarget{Name: "kevin"}},
+				VmTestCfg: kevinDebugVmTestCfg},
 			{
 				Common: &testplans.TestUnitCommon{
 					BuildPayload: &testplans.BuildPayload{

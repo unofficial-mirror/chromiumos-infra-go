@@ -178,20 +178,6 @@ func createResponse(
 				resp.HwTestUnits = append(resp.HwTestUnits, hwTestUnit)
 			}
 		}
-
-		if pttr.MoblabVmTestCfg != nil {
-			moblabTestUnit := getMoblabTestUnit(tuc, pttr.MoblabVmTestCfg.MoblabTest, pruneResult, criticalBuild)
-			if moblabTestUnit != nil {
-				resp.MoblabVmTestUnits = append(resp.MoblabVmTestUnits, moblabTestUnit)
-			}
-		}
-
-		if pttr.TastVmTestCfg != nil {
-			tastVmTestUnit := getTastVmTestUnit(tuc, pttr.TastVmTestCfg.TastVmTest, pruneResult, criticalBuild)
-			if tastVmTestUnit != nil {
-				resp.TastVmTestUnits = append(resp.TastVmTestUnits, tastVmTestUnit)
-			}
-		}
 		if pttr.DirectTastVmTestCfg != nil {
 			directTastVmTestUnit := getTastVmTestUnit(tuc, pttr.DirectTastVmTestCfg.TastVmTest, pruneResult, criticalBuild)
 			if directTastVmTestUnit != nil {
@@ -242,41 +228,6 @@ testLoop:
 		tu.HwTestCfg.HwTest = append(tu.HwTestCfg.HwTest, t)
 	}
 	if len(tu.HwTestCfg.HwTest) > 0 {
-		return tu
-	}
-	return nil
-}
-
-func getMoblabTestUnit(tuc *testplans.TestUnitCommon, tests []*testplans.MoblabVmTestCfg_MoblabTest, pruneResult *testPruneResult, criticalBuild bool) *testplans.MoblabVmTestUnit {
-	if tests == nil {
-		return nil
-	}
-	tu := &testplans.MoblabVmTestUnit{
-		Common:          tuc,
-		MoblabVmTestCfg: &testplans.MoblabVmTestCfg{},
-	}
-testLoop:
-	for _, t := range tests {
-		if pruneResult.disableNonTastTests {
-			log.Printf("skipping non-Tast testing for %v", t.Common.DisplayName)
-			continue testLoop
-		}
-		mustTest := pruneResult.mustAddForAlsoTestRule(t.Common.TestSuiteGroups)
-		if !mustTest {
-			if pruneResult.canSkipForOnlyTestRule(t.Common.TestSuiteGroups) {
-				log.Printf("using OnlyTest rule to skip HW testing for %v", t.Common.DisplayName)
-				continue testLoop
-			}
-			if t.Common.DisableByDefault {
-				log.Printf("%v is disabled by default, and it was not triggered to be enabled", t.Common.DisplayName)
-				continue testLoop
-			}
-		}
-		log.Printf("adding testing for %v", t.Common.DisplayName)
-		t.Common = withCritical(t.Common, criticalBuild)
-		tu.MoblabVmTestCfg.MoblabTest = append(tu.MoblabVmTestCfg.MoblabTest, t)
-	}
-	if len(tu.MoblabVmTestCfg.MoblabTest) > 0 {
 		return tu
 	}
 	return nil

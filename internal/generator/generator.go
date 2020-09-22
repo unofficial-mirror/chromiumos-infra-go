@@ -244,10 +244,6 @@ testLoop:
 			log.Printf("no HW testing needed for %v", t.Common.DisplayName)
 			continue testLoop
 		}
-		if pruneResult.disableNonTastTests && t.HwTestSuiteType != testplans.HwTestCfg_TAST {
-			log.Printf("skipping non-Tast testing for %v", t.Common.DisplayName)
-			continue testLoop
-		}
 		// Always test if there's an alsoTest rule.
 		mustAlsoTest := pruneResult.mustAddForAlsoTestRule(t.Common.TestSuiteGroups)
 		if !mustAlsoTest {
@@ -336,10 +332,6 @@ testLoop:
 	for _, t := range tests {
 		if pruneResult.disableVMTests {
 			log.Printf("no VM testing needed for %v", t.Common.DisplayName)
-			continue testLoop
-		}
-		if pruneResult.disableNonTastTests {
-			log.Printf("skipping non-Tast testing for %v", t.Common.DisplayName)
 			continue testLoop
 		}
 		// Always test if there's an alsoTest rule.

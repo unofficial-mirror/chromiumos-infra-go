@@ -23,14 +23,20 @@ const (
 )
 
 var (
-	simpleFilesByArtifactValue = _struct.Value{Kind: &_struct.Value_StructValue{StructValue: &_struct.Struct{
+	emptyGerritChanges []*bbproto.GerritChange
+)
+
+func simpleFilesByArtifactValue() *_struct.Value {
+	return &_struct.Value{Kind: &_struct.Value_StructValue{StructValue: &_struct.Struct{
 		Fields: map[string]*_struct.Value{
 			"AUTOTEST_FILES": {Kind: &_struct.Value_ListValue{}},
 		},
 	}}}
-	simpleFilesByArtifact = _struct.Struct{Fields: simpleFilesByArtifactValue.GetStructValue().Fields}
-	emptyGerritChanges    []*bbproto.GerritChange
-)
+}
+
+func simpleFilesByArtifact() *_struct.Struct {
+	return &_struct.Struct{Fields: simpleFilesByArtifactValue().GetStructValue().Fields}
+}
 
 func makeBuildbucketBuild(buildTarget string, builderName string, status bbproto.Status, critical bool) *bbproto.Build {
 	var criticalVal bbproto.Trinary
@@ -58,7 +64,7 @@ func makeBuildbucketBuild(buildTarget string, builderName string, status bbproto
 							Fields: map[string]*_struct.Value{
 								"gs_bucket":         {Kind: &_struct.Value_StringValue{StringValue: GS_BUCKET}},
 								"gs_path":           {Kind: &_struct.Value_StringValue{StringValue: GS_PATH_PREFIX + buildTarget}},
-								"files_by_artifact": &simpleFilesByArtifactValue,
+								"files_by_artifact": simpleFilesByArtifactValue(),
 							},
 						}},
 					},
@@ -113,7 +119,7 @@ func TestCreateCombinedTestPlan_oneUnitSuccess(t *testing.T) {
 					BuildPayload: &testplans.BuildPayload{
 						ArtifactsGsBucket: GS_BUCKET,
 						ArtifactsGsPath:   GS_PATH_PREFIX + "kevin",
-						FilesByArtifact:   &simpleFilesByArtifact,
+						FilesByArtifact:   simpleFilesByArtifact(),
 					},
 					BuilderName: "kevin-cq",
 					BuildTarget: &chromiumos.BuildTarget{Name: "kevin"}},
@@ -199,7 +205,7 @@ func TestCreateCombinedTestPlan_manyUnitSuccess(t *testing.T) {
 					BuildPayload: &testplans.BuildPayload{
 						ArtifactsGsBucket: GS_BUCKET,
 						ArtifactsGsPath:   GS_PATH_PREFIX + "kevin",
-						FilesByArtifact:   &simpleFilesByArtifact,
+						FilesByArtifact:   simpleFilesByArtifact(),
 					},
 					BuilderName: "kevin-cq",
 					BuildTarget: &chromiumos.BuildTarget{Name: "kevin"}},
@@ -211,7 +217,7 @@ func TestCreateCombinedTestPlan_manyUnitSuccess(t *testing.T) {
 					BuildPayload: &testplans.BuildPayload{
 						ArtifactsGsBucket: GS_BUCKET,
 						ArtifactsGsPath:   GS_PATH_PREFIX + "kevin",
-						FilesByArtifact:   &simpleFilesByArtifact,
+						FilesByArtifact:   simpleFilesByArtifact(),
 					},
 					BuilderName: "kevin-cq",
 					BuildTarget: &chromiumos.BuildTarget{Name: "kevin"}},
@@ -223,7 +229,7 @@ func TestCreateCombinedTestPlan_manyUnitSuccess(t *testing.T) {
 					BuildPayload: &testplans.BuildPayload{
 						ArtifactsGsBucket: GS_BUCKET,
 						ArtifactsGsPath:   GS_PATH_PREFIX + "kevin",
-						FilesByArtifact:   &simpleFilesByArtifact,
+						FilesByArtifact:   simpleFilesByArtifact(),
 					},
 					BuilderName: "kevin-debug-kernel-cq",
 					BuildTarget: &chromiumos.BuildTarget{Name: "kevin"}},
@@ -233,7 +239,7 @@ func TestCreateCombinedTestPlan_manyUnitSuccess(t *testing.T) {
 					BuildPayload: &testplans.BuildPayload{
 						ArtifactsGsBucket: GS_BUCKET,
 						ArtifactsGsPath:   GS_PATH_PREFIX + "kevin",
-						FilesByArtifact:   &simpleFilesByArtifact,
+						FilesByArtifact:   simpleFilesByArtifact(),
 					},
 					BuilderName: "kevin-cq",
 					BuildTarget: &chromiumos.BuildTarget{Name: "kevin"}},
@@ -311,7 +317,7 @@ func TestCreateCombinedTestPlan_successDespiteOneFailedBuilder(t *testing.T) {
 					BuildPayload: &testplans.BuildPayload{
 						ArtifactsGsBucket: GS_BUCKET,
 						ArtifactsGsPath:   GS_PATH_PREFIX + "reef",
-						FilesByArtifact:   &simpleFilesByArtifact,
+						FilesByArtifact:   simpleFilesByArtifact(),
 					},
 					BuilderName: "reef-cq",
 					BuildTarget: &chromiumos.BuildTarget{Name: "reef"}},
@@ -455,7 +461,7 @@ func TestCreateCombinedTestPlan_doesOnlyTest(t *testing.T) {
 					BuildPayload: &testplans.BuildPayload{
 						ArtifactsGsBucket: GS_BUCKET,
 						ArtifactsGsPath:   GS_PATH_PREFIX + "kevin",
-						FilesByArtifact:   &simpleFilesByArtifact,
+						FilesByArtifact:   simpleFilesByArtifact(),
 					},
 					BuilderName: "kevin-cq",
 					BuildTarget: &chromiumos.BuildTarget{Name: "kevin"}},
@@ -549,7 +555,7 @@ func TestCreateCombinedTestPlan_doesOneofTest(t *testing.T) {
 					BuildPayload: &testplans.BuildPayload{
 						ArtifactsGsBucket: GS_BUCKET,
 						ArtifactsGsPath:   GS_PATH_PREFIX + "kevin",
-						FilesByArtifact:   &simpleFilesByArtifact,
+						FilesByArtifact:   simpleFilesByArtifact(),
 					},
 					BuilderName: "kevin-cq",
 					BuildTarget: &chromiumos.BuildTarget{Name: "kevin"}},
@@ -639,7 +645,7 @@ func TestCreateCombinedTestPlan_doesAlsoTest(t *testing.T) {
 					BuildPayload: &testplans.BuildPayload{
 						ArtifactsGsBucket: GS_BUCKET,
 						ArtifactsGsPath:   GS_PATH_PREFIX + "kevin",
-						FilesByArtifact:   &simpleFilesByArtifact,
+						FilesByArtifact:   simpleFilesByArtifact(),
 					},
 					BuilderName: "kevin-cq",
 					BuildTarget: &chromiumos.BuildTarget{Name: "kevin"}},
@@ -791,7 +797,7 @@ func TestCreateCombinedTestPlan_doesNotSkipNonCritical(t *testing.T) {
 					BuildPayload: &testplans.BuildPayload{
 						ArtifactsGsBucket: GS_BUCKET,
 						ArtifactsGsPath:   GS_PATH_PREFIX + "reef",
-						FilesByArtifact:   &simpleFilesByArtifact,
+						FilesByArtifact:   simpleFilesByArtifact(),
 					},
 					BuilderName: "reef-cq",
 					BuildTarget: &chromiumos.BuildTarget{Name: "reef"}},
@@ -842,69 +848,6 @@ func TestCreateCombinedTestPlan_ignoresNonArtifactBuild(t *testing.T) {
 	}
 
 	expectedTestPlan := &testplans.GenerateTestPlanResponse{}
-	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, cmpopts.EquateEmpty()); diff != "" {
-		t.Errorf("CreateCombinedTestPlan bad result (-want/+got)\n%s", diff)
-	}
-}
-
-func TestCreateCombinedTestPlan_skipsNonTastTest(t *testing.T) {
-	kevinHWTestCfg := &testplans.HwTestCfg{HwTest: []*testplans.HwTestCfg_HwTest{
-		{
-			Common:          &testplans.TestSuiteCommon{},
-			Suite:           "HW kevin",
-			SkylabBoard:     "kev",
-			HwTestSuiteType: testplans.HwTestCfg_AUTOTEST,
-		},
-	}}
-	kevinVmTestCfg := &testplans.VmTestCfg{VmTest: []*testplans.VmTestCfg_VmTest{
-		{
-			Common:    &testplans.TestSuiteCommon{},
-			TestSuite: "some sweet VM suite",
-		},
-	}}
-	testReqs := &testplans.TargetTestRequirementsCfg{
-		PerTargetTestRequirements: []*testplans.PerTargetTestRequirements{
-			{
-				TargetCriteria: &testplans.TargetCriteria{
-					BuilderName: "kevin-cq",
-					TargetType:  &testplans.TargetCriteria_BuildTarget{BuildTarget: "kevin"}},
-				HwTestCfg: kevinHWTestCfg,
-				VmTestCfg: kevinVmTestCfg},
-		},
-	}
-	sourceTreeTestCfg := &testplans.SourceTreeTestCfg{
-		SourceTreeTestRestriction: []*testplans.SourceTreeTestRestriction{
-			{
-				FilePattern:     &testplans.FilePattern{Pattern: "no/tast/tests/here/some/**"},
-				TestRestriction: &testplans.TestRestriction{DisableNonTastTests: true},
-			}}}
-	bbBuilds := []*bbproto.Build{
-		makeBuildbucketBuild("kevin", "kevin-cq", bbproto.Status_SUCCESS, true),
-	}
-	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{
-		{
-			ChangeRevKey: gerrit.ChangeRevKey{
-				Host:      "test-review.googlesource.com",
-				ChangeNum: 123,
-				Revision:  2,
-			},
-			Branch:  "refs/heads/master",
-			Project: "chromiumos/test/repo/name",
-			Files:   []string{"some/file"},
-		},
-	})
-	repoToBranchToSrcRoot := map[string]map[string]string{"chromiumos/test/repo/name": {"refs/heads/master": "no/tast/tests/here"}}
-	gerritChanges := []*bbproto.GerritChange{
-		{Host: "test-review.googlesource.com", Change: 123, Patchset: 2},
-	}
-
-	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, gerritChanges, chRevData, repoToBranchToSrcRoot)
-	if err != nil {
-		t.Error(err)
-	}
-
-	expectedTestPlan := &testplans.GenerateTestPlanResponse{}
-
 	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, cmpopts.EquateEmpty()); diff != "" {
 		t.Errorf("CreateCombinedTestPlan bad result (-want/+got)\n%s", diff)
 	}

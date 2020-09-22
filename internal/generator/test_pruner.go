@@ -18,14 +18,12 @@ type testGroup string
 const (
 	hw testType = iota
 	vm
-	nonTast
 )
 
 var (
 	testTypeFilter = map[testType]func(testReqs *testplans.TestRestriction) bool{
-		hw:      func(testReqs *testplans.TestRestriction) bool { return testReqs.DisableHwTests },
-		vm:      func(testReqs *testplans.TestRestriction) bool { return testReqs.DisableVmTests },
-		nonTast: func(testReqs *testplans.TestRestriction) bool { return testReqs.DisableNonTastTests },
+		hw: func(testReqs *testplans.TestRestriction) bool { return testReqs.DisableHwTests },
+		vm: func(testReqs *testplans.TestRestriction) bool { return testReqs.DisableVmTests },
 	}
 )
 
@@ -34,12 +32,11 @@ func (tt testType) String() string {
 }
 
 type testPruneResult struct {
-	disableHWTests      bool
-	disableVMTests      bool
-	disableNonTastTests bool
-	onlyTestGroups      map[testGroup]bool
-	oneofTestGroups     map[testGroup]bool
-	alsoTestGroups      map[testGroup]bool
+	disableHWTests  bool
+	disableVMTests  bool
+	onlyTestGroups  map[testGroup]bool
+	oneofTestGroups map[testGroup]bool
+	alsoTestGroups  map[testGroup]bool
 }
 
 func (tpr testPruneResult) hasOneofOrOnlyTestRules() bool {
@@ -106,19 +103,6 @@ func extractPruneResult(
 			}
 		}
 	}
-	disableNonTastTests := true
-	for _, fileSrcPath := range srcPaths {
-		if disableNonTastTests {
-			disableNonTastTestsForPath, err := canDisableTestingForPath(fileSrcPath, sourceTreeCfg, nonTast)
-			if err != nil {
-				return result, err
-			}
-			if !disableNonTastTestsForPath {
-				log.Printf("cannot disable non-Tast testing due to file %s", fileSrcPath)
-				disableNonTastTests = false
-			}
-		}
-	}
 
 	canOnlyTestSomeBuilders := true
 	onlyTestGroups := make(map[testGroup]bool)
@@ -161,12 +145,11 @@ func extractPruneResult(
 	}
 
 	return &testPruneResult{
-			disableHWTests:      disableHW,
-			disableVMTests:      disableVM,
-			disableNonTastTests: disableNonTastTests,
-			onlyTestGroups:      onlyTestGroups,
-			oneofTestGroups:     oneofTestGroups,
-			alsoTestGroups:      alsoTestGroups},
+			disableHWTests:  disableHW,
+			disableVMTests:  disableVM,
+			onlyTestGroups:  onlyTestGroups,
+			oneofTestGroups: oneofTestGroups,
+			alsoTestGroups:  alsoTestGroups},
 		nil
 }
 

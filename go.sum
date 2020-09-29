@@ -310,6 +310,8 @@ go.chromium.org/chromiumos/infra/proto/go v0.0.0-20200918215255-d023241a7b97 h1:
 go.chromium.org/chromiumos/infra/proto/go v0.0.0-20200918215255-d023241a7b97/go.mod h1:IQsSFs/0PTkYB4921qru+QGpmNYDn2I+78r2mkdPRjc=
 go.chromium.org/chromiumos/infra/proto/go v0.0.0-20200921204541-493f5e723fc2 h1:uhzNMFz4Oh1x2+h3kzdIsxBNUWXvFe7DmZ8hh5+OTvE=
 go.chromium.org/chromiumos/infra/proto/go v0.0.0-20200921204541-493f5e723fc2/go.mod h1:IQsSFs/0PTkYB4921qru+QGpmNYDn2I+78r2mkdPRjc=
+go.chromium.org/chromiumos/infra/proto/go v0.0.0-20200929181356-c632ee67e440 h1:6FwH18gpfDbky4DwaCSqINeRm0LXhCHn463VH1lKHTY=
+go.chromium.org/chromiumos/infra/proto/go v0.0.0-20200929181356-c632ee67e440/go.mod h1:IQsSFs/0PTkYB4921qru+QGpmNYDn2I+78r2mkdPRjc=
 go.chromium.org/gae v0.0.0-20190826183307-50a499513efa h1:1Ia0zTIyW9IktCoEQOHPqlBsohu5n/Vzqmupj4B4tqg=
 go.chromium.org/gae v0.0.0-20190826183307-50a499513efa/go.mod h1:ypuIZj/TmtaQgUYPNNu0iKlsUkuv10PROeqHCNrqrog=
 go.chromium.org/luci v0.0.0-20191118200800-9eaf449bf869 h1:/4CDaHTkA4+VywpOUqnsbr7KYnRkohvazceYD8wm71g=

@@ -28,6 +28,15 @@ type buildResult struct {
 	perTargetTestReqs testplans.PerTargetTestRequirements
 }
 
+type suitesForGroups struct {
+	// Keys are names of suites that must be included in the results after
+	// applying subtractive rules. Value will always be true.
+	onlyKeepSuites map[string]bool
+	// Keys are names of suites that must be included in the results as a result
+	// of additive rules. Value will always be true.
+	additionalSuites map[string]bool
+}
+
 // CreateTestPlan generates the test plan that must be run as part of a Chrome OS build.
 func CreateTestPlan(
 	targetTestReqs *testplans.TargetTestRequirementsCfg,
@@ -67,18 +76,28 @@ perTargetTestReq:
 
 	// If oneof or only rules were found for the provided source paths, figure
 	// out the right suites to test for those rules.
-	suitesForOneofAndOnly := make(map[string]bool)
-	if pruneResult.hasOneofOrOnlyTestRules() {
-		suitesForOneofAndOnly, err = oneofAndOnly(targetBuildResults, pruneResult)
+	onlyKeepSuites := make(map[string]bool)
+	if pruneResult.hasOnlyKeepSuiteRules() {
+		onlyKeepSuites, err = getOnlyKeepAllSuitesAndOneofSuites(targetBuildResults, pruneResult)
 		if err != nil {
 			return nil, err
 		}
 	}
-
-	return createResponse(targetBuildResults, pruneResult, suitesForOneofAndOnly)
+	additionalSuites := make(map[string]bool)
+	if pruneResult.hasAddAllOrOneTestRules() {
+		additionalSuites, err = getAddAllSuitesAndOneofSuites(targetBuildResults, pruneResult)
+		if err != nil {
+			return nil, err
+		}
+	}
+	sfg := suitesForGroups{
+		onlyKeepSuites:   onlyKeepSuites,
+		additionalSuites: additionalSuites,
+	}
+	return createResponse(targetBuildResults, pruneResult, sfg)
 }
 
-func oneofAndOnly(targetBuildResults []buildResult, pruneResult *testPruneResult) (map[string]bool, error) {
+func getOnlyKeepAllSuitesAndOneofSuites(targetBuildResults []buildResult, pruneResult *testPruneResult) (map[string]bool, error) {
 	// Test group --> test suites, sorted in descending order of preference that the
 	// planner should use to pick from the group.
 	groupsToSortedSuites, err := groupAndSort(targetBuildResults)
@@ -87,15 +106,15 @@ func oneofAndOnly(targetBuildResults []buildResult, pruneResult *testPruneResult
 	}
 
 	suitesForOneofAndOnly := make(map[string]bool)
-	if pruneResult.hasOneofOrOnlyTestRules() {
-		for onlyGroup := range pruneResult.onlyTestGroups {
+	if pruneResult.hasOnlyKeepSuiteRules() {
+		for onlyGroup := range pruneResult.onlyKeepAllSuitesInGroups {
 			sorted := groupsToSortedSuites[onlyGroup]
 			for _, s := range sorted {
 				suitesForOneofAndOnly[s.tsc.GetDisplayName()] = true
 				log.Printf("Using OnlyTest rule for testGroup %v, adding %v", onlyGroup, s.tsc.GetDisplayName())
 			}
 		}
-		for oneofGroup := range pruneResult.oneofTestGroups {
+		for oneofGroup := range pruneResult.onlyKeepOneSuiteFromEachGroup {
 			sorted := groupsToSortedSuites[oneofGroup]
 			if len(sorted) > 0 {
 				suitesForOneofAndOnly[sorted[0].tsc.GetDisplayName()] = true
@@ -103,8 +122,37 @@ func oneofAndOnly(targetBuildResults []buildResult, pruneResult *testPruneResult
 			}
 		}
 	}
-	log.Printf("SuitesForOneofAndOnly: %v", suitesForOneofAndOnly)
+	log.Printf("OnlyKeepAllSuitesAndOneofSuites: %v", suitesForOneofAndOnly)
 	return suitesForOneofAndOnly, nil
+}
+
+func getAddAllSuitesAndOneofSuites(targetBuildResults []buildResult, pruneResult *testPruneResult) (map[string]bool, error) {
+	// Test group --> test suites, sorted in descending order of preference that the
+	// planner should use to pick from the group.
+	groupsToSortedSuites, err := groupAndSort(targetBuildResults)
+	if err != nil {
+		return nil, err
+	}
+
+	suitesForAddAllAndOneof := make(map[string]bool)
+	if pruneResult.hasAddAllOrOneTestRules() {
+		for g := range pruneResult.addAllSuitesInGroups {
+			sorted := groupsToSortedSuites[g]
+			for _, s := range sorted {
+				suitesForAddAllAndOneof[s.tsc.GetDisplayName()] = true
+				log.Printf("Using AddAllSuitesInGroups rule for testGroup %v, adding %v", g, s.tsc.GetDisplayName())
+			}
+		}
+		for g := range pruneResult.addOneSuiteFromEachGroup {
+			sorted := groupsToSortedSuites[g]
+			if len(sorted) > 0 {
+				suitesForAddAllAndOneof[sorted[0].tsc.GetDisplayName()] = true
+				log.Printf("Using AddOneSuiteFromEachGroup rule for testGroup %v, adding %v", g, sorted[0].tsc.GetDisplayName())
+			}
+		}
+	}
+	log.Printf("AddAllSuitesAndOneofSuites: %v", suitesForAddAllAndOneof)
+	return suitesForAddAllAndOneof, nil
 }
 
 func eligibleTestBuilds(unfilteredBbBuilds []*bbproto.Build) map[buildId]*bbproto.Build {
@@ -171,7 +219,7 @@ func getBuildTarget(bb *bbproto.Build) string {
 }
 
 // createResponse creates the final GenerateTestPlanResponse.
-func createResponse(targetBuildResults []buildResult, pruneResult *testPruneResult, only map[string]bool) (*testplans.GenerateTestPlanResponse, error) {
+func createResponse(targetBuildResults []buildResult, pruneResult *testPruneResult, sfg suitesForGroups) (*testplans.GenerateTestPlanResponse, error) {
 
 	resp := &testplans.GenerateTestPlanResponse{}
 	// loop over the merged (Buildbucket build, TargetTestRequirements).
@@ -208,20 +256,19 @@ func createResponse(targetBuildResults []buildResult, pruneResult *testPruneResu
 		}
 
 		if pttr.HwTestCfg != nil {
-			hwTestUnit := getHwTestUnit(tuc, pttr.HwTestCfg.HwTest, pruneResult, only, criticalBuild)
+			hwTestUnit := getHwTestUnit(tuc, pttr.HwTestCfg.HwTest, pruneResult, sfg, criticalBuild)
 			if hwTestUnit != nil {
 				resp.HwTestUnits = append(resp.HwTestUnits, hwTestUnit)
 			}
 		}
-
 		if pttr.DirectTastVmTestCfg != nil {
-			directTastVmTestUnit := getTastVmTestUnit(tuc, pttr.DirectTastVmTestCfg.TastVmTest, pruneResult, only, criticalBuild)
+			directTastVmTestUnit := getTastVmTestUnit(tuc, pttr.DirectTastVmTestCfg.TastVmTest, pruneResult, sfg, criticalBuild)
 			if directTastVmTestUnit != nil {
 				resp.DirectTastVmTestUnits = append(resp.DirectTastVmTestUnits, directTastVmTestUnit)
 			}
 		}
 		if pttr.VmTestCfg != nil {
-			vmTestUnit := getVmTestUnit(tuc, pttr.VmTestCfg.VmTest, pruneResult, only, criticalBuild)
+			vmTestUnit := getVmTestUnit(tuc, pttr.VmTestCfg.VmTest, pruneResult, sfg, criticalBuild)
 			if vmTestUnit != nil {
 				resp.VmTestUnits = append(resp.VmTestUnits, vmTestUnit)
 			}
@@ -230,7 +277,7 @@ func createResponse(targetBuildResults []buildResult, pruneResult *testPruneResu
 	return resp, nil
 }
 
-func getHwTestUnit(tuc *testplans.TestUnitCommon, tests []*testplans.HwTestCfg_HwTest, pruneResult *testPruneResult, only map[string]bool, criticalBuild bool) *testplans.HwTestUnit {
+func getHwTestUnit(tuc *testplans.TestUnitCommon, tests []*testplans.HwTestCfg_HwTest, pruneResult *testPruneResult, sfg suitesForGroups, criticalBuild bool) *testplans.HwTestUnit {
 	if tests == nil {
 		return nil
 	}
@@ -245,13 +292,15 @@ testLoop:
 			continue testLoop
 		}
 		// Always test if there's an alsoTest rule.
-		mustAlsoTest := pruneResult.mustAddForAlsoTestRule(t.Common.TestSuiteGroups)
-		if !mustAlsoTest {
-			inOnlyTestMode := len(only) > 0
+		mustAlsoTest := sfg.additionalSuites[t.GetCommon().GetDisplayName()]
+		if mustAlsoTest {
+			log.Printf("Including %v due to additive test rule", t.GetCommon().GetDisplayName())
+		} else {
+			inOnlyTestMode := len(sfg.onlyKeepSuites) > 0
 			if inOnlyTestMode {
 				// If there are only/oneof rules in effect, we keep the suite if that
 				// suite is in the `only` map, but not otherwise.
-				testNotNeeded := !only[t.Common.GetDisplayName()]
+				testNotNeeded := !sfg.onlyKeepSuites[t.Common.GetDisplayName()]
 				if testNotNeeded {
 					log.Printf("using OnlyTest rule to skip HW testing for %v", t.Common.DisplayName)
 					continue testLoop
@@ -275,7 +324,7 @@ testLoop:
 	return nil
 }
 
-func getTastVmTestUnit(tuc *testplans.TestUnitCommon, tests []*testplans.TastVmTestCfg_TastVmTest, pruneResult *testPruneResult, only map[string]bool, criticalBuild bool) *testplans.TastVmTestUnit {
+func getTastVmTestUnit(tuc *testplans.TestUnitCommon, tests []*testplans.TastVmTestCfg_TastVmTest, pruneResult *testPruneResult, sfg suitesForGroups, criticalBuild bool) *testplans.TastVmTestUnit {
 	if tests == nil {
 		return nil
 	}
@@ -290,13 +339,15 @@ testLoop:
 			continue testLoop
 		}
 		// Always test if there's an alsoTest rule.
-		mustAlsoTest := pruneResult.mustAddForAlsoTestRule(t.Common.TestSuiteGroups)
-		if !mustAlsoTest {
-			inOnlyTestMode := len(only) > 0
+		mustAlsoTest := sfg.additionalSuites[t.GetCommon().GetDisplayName()]
+		if mustAlsoTest {
+			log.Printf("Including %v due to additive test rule", t.GetCommon().GetDisplayName())
+		} else {
+			inOnlyTestMode := len(sfg.onlyKeepSuites) > 0
 			if inOnlyTestMode {
 				// If there are only/oneof rules in effect, we keep the suite if that
 				// suite is in the `only` map, but not otherwise.
-				testNotNeeded := !only[t.Common.GetDisplayName()]
+				testNotNeeded := !sfg.onlyKeepSuites[t.Common.GetDisplayName()]
 				if testNotNeeded {
 					log.Printf("using OnlyTest rule to skip HW testing for %v", t.Common.DisplayName)
 					continue testLoop
@@ -320,7 +371,7 @@ testLoop:
 	return nil
 }
 
-func getVmTestUnit(tuc *testplans.TestUnitCommon, tests []*testplans.VmTestCfg_VmTest, pruneResult *testPruneResult, only map[string]bool, criticalBuild bool) *testplans.VmTestUnit {
+func getVmTestUnit(tuc *testplans.TestUnitCommon, tests []*testplans.VmTestCfg_VmTest, pruneResult *testPruneResult, sfg suitesForGroups, criticalBuild bool) *testplans.VmTestUnit {
 	if tests == nil {
 		return nil
 	}
@@ -335,13 +386,15 @@ testLoop:
 			continue testLoop
 		}
 		// Always test if there's an alsoTest rule.
-		mustAlsoTest := pruneResult.mustAddForAlsoTestRule(t.Common.TestSuiteGroups)
-		if !mustAlsoTest {
-			inOnlyTestMode := len(only) > 0
+		mustAlsoTest := sfg.additionalSuites[t.GetCommon().GetDisplayName()]
+		if mustAlsoTest {
+			log.Printf("Including %v due to additive test rule", t.GetCommon().GetDisplayName())
+		} else {
+			inOnlyTestMode := len(sfg.onlyKeepSuites) > 0
 			if inOnlyTestMode {
 				// If there are only/oneof rules in effect, we keep the suite if that
 				// suite is in the `only` map, but not otherwise.
-				testNotNeeded := !only[t.Common.GetDisplayName()]
+				testNotNeeded := !sfg.onlyKeepSuites[t.Common.GetDisplayName()]
 				if testNotNeeded {
 					log.Printf("using OnlyTest rule to skip HW testing for %v", t.Common.DisplayName)
 					continue testLoop

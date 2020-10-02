@@ -42,6 +42,24 @@ type ProjectBranch struct {
 	BranchName string
 }
 
+// branchMapEntry is a struct for manual branch mapping
+type branchMapEntry struct {
+	name        string
+	path        string
+	suffix      string
+	replacement string
+}
+
+// branchMap is a map that defines branch suffix replacements
+var branchMap = map[string]branchMapEntry{
+	"chromiumos/third_party/coreboot": {
+		name:        "chromiumos/third_party/coreboot",
+		path:        "src/third_party/coreboot",
+		suffix:      "-chromeos-2016.05",
+		replacement: "",
+	},
+}
+
 // canBranchProject retuns true if the Project can be branched.
 func canBranchProject(manifest repo.Manifest, project repo.Project) bool {
 	return manifest.ProjectBranchMode(project) == repo.Create
@@ -62,7 +80,9 @@ func projectBranchName(br string, project repo.Project, original string) string 
 	}
 
 	// Otherwise, the project name needs a suffix. We append its upstream or
-	// revision to distinguish it from other checkouts.
+	// revision to distinguish it from other checkouts. We grab the suffix
+	// from git using the Upstream or Revision. We then trim and replace
+	// any unneeded info from the suffix.
 	suffix := "-"
 	if project.Upstream != "" {
 		suffix += git.StripRefs(project.Upstream)
@@ -84,6 +104,15 @@ func projectBranchName(br string, project repo.Project, original string) string 
 	}
 	// Remove the "/" character, since those don't belong in branch names.
 	suffix = strings.ReplaceAll(suffix, "/", "-")
+
+	// Check if a branch naming override exist
+	entry, ok := branchMap[project.Name]
+
+	// Replace suffix
+	if ok && (suffix == entry.suffix && project.Path == entry.path) {
+		suffix = entry.replacement
+	}
+
 	return br + suffix
 }
 

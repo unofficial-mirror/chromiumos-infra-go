@@ -5,12 +5,11 @@
 package branch
 
 import (
-	"reflect"
-	"testing"
-
 	mv "go.chromium.org/chromiumos/infra/go/internal/chromeos_version"
 	"go.chromium.org/chromiumos/infra/go/internal/repo"
 	"gotest.tools/assert"
+	"reflect"
+	"testing"
 )
 
 var branchNameTestManifest = repo.Manifest{
@@ -27,6 +26,10 @@ var branchNameTestManifest = repo.Manifest{
 		{Path: "baz2/", Name: "baz", Upstream: "refs/heads/oldbranch-factory-101"},
 		// Project with an upstream that is from a CrOS branch name.
 		{Path: "baz2/", Name: "baz", Upstream: "refs/heads/release-R77-12371.B-myfactory/2.6"},
+
+		// Cases covered by the mapping feature
+		{Path: "src/third_party/coreboot", Name: "chromiumos/third_party/coreboot", Revision: "8dddd11bc804c01b905b87407e42a2d58d044384", Upstream: "refs/heads/firmware-puff-13324.B-chromeos-2016.05"},
+		{Path: "src/third_party/coreboot", Name: "chromiumos/third_party/coreboot", Revision: "8dddd11bc804c01b905b87407e42a2d58d044385"},
 	},
 }
 
@@ -52,6 +55,12 @@ func TestProjectBranchName(t *testing.T) {
 	assert.Equal(t, projectBranchName("mybranch", manifest.Projects[1], ""), "mybranch-factory-100")
 	assert.Equal(t, projectBranchName("mybranch", manifest.Projects[2], ""), "mybranch-101")
 	assert.Equal(t, projectBranchName("mybranch", manifest.Projects[6], ""), "mybranch-myfactory-2.6")
+}
+
+func TestProjectBranchName_MappingFunctionality(t *testing.T) {
+	manifest := branchNameTestManifest
+	WorkingManifest = manifest
+	assert.Equal(t, projectBranchName("coreboot", manifest.Projects[7], ""), "coreboot")
 }
 
 func TestProjectBranchName_withOriginal(t *testing.T) {

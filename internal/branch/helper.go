@@ -134,21 +134,19 @@ func ProjectBranches(br, original string) []ProjectBranch {
 }
 
 // BranchExists checks that a branch matching the given pattern exists in a particular project.
-func BranchExists(project repo.Project, branchPattern *regexp.Regexp) (bool, error) {
-	remoteUrl, err := ProjectFetchUrl(project.Path)
-	if err != nil {
-		return false, errors.Annotate(err, "failed to get remote project url").Err()
-	}
-
-	// If we give a full URL, don't need to run the command in a git repo.
-	remoteBranches, err := git.RemoteBranches("", remoteUrl)
-	if err != nil {
-		return false, errors.Annotate(err, "failed to list remote branches for %s", remoteUrl).Err()
-	}
-
+func BranchExists(branchPattern *regexp.Regexp, buildNumber string, branchType string, remoteBranches []string) (bool, error) {
 	for _, branch := range remoteBranches {
-		if branchPattern.Match([]byte(branch)) {
+		// Failing cases
+		switch {
+		case branchPattern.Match([]byte(branch)):
 			return true, nil
+		case strings.Contains(branch, buildNumber):
+
+			// Check that major version collision is on other branch type
+			if !strings.Contains(branch, branchType) {
+				err := errors.New("ERROR: Major version collision on branch " + branch)
+				return true, err
+			}
 		}
 	}
 
@@ -504,15 +502,29 @@ func NewBranchName(vinfo mv.VersionInfo, custom, descriptor string, release, fac
 
 // CheckIfAlreadyBranched checks if there's already a branch for the desired new
 // branch to create on the manifest-internal repo.
-func CheckIfAlreadyBranched(vinfo mv.VersionInfo, manifestInternal repo.Project, force bool) error {
+func CheckIfAlreadyBranched(vinfo mv.VersionInfo, manifestInternal repo.Project, force bool, branchType string) error {
 	// Check that we did not already branch from this version.
 	// manifest-internal serves as the sentinel project.
 	pattern := regexp.MustCompile(fmt.Sprintf(`.*-%s.B$`, vinfo.StrippedVersionString()))
-	exists, err := BranchExists(manifestInternal, pattern)
+
+	// Verify that a major version collision won't occur
+	buildNumber := fmt.Sprintf("%v", vinfo.BuildNumber)
+
+	// Fetch remoteUrl
+	remoteUrl, err := ProjectFetchUrl(manifestInternal.Path)
+	if err != nil {
+		err = errors.Annotate(err, "failed to get remote project url").Err()
+	}
+
+	// If we give a full URL, don't need to run the command in a git repo.
+	remoteBranches, err := git.RemoteBranches("", remoteUrl)
+	if err != nil {
+		err = errors.Annotate(err, "failed to list remote branches for %s", remoteUrl).Err()
+	}
+
+	exists, err := BranchExists(pattern, buildNumber, branchType, remoteBranches)
 	if err != nil {
 		return err
-		//LogErr(err.Error())
-		//return 8
 	}
 	if exists {
 		if !force {

@@ -4,6 +4,8 @@
 package main
 
 import (
+	"os"
+
 	"github.com/maruel/subcommands"
 	"go.chromium.org/chromiumos/infra/go/internal/branch"
 	mv "go.chromium.org/chromiumos/infra/go/internal/chromeos_version"
@@ -11,7 +13,6 @@ import (
 	"go.chromium.org/chromiumos/infra/go/internal/repo"
 	"go.chromium.org/luci/auth"
 	"go.chromium.org/luci/common/errors"
-	"os"
 )
 
 func getCmdCreateBranch(opts auth.Options) *subcommands.Command {
@@ -176,7 +177,23 @@ func (c *createBranchRun) Run(a subcommands.Application, args []string,
 	}
 	branch.LogOut("Version found: %s.\n", vinfo.VersionString())
 
-	if err = branch.CheckIfAlreadyBranched(vinfo, manifestInternal, c.Force); err != nil {
+	branchType := ""
+
+	switch {
+	case c.release:
+		branchType = "release"
+	case c.factory:
+		branchType = "factory"
+	case c.firmware:
+		branchType = "firmware"
+	case c.stabilize:
+		branchType = "stabilize"
+	default:
+		branchType = "custom"
+
+	}
+
+	if err = branch.CheckIfAlreadyBranched(vinfo, manifestInternal, c.Force, branchType); err != nil {
 		branch.LogErr("%v", err)
 		return 1
 	}

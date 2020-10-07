@@ -5,11 +5,13 @@
 package branch
 
 import (
+	"reflect"
+	"regexp"
+	"testing"
+
 	mv "go.chromium.org/chromiumos/infra/go/internal/chromeos_version"
 	"go.chromium.org/chromiumos/infra/go/internal/repo"
 	"gotest.tools/assert"
-	"reflect"
-	"testing"
 )
 
 var branchNameTestManifest = repo.Manifest{
@@ -46,6 +48,47 @@ var canBranchTestManifest = repo.Manifest{
 			},
 		},
 	},
+}
+
+var testBranchNames = []string{
+	"firmware-test-1234.12.3.B",
+	"firmware-test-1234.12.3.B",
+	"firmware-7132.B",
+	"release-R17-9876.B",
+	"release-R18-4567.B",
+	"stabilize-23478.221.B",
+	"stabilize-go-12334.21.B",
+	"stabilize-go-12336.B",
+	"factory-a-6212.B",
+	"factory-b-6278.13.B",
+	"factory-c-1234.52.B",
+	"release-R16-1234.B",
+}
+
+func TestBranchExist(t *testing.T) {
+
+	// Slices of the test names
+	passing := testBranchNames[2:9]
+	majorCollision := testBranchNames[2:]
+	duplicateName := testBranchNames[0:6]
+
+	pattern := regexp.MustCompile(`.*-1234.12.3.B$`)
+
+	// Passing branch
+	exist, err := BranchExists(pattern, "1234", "firmware", passing)
+	assert.Equal(t, exist, false)
+	assert.Equal(t, err, nil)
+
+	// Major collision
+	exist, err = BranchExists(pattern, "1234", "firmware", majorCollision)
+	assert.Equal(t, exist, true)
+	assert.ErrorContains(t, err, "Major version collision on branch")
+
+	// Duplicate branch name
+	exist, err = BranchExists(pattern, "1234", "firmware", duplicateName)
+	assert.Equal(t, exist, true)
+	assert.NilError(t, err)
+
 }
 
 func TestProjectBranchName(t *testing.T) {

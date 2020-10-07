@@ -5,6 +5,8 @@ package main
 
 import (
 	"context"
+	"io/ioutil"
+
 	"github.com/maruel/subcommands"
 	"go.chromium.org/chromiumos/infra/go/internal/branch"
 	mv "go.chromium.org/chromiumos/infra/go/internal/chromeos_version"
@@ -13,7 +15,6 @@ import (
 	"go.chromium.org/chromiumos/infra/go/internal/repo"
 	"go.chromium.org/luci/auth"
 	"go.chromium.org/luci/common/errors"
-	"io/ioutil"
 )
 
 const (
@@ -206,7 +207,23 @@ func (c *createBranchV2) Run(a subcommands.Application, args []string,
 
 	branch.LogErr("Have manifest = %v", manifestInternal)
 
-	if err = branch.CheckIfAlreadyBranched(vinfo, manifestInternal, c.Force); err != nil {
+	branchType := ""
+
+	switch {
+	case c.release:
+		branchType = "release"
+	case c.factory:
+		branchType = "factory"
+	case c.firmware:
+		branchType = "firmware"
+	case c.stabilize:
+		branchType = "stabilize"
+	default:
+		branchType = "custom"
+
+	}
+
+	if err = branch.CheckIfAlreadyBranched(vinfo, manifestInternal, c.Force, branchType); err != nil {
 		branch.LogErr("%v", err)
 		return 1
 	}

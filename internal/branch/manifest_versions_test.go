@@ -49,6 +49,11 @@ func TestGetWorkingManifestForVersion(t *testing.T) {
 	_, err = git.CommitAll(tmpRepo, "my buildspecs bring all the boys to the yard")
 	assert.NilError(t, err)
 
+	// Some users git cofigs may have init.defaultbranch=main this renames
+	// the branch so the test will work properly. Otherwise, this will silently
+	// fail and the tests will continue.
+	git.RunGitIgnoreOutput(tmpRepo, []string{"branch", "--move", "main", "master"})
+
 	manifestVersionsRemote = tmpRepo
 	// Successful -- exactly one manifest exists.
 	manifest, err := GetWorkingManifestForVersion("12345.0.0")

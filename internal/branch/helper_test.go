@@ -60,8 +60,8 @@ var testBranchNames = []string{
 	"stabilize-go-12334.21.B",
 	"stabilize-go-12336.B",
 	"factory-a-6212.B",
-	"factory-b-6278.13.B",
-	"factory-c-1234.52.B",
+	"factory-b-1234.13.B",
+	"factory-c-1234.12.B",
 	"release-R16-1234.B",
 }
 
@@ -75,17 +75,17 @@ func TestBranchExist(t *testing.T) {
 	pattern := regexp.MustCompile(`.*-1234.12.3.B$`)
 
 	// Passing branch
-	exist, err := BranchExists(pattern, "1234", "firmware", passing)
+	exist, err := BranchExists(pattern, "1234.12", "firmware", passing)
 	assert.Equal(t, exist, false)
 	assert.Equal(t, err, nil)
 
 	// Major collision
-	exist, err = BranchExists(pattern, "1234", "firmware", majorCollision)
+	exist, err = BranchExists(pattern, "1234.12", "firmware", majorCollision)
 	assert.Equal(t, exist, true)
 	assert.ErrorContains(t, err, "Major version collision on branch")
 
 	// Duplicate branch name
-	exist, err = BranchExists(pattern, "1234", "firmware", duplicateName)
+	exist, err = BranchExists(pattern, "1234.12", "firmware", duplicateName)
 	assert.Equal(t, exist, true)
 	assert.NilError(t, err)
 

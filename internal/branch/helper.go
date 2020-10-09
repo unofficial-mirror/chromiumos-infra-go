@@ -507,8 +507,8 @@ func CheckIfAlreadyBranched(vinfo mv.VersionInfo, manifestInternal repo.Project,
 	// manifest-internal serves as the sentinel project.
 	pattern := regexp.MustCompile(fmt.Sprintf(`.*-%s.B$`, vinfo.StrippedVersionString()))
 
-	// Verify that a major version collision won't occur
-	buildNumber := fmt.Sprintf("%v", vinfo.BuildNumber)
+	// Verify that a major-minor version collision won't occur
+	majorMinor := fmt.Sprintf("%v.%v", vinfo.BuildNumber, vinfo.BranchBuildNumber)
 
 	// Fetch remoteUrl
 	remoteUrl, err := ProjectFetchUrl(manifestInternal.Path)
@@ -522,7 +522,7 @@ func CheckIfAlreadyBranched(vinfo mv.VersionInfo, manifestInternal repo.Project,
 		err = errors.Annotate(err, "failed to list remote branches for %s", remoteUrl).Err()
 	}
 
-	exists, err := BranchExists(pattern, buildNumber, branchType, remoteBranches)
+	exists, err := BranchExists(pattern, majorMinor, branchType, remoteBranches)
 	if err != nil {
 		return err
 	}

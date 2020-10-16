@@ -5,7 +5,7 @@ buckets. It allows the user to take advantage of object prefixes to parallelize
 massively over the simple GS tools. Typically this prefix is '/'. It uses a
 policy engine framework [Rego](https://www.openpolicyagent.org/docs/latest/policy-language/) on each [object's attributes](https://godoc.org/cloud.google.com/go/storage#ObjectAttrs) returned from list. It also has the ability to operate on various runtime and calculated values that can be passed to the policy engine. It also gathers statistics and produces a report in json or text.
 
-Its configuration is specified [via protobuf](https://chromium.googlesource.com/chromiumos/infra/proto/+/refs/heads/master/src/cycler/config.proto) (or the corresponding json) and has multiple implemented possible actions.
+Its configuration is specified [via protobuf](https://chromium.googlesource.com/chromiumos/infra/proto/+/HEAD/src/cycler/config.proto) (or the corresponding json) and has multiple implemented possible actions.
 
 Logs are delivered which stat each object that is touched. These are uploaded to google storage or placed locally in compressed JSONL format. A simple audit of a storage bucket can be achieved by using the Noop effect and the `true.rego` policy.
 

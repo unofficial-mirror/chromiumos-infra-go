@@ -5,7 +5,7 @@
 package main
 
 /*
-	MASTER TODO:
+	Outstanding TODO:
 		* Implement a routine nanny that keeps resurrects workers.
 		* Best practices warnings about same bucket source/dest.
 		* Abandoned file and prefixs should be logged (with errors).

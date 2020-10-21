@@ -65,7 +65,7 @@ var (
 			Remotes:  DefaultRemotes,
 			Default: repo.Default{
 				RemoteName: RemoteCros,
-				Revision:   "refs/heads/master",
+				Revision:   "refs/heads/main",
 			},
 		},
 		VersionProject: DefaultVersionProject.Name,
@@ -206,14 +206,14 @@ func (r *CrosRepoHarness) AssertCrosBranches(branches []string) error {
 	manifest := r.Harness.Manifest()
 	singleProjects := manifest.GetSingleCheckoutProjects()
 	for _, project := range singleProjects {
-		if err := r.Harness.AssertProjectBranches(rh.GetRemoteProject(*project), append(branches, "master")); err != nil {
+		if err := r.Harness.AssertProjectBranches(rh.GetRemoteProject(*project), append(branches, "main")); err != nil {
 			return err
 		}
 	}
 
 	multiProjects := manifest.GetMultiCheckoutProjects()
 	for _, project := range multiProjects {
-		projectBranches := []string{"master"}
+		projectBranches := []string{"main"}
 		for _, branch := range branches {
 			projectBranches = append(projectBranches, multicheckoutBranchName(project, branch, ""))
 		}
@@ -225,14 +225,14 @@ func (r *CrosRepoHarness) AssertCrosBranches(branches []string) error {
 	pinnedProjects := manifest.GetPinnedProjects()
 	for _, project := range pinnedProjects {
 		if err := r.Harness.AssertProjectBranches(
-			rh.GetRemoteProject(*project), []string{"master", projectRef(*project)}); err != nil {
+			rh.GetRemoteProject(*project), []string{"main", projectRef(*project)}); err != nil {
 			return err
 		}
 	}
 
 	totProjects := manifest.GetTotProjects()
 	for _, project := range totProjects {
-		if err := r.Harness.AssertProjectBranches(rh.GetRemoteProject(*project), []string{"master"}); err != nil {
+		if err := r.Harness.AssertProjectBranches(rh.GetRemoteProject(*project), []string{"main"}); err != nil {
 			return err
 		}
 	}
@@ -248,14 +248,14 @@ func (r *CrosRepoHarness) AssertCrosBranchesMissing(branches []string) error {
 	manifest := r.Harness.Manifest()
 	singleProjects := manifest.GetSingleCheckoutProjects()
 	for _, project := range singleProjects {
-		if err := branchAssertFn(rh.GetRemoteProject(*project), append(branches, "master")); err != nil {
+		if err := branchAssertFn(rh.GetRemoteProject(*project), append(branches, "main")); err != nil {
 			return err
 		}
 	}
 
 	multiProjects := manifest.GetMultiCheckoutProjects()
 	for _, project := range multiProjects {
-		projectBranches := []string{"master"}
+		projectBranches := []string{"main"}
 		for _, branch := range branches {
 			projectBranches = append(projectBranches, multicheckoutBranchName(project, branch, ""))
 		}
@@ -330,7 +330,7 @@ func (r *CrosRepoHarness) AssertCrosBranchFromManifest(manifest repo.Manifest, b
 	for _, project := range pinnedProjects {
 		projectSnapshot := projectSnapshots[project.Name]
 		errs := []error{
-			r.Harness.AssertProjectBranchEqual(rh.GetRemoteProject(*project), "master", projectSnapshot),
+			r.Harness.AssertProjectBranchEqual(rh.GetRemoteProject(*project), "main", projectSnapshot),
 			r.Harness.AssertProjectBranchEqual(rh.GetRemoteProject(*project), projectRef(*project), projectSnapshot),
 		}
 		for _, err = range errs {
@@ -343,7 +343,7 @@ func (r *CrosRepoHarness) AssertCrosBranchFromManifest(manifest repo.Manifest, b
 	totProjects := manifest.GetTotProjects()
 	for _, project := range totProjects {
 		projectSnapshot := projectSnapshots[project.Name]
-		if err = r.Harness.AssertProjectBranchEqual(rh.GetRemoteProject(*project), "master", projectSnapshot); err != nil {
+		if err = r.Harness.AssertProjectBranchEqual(rh.GetRemoteProject(*project), "main", projectSnapshot); err != nil {
 			return err
 		}
 	}
@@ -457,8 +457,14 @@ func (r *CrosRepoHarness) AssertProjectRevisionsMatchBranch(manifest repo.Manife
 			}
 		}
 		if projectInList(project, totProjects) {
-			if err := assertEqual("refs/heads/master", project.Revision); err != nil {
-				return errors.Annotate(err, "mismatch for project %s", project.Path).Err()
+
+			// With the COIL initiative underway testing applications use "main" and production code uses "master"
+			// Some unit tests will call production code then verify the results. In some instances it will insert
+			// "master" where we would normall expect "main". This is currently a patch to a problem that will be
+			// fixed when the COIL initiative is fully completed.
+			// TODO: Check only for "refs/heads/main" once COIL is completed
+			if project.Revision != "refs/heads/master" && project.Revision != "refs/heads/main" {
+				return fmt.Errorf("mismatch for project %s. Expected %s or %s, got %s", project.Path, "refs/heads/master", "refs/heads/main", project.Revision)
 			}
 		}
 	}

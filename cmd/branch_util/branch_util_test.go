@@ -33,13 +33,13 @@ const (
 	remotesFileName  = "_remotes.xml"
 
 	defaultXML = `
-  <default revision="refs/heads/master" remote="cros" sync-j="8"/>
+  <default revision="refs/heads/main" remote="cros" sync-j="8"/>
 `
 	remoteExternalXML = `
-  <remote name="cros" revision="refs/heads/master" fetch="%s"/>
+  <remote name="cros" revision="refs/heads/main" fetch="%s"/>
 `
 	remoteInternalXML = `
-  <remote name="cros-internal" revision="refs/heads/master" fetch="%s"/>
+  <remote name="cros-internal" revision="refs/heads/main" fetch="%s"/>
 `
 	projectsExternalXML = `
   <project path="src/repohooks" name="chromiumos/repohooks"
@@ -71,7 +71,7 @@ const (
   <project name="chromeos/manifest-internal"
            path="manifest-internal"
            remote="cros-internal"
-           upstream="refs/heads/master"/>
+           upstream="refs/heads/main"/>
 
   <project name="chromeos/explicit-pinned"
            path="src/explicit-pinned"
@@ -171,7 +171,7 @@ const (
   <project name="chromeos/explicit-tot"
            path="src/explicit-tot"
            remote="cros-internal"
-           revision="refs/heads/master">
+           revision="refs/heads/main">
     <annotation name="branch-mode" value="tot"/>
   </project>
 `
@@ -363,17 +363,17 @@ func setUp(t *testing.T) *test.CrosRepoHarness {
 		getExistingBranchManifestFiles(crosFetchVal, crosInternalFetchVal)
 
 	// Add manifest files to remote.
-	addManifestFiles(t, &r, manifestProject, "master", manifestFiles)
+	addManifestFiles(t, &r, manifestProject, "main", manifestFiles)
 
 	// Add manifest-internal files to remote.
-	addManifestFiles(t, &r, manifestInternalProject, "master", manifestInternalFiles)
+	addManifestFiles(t, &r, manifestInternalProject, "main", manifestInternalFiles)
 
 	// Create existing branch on remote.
 	var branchManifest *repo.Manifest
 	assert.NilError(t, xml.Unmarshal([]byte(fullBranchedXML), &branchManifest))
 	branchManifest = branchManifest.ResolveImplicitLinks()
 	// Write full branched manifest to file so that it can be passed to cros branch in
-	// *NonMaster tests.
+	// *Nonmain tests.
 	assert.NilError(t, ioutil.WriteFile(fullBranchedManifestPath(&r), []byte(fullBranchedXML), 0777))
 
 	// Create Ref for each project.
@@ -471,13 +471,13 @@ func TestCreate(t *testing.T) {
 		PatchNumber:       0,
 	}
 	assert.NilError(t, r.AssertCrosVersion(branch, newBranchVersion))
-	masterVersion := mv.VersionInfo{
+	mainVersion := mv.VersionInfo{
 		ChromeBranch:      12,
 		BuildNumber:       4,
 		BranchBuildNumber: 0,
 		PatchNumber:       0,
 	}
-	assert.NilError(t, r.AssertCrosVersion("master", masterVersion))
+	assert.NilError(t, r.AssertCrosVersion("main", mainVersion))
 
 	assertCommentsPersist(t, r, getManifestFiles, branch)
 	// Check that manifests were minmally changed (e.g. element ordering preserved).
@@ -491,7 +491,7 @@ func TestCreate(t *testing.T) {
 // Branch off of old-branch to make sure that the source version is being
 // bumped in the correct branch.
 // Covers crbug.com/1744928.
-func TestCreateReleaseNonMaster(t *testing.T) {
+func TestCreateReleaseNonmain(t *testing.T) {
 	r := setUp(t)
 	defer r.Teardown()
 
@@ -549,7 +549,7 @@ func TestCreateDryRun(t *testing.T) {
 	assertNoRemoteDiff(t, r)
 }
 
-// Test creating release branch also bumps master Chrome branch.
+// Test creating release branch also bumps main Chrome branch.
 func TestCreateRelease(t *testing.T) {
 	r := setUp(t)
 	defer r.Teardown()
@@ -575,13 +575,13 @@ func TestCreateRelease(t *testing.T) {
 		PatchNumber:       0,
 	}
 	assert.NilError(t, r.AssertCrosVersion(branch, newBranchVersion))
-	masterVersion := mv.VersionInfo{
+	mainVersion := mv.VersionInfo{
 		ChromeBranch:      13,
 		BuildNumber:       4,
 		BranchBuildNumber: 0,
 		PatchNumber:       0,
 	}
-	assert.NilError(t, r.AssertCrosVersion("master", masterVersion))
+	assert.NilError(t, r.AssertCrosVersion("main", mainVersion))
 
 	assertCommentsPersist(t, r, getManifestFiles, branch)
 }
@@ -613,13 +613,13 @@ func TestCreateOverwrite(t *testing.T) {
 		PatchNumber:       0,
 	}
 	assert.NilError(t, r.AssertCrosVersion(branch, newBranchVersion))
-	masterVersion := mv.VersionInfo{
+	mainVersion := mv.VersionInfo{
 		ChromeBranch:      12,
 		BuildNumber:       4,
 		BranchBuildNumber: 0,
 		PatchNumber:       0,
 	}
-	assert.NilError(t, r.AssertCrosVersion("master", masterVersion))
+	assert.NilError(t, r.AssertCrosVersion("main", mainVersion))
 
 	assertCommentsPersist(t, r, getManifestFiles, branch)
 }
@@ -786,13 +786,13 @@ func TestRenameOverwrite(t *testing.T) {
 		PatchNumber:       0,
 	}
 	assert.NilError(t, r.AssertCrosVersion(newBranch, newBranchVersion))
-	masterVersion := mv.VersionInfo{
+	mainVersion := mv.VersionInfo{
 		ChromeBranch:      12,
 		BuildNumber:       4,
 		BranchBuildNumber: 0,
 		PatchNumber:       0,
 	}
-	assert.NilError(t, r.AssertCrosVersion("master", masterVersion))
+	assert.NilError(t, r.AssertCrosVersion("main", mainVersion))
 	oldBranchVersion := mv.VersionInfo{
 		ChromeBranch:      12,
 		BuildNumber:       2,
@@ -849,7 +849,7 @@ func TestRenameOverwriteMissingForce(t *testing.T) {
 	ret := subcommands.Run(s, []string{
 		"rename", "--push",
 		"--manifest-url", manifestDir,
-		"master", oldBranch,
+		"main", oldBranch,
 	})
 	assert.Assert(t, ret != 0)
 	assert.Assert(t, strings.Contains(stderrBuf.String(), "rerun with --force"))
@@ -867,6 +867,13 @@ func TestDelete(t *testing.T) {
 	branchToDelete := "old-branch"
 
 	manifestDir := r.Harness.GetRemotePath(manifestInternalProject)
+
+	// Some users git cofigs may have init.defaultbranch=main this renames
+	// the branch so the test will work properly. Otherwise, this will silently
+	// fail and the tests will continue.
+	// TODO: Remove once COIL is fully completed
+	git.RunGitIgnoreOutput(manifestDir, []string{"branch", "--move", "main", "master"})
+
 	s := &branchApplication{application, nil, nil}
 	ret := subcommands.Run(s, []string{
 		"delete", "--push", "--force",
@@ -890,6 +897,13 @@ func TestDeleteDryRun(t *testing.T) {
 	branchToDelete := "old-branch"
 
 	manifestDir := r.Harness.GetRemotePath(manifestInternalProject)
+
+	// Some users git cofigs may have init.defaultbranch=main this renames
+	// the branch so the test will work properly. Otherwise, this will silently
+	// fail and the tests will continue.
+	// TODO: Remove once COIL is fully completed
+	git.RunGitIgnoreOutput(manifestDir, []string{"branch", "--move", "main", "master"})
+
 	s := &branchApplication{application, nil, nil}
 	ret := subcommands.Run(s, []string{
 		"delete", "--force",
@@ -897,6 +911,11 @@ func TestDeleteDryRun(t *testing.T) {
 		branchToDelete,
 	})
 	assert.Assert(t, ret == 0, "Got return code %d", ret)
+
+	// The test harness has been changed to remove non-inclusive language. This renames the branch
+	// to "main" so the test harness can function properly
+	// TODO: Remove once COIL is fully completed
+	git.RunGitIgnoreOutput(manifestDir, []string{"branch", "--move", "master", "main"})
 
 	assertNoRemoteDiff(t, r)
 }

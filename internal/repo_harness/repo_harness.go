@@ -99,7 +99,7 @@ func (r *RepoHarness) Initialize(config *RepoHarnessConfig) error {
 		config.Manifest.Default.RemoteName = config.Manifest.Remotes[0].Name
 	}
 	if config.Manifest.Default.Revision == "" {
-		config.Manifest.Default.Revision = "refs/heads/master"
+		config.Manifest.Default.Revision = "refs/heads/main"
 	}
 
 	var err error
@@ -138,7 +138,7 @@ func (r *RepoHarness) Initialize(config *RepoHarnessConfig) error {
 		projectLabel := fmt.Sprintf("project %s (remote %s)", project.Name, remoteName)
 
 		// Project could already exist due to multiple checkouts. If it does, skip
-		// initialization/master branch setup.
+		// initialization/main branch setup.
 		if _, err = os.Stat(projectPath); err != nil {
 			// Create project directory.
 			if err = os.MkdirAll(projectPath, dirPerms); err != nil {
@@ -149,8 +149,8 @@ func (r *RepoHarness) Initialize(config *RepoHarnessConfig) error {
 				return errors.Annotate(err, "failed to init git repo for %s", projectLabel).Err()
 			}
 
-			// Make an initial commit so that the "master" branch is not unborn.
-			if err = r.CreateRemoteRef(GetRemoteProject(project), "master", ""); err != nil {
+			// Make an initial commit so that the "main" branch is not unborn.
+			if err = r.CreateRemoteRef(GetRemoteProject(project), "main", ""); err != nil {
 				return errors.Annotate(err, "failed to init git repo for %s", projectLabel).Err()
 			}
 		}
@@ -160,11 +160,11 @@ func (r *RepoHarness) Initialize(config *RepoHarnessConfig) error {
 		}
 
 		revision := git.StripRefs(project.Revision)
-		if revision != "" && revision != "master" {
-			// Creating the revision ref from a fresh repo/commit and not from refs/heads/master is
+		if revision != "" && revision != "main" {
+			// Creating the revision ref from a fresh repo/commit and not from refs/heads/main is
 			// kind of nice because it removes some false positives from AssertCrosBranchFromManifest
-			// -- if a multicheckout branch is created from refs/heads/master instead of its set
-			// revision, the assert would still pass if the revision itself descends from refs/heads/master.
+			// -- if a multicheckout branch is created from refs/heads/main instead of its set
+			// revision, the assert would still pass if the revision itself descends from refs/heads/main.
 			if err = r.CreateRemoteRef(GetRemoteProject(project), revision, ""); err != nil {
 				return errors.Annotate(err, "failed to init git repo for %s", projectLabel).Err()
 			}

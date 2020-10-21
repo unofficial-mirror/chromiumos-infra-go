@@ -5,6 +5,7 @@ package test
 
 import (
 	"encoding/xml"
+	// "fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -64,7 +65,7 @@ var testManifest repo.Manifest = repo.Manifest{
 	},
 	Default: repo.Default{
 		RemoteName: "cros",
-		Revision:   "refs/heads/master",
+		Revision:   "refs/heads/main",
 	},
 }
 
@@ -211,11 +212,11 @@ func TestAssertCrosBranchFromManifest_true(t *testing.T) {
 	assert.NilError(t, r.TakeSnapshot())
 
 	crosBranchName := "mybranch"
-	// Set up CrOS branch. We create the new refs from the corresponding master refs so
+	// Set up CrOS branch. We create the new refs from the corresponding main refs so
 	// that the new branch WILL descend from the manifest.
 	// Create appropriate refs for non-pinned/tot projects.
 	// chromiumos/project
-	assert.NilError(t, r.Harness.CreateRemoteRef(rh.GetRemoteProject(manifest.Projects[0]), crosBranchName, "refs/heads/master"))
+	assert.NilError(t, r.Harness.CreateRemoteRef(rh.GetRemoteProject(manifest.Projects[0]), crosBranchName, "refs/heads/main"))
 	// chromiumos/multicheckout-a
 	assert.NilError(t, r.Harness.CreateRemoteRef(rh.GetRemoteProject(manifest.Projects[3]), crosBranchName+"-multicheckout-a", "refs/heads/multicheckout-a"))
 	// chromiumos/multicheckout-b
@@ -238,17 +239,17 @@ func TestAssertCrosBranchFromManifest_false(t *testing.T) {
 
 	crosBranchName := "mybranch"
 
-	// Set up CrOS branch. We create the new refs from the corresponding master refs so
+	// Set up CrOS branch. We create the new refs from the corresponding main refs so
 	// that the new branch will NOT descend from the manifest.
-	// Specifically, we create the multicheckout branches from refs/heads/master instead of
+	// Specifically, we create the multicheckout branches from refs/heads/main instead of
 	// their set revisions.
 
 	// chromiumos/project
-	assert.NilError(t, r.Harness.CreateRemoteRef(rh.GetRemoteProject(manifest.Projects[0]), crosBranchName, "refs/heads/master"))
+	assert.NilError(t, r.Harness.CreateRemoteRef(rh.GetRemoteProject(manifest.Projects[0]), crosBranchName, "refs/heads/main"))
 	// chromiumos/multicheckout-a
-	assert.NilError(t, r.Harness.CreateRemoteRef(rh.GetRemoteProject(manifest.Projects[3]), crosBranchName+"-multicheckout-a", "refs/heads/master"))
+	assert.NilError(t, r.Harness.CreateRemoteRef(rh.GetRemoteProject(manifest.Projects[3]), crosBranchName+"-multicheckout-a", "refs/heads/main"))
 	// chromiumos/multicheckout-b
-	assert.NilError(t, r.Harness.CreateRemoteRef(rh.GetRemoteProject(manifest.Projects[4]), crosBranchName+"-multicheckout-b", "refs/heads/master"))
+	assert.NilError(t, r.Harness.CreateRemoteRef(rh.GetRemoteProject(manifest.Projects[4]), crosBranchName+"-multicheckout-b", "refs/heads/main"))
 
 	assert.ErrorContains(t, r.AssertCrosBranchFromManifest(manifest, crosBranchName, ""), "does not descend")
 }
@@ -270,10 +271,10 @@ func TestAssertCrosVersion(t *testing.T) {
 	}
 	assert.NilError(t, r.SetVersion("", version))
 
-	assert.NilError(t, r.AssertCrosVersion("master", version))
+	assert.NilError(t, r.AssertCrosVersion("main", version))
 	// Wrong version.
 	version.ChromeBranch = 5
-	assert.ErrorContains(t, r.AssertCrosVersion("master", version), "version mismatch")
+	assert.ErrorContains(t, r.AssertCrosVersion("main", version), "version mismatch")
 	// Wrong branch.
 	version.ChromeBranch = 5
 	assert.Assert(t, r.AssertCrosVersion("branch", version) != nil)
@@ -322,20 +323,20 @@ func TestAssertProjectRevisionsMatchBranch(t *testing.T) {
 	manifest.Projects = append([]repo.Project(nil), manifest.Projects...)
 
 	// To avoid all the work of actually branching, just switch the revisions on
-	// pinned projects to be SHA-1's instead of 'refs/heads/master'.
+	// pinned projects to be SHA-1's instead of 'refs/heads/main'.
 	for _, project := range manifest.GetPinnedProjects() {
 		repoPath := r.Harness.GetRemotePath(rh.GetRemoteProject(*project))
-		masterSha, err := git.GetGitRepoRevision(repoPath, project.Revision)
+		mainSha, err := git.GetGitRepoRevision(repoPath, project.Revision)
 		assert.NilError(t, err)
-		project.Revision = masterSha
+		project.Revision = mainSha
 	}
-	// Also, to pretend that master is a proper CrOS branch, we need to adjust
+	// Also, to pretend that main is a proper CrOS branch, we need to adjust
 	// the multicheckout revisions.
 	for _, project := range manifest.GetMultiCheckoutProjects() {
-		project.Revision = git.NormalizeRef("master-" + git.StripRefs(project.Revision))
+		project.Revision = git.NormalizeRef("main-" + git.StripRefs(project.Revision))
 	}
 
-	assert.NilError(t, r.AssertProjectRevisionsMatchBranch(manifest, "master", ""))
+	assert.NilError(t, r.AssertProjectRevisionsMatchBranch(manifest, "main", ""))
 	assert.Assert(t, r.AssertProjectRevisionsMatchBranch(manifest, "foo", "") != nil)
 }
 
@@ -357,20 +358,20 @@ func TestAssertManifestProjectRepaired(t *testing.T) {
 	// Set up new branch. We have to actually do this because of pinned projects.
 	newBranch := "newbranch"
 	manifestProject := rh.GetRemoteProject(DefaultManifestProject)
-	assert.NilError(t, r.Harness.CreateRemoteRef(manifestProject, newBranch, "master"))
+	assert.NilError(t, r.Harness.CreateRemoteRef(manifestProject, newBranch, "main"))
 
 	manifest := r.Harness.Manifest()
 	// Deep copy projects so that we can change manifest without changing r.Harness.manifest
 	manifest.Projects = append([]repo.Project(nil), manifest.Projects...)
 
-	// Switch the revisions on pinned projects to be SHA-1's instead of 'refs/heads/master'.
+	// Switch the revisions on pinned projects to be SHA-1's instead of 'refs/heads/main'.
 	for _, project := range manifest.GetPinnedProjects() {
 		pinnedProject := rh.GetRemoteProject(*project)
 		repoPath := r.Harness.GetRemotePath(pinnedProject)
 		assert.NilError(t, r.Harness.CreateRemoteRef(pinnedProject, newBranch, project.Revision))
-		masterSha, err := git.GetGitRepoRevision(repoPath, newBranch)
+		mainSha, err := git.GetGitRepoRevision(repoPath, newBranch)
 		assert.NilError(t, err)
-		project.Revision = masterSha
+		project.Revision = mainSha
 	}
 	for _, project := range manifest.GetSingleCheckoutProjects() {
 		project.Revision = git.NormalizeRef(newBranch)

@@ -21,13 +21,13 @@ const (
 	branchCreatorGroup = "mdb/chromeos-branch-creators"
 )
 
-func getCmdCreateBranchV2(opts auth.Options) *subcommands.Command {
+func getCmdCreateBranch(opts auth.Options) *subcommands.Command {
 	return &subcommands.Command{
-		UsageLine: "create-v2 <options>",
+		UsageLine: "create <options>",
 		ShortDesc: "Create a branch.",
 		LongDesc:  "Create a branch using the newer Gerrit API-based branching approach.",
 		CommandRun: func() subcommands.CommandRun {
-			c := &createBranchV2{}
+			c := &createBranch{}
 			c.InitFlags(opts)
 			// Arguments for determining branch name.
 			c.Flags.StringVar(&c.descriptor, "descriptor", "",
@@ -63,7 +63,7 @@ func getCmdCreateBranchV2(opts auth.Options) *subcommands.Command {
 	}
 }
 
-type createBranchV2 struct {
+type createBranch struct {
 	CommonFlags
 	yes               bool
 	descriptor        string
@@ -77,7 +77,7 @@ type createBranchV2 struct {
 	gerritWriteQps    float64
 }
 
-func (c *createBranchV2) validate(args []string) (bool, string) {
+func (c *createBranch) validate(args []string) (bool, string) {
 	if c.buildSpecManifest == "" {
 		return false, "must set --buildspec-manifest"
 	}
@@ -97,15 +97,15 @@ func (c *createBranchV2) validate(args []string) (bool, string) {
 
 // Getters so that functions using the branchCommand interface
 // can access CommonFlags in the underlying struct.
-func (c *createBranchV2) getRoot() string {
+func (c *createBranch) getRoot() string {
 	return c.Root
 }
 
-func (c *createBranchV2) getManifestUrl() string {
+func (c *createBranch) getManifestUrl() string {
 	return c.ManifestUrl
 }
 
-func (c *createBranchV2) Run(a subcommands.Application, args []string,
+func (c *createBranch) Run(a subcommands.Application, args []string,
 	env subcommands.Env) int {
 	// Common setup (argument validation, repo init, etc.)
 

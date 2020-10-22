@@ -28,10 +28,10 @@ func getApplication(authOpts auth.Options) *subcommands.DefaultApplication {
 		Title: "cros branch tool",
 		Commands: []*subcommands.Command{
 			subcommands.CmdHelp,
-			getCmdCreateBranch(authOpts),
+			getCmdCreateBranchV1(authOpts),
 			getCmdRenameBranch(authOpts),
 			getCmdDeleteBranch(authOpts),
-			getCmdCreateBranchV2(authOpts),
+			getCmdCreateBranch(authOpts),
 			authcli.SubcommandInfo(authOpts, "auth-info", false),
 			authcli.SubcommandLogin(authOpts, "auth-login", false),
 			authcli.SubcommandLogout(authOpts, "auth-logout", false),

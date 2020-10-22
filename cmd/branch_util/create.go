@@ -15,13 +15,13 @@ import (
 	"go.chromium.org/luci/common/errors"
 )
 
-func getCmdCreateBranch(opts auth.Options) *subcommands.Command {
+func getCmdCreateBranchV1(opts auth.Options) *subcommands.Command {
 	return &subcommands.Command{
-		UsageLine: "create <options>",
+		UsageLine: "create-v1 <options>",
 		ShortDesc: "Create a branch.",
 		LongDesc:  "Create a branch.",
 		CommandRun: func() subcommands.CommandRun {
-			c := &createBranchRun{}
+			c := &createBranchRunV1{}
 			c.InitFlags(opts)
 			// Arguments for determining branch name.
 			c.Flags.StringVar(&c.descriptor, "descriptor", "",
@@ -61,7 +61,7 @@ func getCmdCreateBranch(opts auth.Options) *subcommands.Command {
 	}
 }
 
-type createBranchRun struct {
+type createBranchRunV1 struct {
 	CommonFlags
 	yes        bool
 	descriptor string
@@ -74,7 +74,7 @@ type createBranchRun struct {
 	custom     string
 }
 
-func (c *createBranchRun) validate(args []string) (bool, string) {
+func (c *createBranchRunV1) validate(args []string) (bool, string) {
 	if c.file == "" && c.version == "" || c.file != "" && c.version != "" {
 		return false, "must set exactly one of --file or --version."
 	}
@@ -94,15 +94,15 @@ func (c *createBranchRun) validate(args []string) (bool, string) {
 
 // Getters so that functions using the branchCommand interface
 // can access CommonFlags in the underlying struct.
-func (c *createBranchRun) getRoot() string {
+func (c *createBranchRunV1) getRoot() string {
 	return c.Root
 }
 
-func (c *createBranchRun) getManifestUrl() string {
+func (c *createBranchRunV1) getManifestUrl() string {
 	return c.ManifestUrl
 }
 
-func (c *createBranchRun) Run(a subcommands.Application, args []string,
+func (c *createBranchRunV1) Run(a subcommands.Application, args []string,
 	env subcommands.Env) int {
 	// Common setup (argument validation, repo init, etc.)
 	ret := Run(c, a, args, env)

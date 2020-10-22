@@ -586,11 +586,11 @@ func branchCreationTester(manifestInternal repo.Project, vinfo mv.VersionInfo,
 }
 
 // TestCreateV2 performs unit tests on the components of create-v2
-func TestCreateV2(t *testing.T) {
+func TestCreate(t *testing.T) {
 	// Get Mock for gitiles download
 	mockGitiles, err := createSetUp(t)
 	if err != nil {
-		t.Error("Error: CreaveV2 setup failed. reason: " + err.Error())
+		t.Error("Error: Create setup failed. reason: " + err.Error())
 		return
 	}
 
@@ -658,7 +658,7 @@ func TestCreateV2(t *testing.T) {
 		return
 	}
 
-	// get chhromeos_version.sh mock
+	// get chromeos_version.sh mock
 	versionFile, err := gerrit.DownloadFileFromGitiles(nil, ctx, "", "version", "main", "chromeos_version.sh")
 	if err != nil {
 		t.Error("Error: Failed to download chromeos_version.sh from mock")
@@ -719,7 +719,7 @@ func TestCreateV2(t *testing.T) {
 	return
 }
 
-func TestCreate(t *testing.T) {
+func TestCreateV1(t *testing.T) {
 	r := setUp(t)
 	defer r.Teardown()
 
@@ -727,7 +727,7 @@ func TestCreate(t *testing.T) {
 	branch := "new-branch"
 	s := &branchApplication{application, nil, nil}
 	ret := subcommands.Run(s, []string{
-		"create", "--push",
+		"create-v1", "--push",
 		"--file", fullManifestPath(r),
 		"--custom", branch,
 		"-j", "2", // Test with two workers for kicks.
@@ -765,7 +765,7 @@ func TestCreate(t *testing.T) {
 // Branch off of old-branch to make sure that the source version is being
 // bumped in the correct branch.
 // Covers crbug.com/1744928.
-func TestCreateReleaseNonmain(t *testing.T) {
+func TestCreateV1ReleaseNonmain(t *testing.T) {
 	r := setUp(t)
 	defer r.Teardown()
 
@@ -773,7 +773,7 @@ func TestCreateReleaseNonmain(t *testing.T) {
 	branch := "release-R12-2.1.B"
 	s := &branchApplication{application, nil, nil}
 	ret := subcommands.Run(s, []string{
-		"create", "--push",
+		"create-v1", "--push",
 		"--file", fullBranchedManifestPath(r),
 		"--release",
 	})
@@ -808,14 +808,14 @@ func TestCreateReleaseNonmain(t *testing.T) {
 	assertCommentsPersist(t, r, getExistingBranchManifestFiles, branch)
 }
 
-func TestCreateDryRun(t *testing.T) {
+func TestCreateV1DryRun(t *testing.T) {
 	r := setUp(t)
 	defer r.Teardown()
 
 	branch := "new-branch"
 	s := &branchApplication{application, nil, nil}
 	ret := subcommands.Run(s, []string{
-		"create",
+		"create-v1",
 		"--file", fullManifestPath(r),
 		"--custom", branch,
 	})
@@ -824,7 +824,7 @@ func TestCreateDryRun(t *testing.T) {
 }
 
 // Test creating release branch also bumps main Chrome branch.
-func TestCreateRelease(t *testing.T) {
+func TestCreateV1Release(t *testing.T) {
 	r := setUp(t)
 	defer r.Teardown()
 
@@ -832,7 +832,7 @@ func TestCreateRelease(t *testing.T) {
 
 	s := &branchApplication{application, nil, nil}
 	ret := subcommands.Run(s, []string{
-		"create", "--push",
+		"create-v1", "--push",
 		"--file", fullManifestPath(r),
 		"--release",
 	})
@@ -861,7 +861,7 @@ func TestCreateRelease(t *testing.T) {
 }
 
 // Test create overwrites existing branches when --force is set.
-func TestCreateOverwrite(t *testing.T) {
+func TestCreateV1Overwrite(t *testing.T) {
 	r := setUp(t)
 	defer r.Teardown()
 
@@ -870,7 +870,7 @@ func TestCreateOverwrite(t *testing.T) {
 	branch := "old-branch"
 	s := &branchApplication{application, nil, nil}
 	ret := subcommands.Run(s, []string{
-		"create", "--push",
+		"create-v1", "--push",
 		"--force",
 		"--file", fullManifestPath(r),
 		"--custom", branch,
@@ -899,7 +899,7 @@ func TestCreateOverwrite(t *testing.T) {
 }
 
 // Test create dies when it tries to overwrite without --force.
-func TestCreateOverwriteMissingForce(t *testing.T) {
+func TestCreateV1OverwriteMissingForce(t *testing.T) {
 	r := setUp(t)
 	defer r.Teardown()
 
@@ -910,7 +910,7 @@ func TestCreateOverwriteMissingForce(t *testing.T) {
 	stderrLog := log.New(&stderrBuf, "", log.LstdFlags|log.Lmicroseconds)
 	s := &branchApplication{application, nil, stderrLog}
 	ret := subcommands.Run(s, []string{
-		"create", "--push",
+		"create-v1", "--push",
 		"--file", fullManifestPath(r),
 		"--custom", branch,
 	})
@@ -927,7 +927,7 @@ func TestCreateOverwriteMissingForce(t *testing.T) {
 }
 
 // Test create dies when given a version that was already branched.
-func TestCreateExistingVersion(t *testing.T) {
+func TestCreateV1ExistingVersion(t *testing.T) {
 	r := setUp(t)
 	defer r.Teardown()
 
@@ -946,7 +946,7 @@ func TestCreateExistingVersion(t *testing.T) {
 	stderrLog := log.New(&stderrBuf, "", log.LstdFlags|log.Lmicroseconds)
 	s := &branchApplication{application, nil, stderrLog}
 	ret := subcommands.Run(s, []string{
-		"create", "--push",
+		"create-v1", "--push",
 		"--file", fullManifestPath(r),
 		"--stabilize",
 	})
@@ -1043,7 +1043,7 @@ func TestRenameOverwrite(t *testing.T) {
 	// the branches to be renamed will be created by `cros branch` anyways."
 	s := &branchApplication{application, nil, nil}
 	ret := subcommands.Run(s, []string{
-		"create", "--push",
+		"create-v1", "--push",
 		"--manifest-url", manifestDir,
 		"--file", fullManifestPath(r),
 		"--custom", newBranch,

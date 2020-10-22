@@ -108,6 +108,7 @@ func (c *createBranchV2) getManifestUrl() string {
 func (c *createBranchV2) Run(a subcommands.Application, args []string,
 	env subcommands.Env) int {
 	// Common setup (argument validation, repo init, etc.)
+
 	ret := Run(c, a, args, env)
 	if ret != 0 {
 		return ret
@@ -118,7 +119,9 @@ func (c *createBranchV2) Run(a subcommands.Application, args []string,
 		branch.LogErr(errors.Annotate(err, "failed to configure auth").Err().Error())
 		return 1
 	}
+
 	authedClient, err := auth.NewAuthenticator(ctx, auth.SilentLogin, authOpts).Client()
+
 	if err != nil {
 		branch.LogErr(errors.Annotate(err, "Please run `./branch_util auth-login` and sign in with your @google.com account").Err().Error())
 		return 1
@@ -139,11 +142,13 @@ func (c *createBranchV2) Run(a subcommands.Application, args []string,
 
 	file, err := gerrit.DownloadFileFromGitiles(authedClient, ctx, "chrome-internal.googlesource.com",
 		"chromeos/manifest-versions", "master", "buildspecs/"+c.buildSpecManifest)
+
 	if err != nil {
 		branch.LogErr(errors.Annotate(err, "failed to fetch buildspec %v", c.buildSpecManifest).Err().Error())
 		return 1
 	}
 	branch.LogErr("Got %v from Gitiles", c.buildSpecManifest)
+
 	wm, err := ioutil.TempFile("", "working-manifest.xml")
 	if err != nil {
 		branch.LogErr("%s\n", err.Error())
@@ -187,6 +192,7 @@ func (c *createBranchV2) Run(a subcommands.Application, args []string,
 	// Fetch chromeos_version.sh from the source branch
 	versionFile, err := gerrit.DownloadFileFromGitiles(authedClient, ctx,
 		"chromium.googlesource.com", versionProject.Name, versionProject.Revision, mv.VersionFileProjectPath)
+
 	if err != nil {
 		branch.LogErr(errors.Annotate(err, "failed to fetch versionFile").Err().Error())
 		return 1

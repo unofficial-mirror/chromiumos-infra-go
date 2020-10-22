@@ -5,24 +5,28 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/xml"
 	"fmt"
-	"go.chromium.org/luci/auth"
+	"github.com/golang/mock/gomock"
+	"github.com/maruel/subcommands"
+	"go.chromium.org/chromiumos/infra/go/cmd/branch_util/test"
+	"go.chromium.org/chromiumos/infra/go/internal/branch"
+	mv "go.chromium.org/chromiumos/infra/go/internal/chromeos_version"
+	gerrit "go.chromium.org/chromiumos/infra/go/internal/gerrit"
+	"go.chromium.org/chromiumos/infra/go/internal/git"
+	"go.chromium.org/chromiumos/infra/go/internal/repo"
+	rh "go.chromium.org/chromiumos/infra/go/internal/repo_harness"
+	"go.chromium.org/chromiumos/infra/go/internal/test_util"
+	gitilespb "go.chromium.org/luci/common/proto/gitiles"
+	"go.chromium.org/luci/hardcoded/chromeinfra"
+	"gotest.tools/assert"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/maruel/subcommands"
-	"go.chromium.org/chromiumos/infra/go/cmd/branch_util/test"
-	mv "go.chromium.org/chromiumos/infra/go/internal/chromeos_version"
-	"go.chromium.org/chromiumos/infra/go/internal/git"
-	"go.chromium.org/chromiumos/infra/go/internal/repo"
-	rh "go.chromium.org/chromiumos/infra/go/internal/repo_harness"
-	"go.chromium.org/chromiumos/infra/go/internal/test_util"
-	"gotest.tools/assert"
 )
 
 const (
@@ -177,6 +181,13 @@ const (
 `
 )
 
+const chromeVersionMock = `
+	CHROMEOS_BUILD=13324
+	CHROMEOS_BRANCH=10
+	CHROMEOS_PATCH=0
+	CHROME_BRANCH=86
+`
+
 var (
 	manifestProject = rh.RemoteProject{
 		RemoteName:  "cros",
@@ -186,7 +197,14 @@ var (
 		RemoteName:  "cros-internal",
 		ProjectName: "chromeos/manifest-internal",
 	}
-	application = getApplication(auth.Options{})
+	application = getApplication(chromeinfra.DefaultAuthOptions())
+
+	expectedBranchVersion = mv.VersionInfo{
+		ChromeBranch:      86,
+		BuildNumber:       13324,
+		BranchBuildNumber: 10,
+		PatchNumber:       0,
+	}
 )
 
 func getManifestFiles(crosFetch, crosInternalFetch string) (
@@ -446,6 +464,261 @@ func assertNoRemoteDiff(t *testing.T, r *test.CrosRepoHarness) {
 	}
 }
 
+// createSetUp creates the neccessary mocks we need to test the create-v2 function
+func createSetUp(t *testing.T) (gitilespb.GitilesClient, error) {
+	r := setUp(t)
+	defer r.Teardown()
+
+	// Get manifest contents for return
+	manifestPath := fullManifestPath(r)
+	manifestFile, err := ioutil.ReadFile(manifestPath)
+	if err != nil {
+		return nil, err
+	}
+	manifest := string(manifestFile)
+
+	// Mock Gitiles controller
+	ctl := gomock.NewController(t)
+
+	// Mock manifest request
+	reqManifest := &gitilespb.DownloadFileRequest{
+		Project:    "manifest",
+		Path:       "01/1234.2.0.xml",
+		Committish: "main",
+		Format:     gitilespb.DownloadFileRequest_TEXT,
+	}
+
+	// Mock version file request
+	reqVersionFile := &gitilespb.DownloadFileRequest{
+		Project:    "version",
+		Path:       "chromeos_version.sh",
+		Committish: "main",
+		Format:     gitilespb.DownloadFileRequest_TEXT,
+	}
+
+	// Mock download response
+	gitilesMock := gitilespb.NewMockGitilesClient(ctl)
+	gitilesMock.EXPECT().DownloadFile(gomock.Any(), reqManifest).Return(
+		&gitilespb.DownloadFileResponse{
+			Contents: manifest,
+		},
+		nil,
+	)
+	gitilesMock.EXPECT().DownloadFile(gomock.Any(), reqVersionFile).Return(
+		&gitilespb.DownloadFileResponse{
+			Contents: chromeVersionMock,
+		},
+		nil,
+	)
+
+	return gitilesMock, nil
+}
+
+// branchCreationTester recreates the branching process as seen in create@
+func branchCreationTester(manifestInternal repo.Project, vinfo mv.VersionInfo,
+	expectedBranchName, customBranchName, descriptor string, release, factory, firmware, stabilize bool) error {
+
+	sourceRevision := manifestInternal.Revision
+	sourceUpstream := git.StripRefs(manifestInternal.Upstream)
+
+	branchType := ""
+	switch {
+	case release:
+		branchType = "release"
+	case factory:
+		branchType = "factory"
+	case firmware:
+		branchType = "firmware"
+	case stabilize:
+		branchType = "stabilize"
+	default:
+		branchType = "custom"
+
+	}
+
+	// Check if branched
+	if err := branch.CheckIfAlreadyBranched(vinfo, manifestInternal, false, branchType); err != nil {
+		return fmt.Errorf("Error: %s", err.Error())
+	}
+
+	branchName := branch.NewBranchName(vinfo, customBranchName, descriptor, release, factory, firmware, stabilize)
+	if branchName != expectedBranchName {
+		return fmt.Errorf("%s does not match expected branch name %s", branchName, expectedBranchName)
+	}
+
+	componentToBump, err := branch.WhichVersionShouldBump(vinfo)
+
+	if componentToBump != mv.Patch {
+		return fmt.Errorf("incorrect VersionComponent selected to be bumped")
+	}
+
+	// Get project branches
+	branches := branch.ProjectBranches(branchName, git.StripRefs(sourceRevision))
+
+	// Check branch name creation
+	for _, branchProject := range branches {
+		if !strings.Contains(branchProject.BranchName, branchName) {
+			return fmt.Errorf("incorrect branch name created")
+		}
+
+	}
+
+	// Gerrit remote branch creation
+	projectBranches, err := branch.GerritProjectBranches(branches)
+
+	for _, project := range projectBranches {
+		if !strings.Contains(project.Branch, branchName) {
+			return fmt.Errorf("incorrect branch name created")
+		}
+	}
+
+	if projectBranches == nil || err != nil {
+		return fmt.Errorf("gerrit branch creation error")
+
+	}
+
+	// Bump version number
+	if err = branch.BumpForCreate(componentToBump, release, false, branchName, sourceUpstream); err != nil {
+		return fmt.Errorf("Failed to bump version reason: %s", err.Error())
+	}
+
+	return nil
+}
+
+// TestCreateV2 performs unit tests on the components of create-v2
+func TestCreateV2(t *testing.T) {
+	// Get Mock for gitiles download
+	mockGitiles, err := createSetUp(t)
+	if err != nil {
+		t.Error("Error: CreaveV2 setup failed. reason: " + err.Error())
+		return
+	}
+
+	ctx := context.Background()
+	gerrit.MockGitiles = mockGitiles
+
+	// Expected branch names by type
+	descriptor := "test"
+	customBranchName := "new-branch"
+	releaseBranchName := fmt.Sprintf("release-R%v-%v-%v.%v.B", expectedBranchVersion.ChromeBranch,
+		descriptor, expectedBranchVersion.BuildNumber, expectedBranchVersion.BranchBuildNumber)
+	factoryBranchName := fmt.Sprintf("factory-%v-%v.%v.B", descriptor, expectedBranchVersion.BuildNumber,
+		expectedBranchVersion.BranchBuildNumber)
+	firmwareBranchName := fmt.Sprintf("firmware-%v-%v.%v.B", descriptor, expectedBranchVersion.BuildNumber,
+		expectedBranchVersion.BranchBuildNumber)
+	stabilizeBranchName := fmt.Sprintf("stabilize-%v-%v.%v.B", descriptor, expectedBranchVersion.BuildNumber,
+		expectedBranchVersion.BranchBuildNumber)
+
+	// Mock Download
+	manifestFile, err := gerrit.DownloadFileFromGitiles(nil, ctx, "", "manifest", "main", "01/1234.2.0.xml")
+
+	if err != nil {
+		t.Error("Error: Failed to download manifest from mock")
+		return
+	}
+
+	// Create working manifest
+	workingManifest, err := ioutil.TempFile("", "working-manifest.xml")
+	if err != nil {
+		t.Error("Error: working manifest file creation failed")
+		return
+	}
+
+	// Fill manifest
+	_, err = workingManifest.WriteString(manifestFile)
+	if err != nil {
+		t.Error("Error: Failed write to working manifest")
+		return
+	}
+
+	// Set exported var with working manifest
+	branch.WorkingManifest, err = repo.LoadManifestFromFile(workingManifest.Name())
+	if err != nil {
+		t.Error("Error: Failed to set brach.WorkingManifest")
+		return
+	}
+
+	manifestInternal, err := branch.WorkingManifest.GetUniqueProject("chromeos/manifest-internal")
+	if err != nil {
+		t.Error("Error: Failed to get internal manifest")
+
+		return
+	}
+
+	// Validate version
+	versionProject, err := branch.WorkingManifest.GetProjectByPath(branch.VersionFileProjectPath)
+	if err != nil {
+		t.Error("Error: Failed to validate version")
+		return
+	}
+
+	if versionProject.Path != "src/third_party/chromiumos-overlay" ||
+		versionProject.Name != "chromiumos/overlays/chromiumos-overlay" {
+		t.Error("Error: version information is incorrect")
+		return
+	}
+
+	// get chhromeos_version.sh mock
+	versionFile, err := gerrit.DownloadFileFromGitiles(nil, ctx, "", "version", "main", "chromeos_version.sh")
+	if err != nil {
+		t.Error("Error: Failed to download chromeos_version.sh from mock")
+		return
+	}
+	if versionFile != chromeVersionMock {
+		t.Error("Error: Downloaded chromeos_version.sh does not match expected")
+		return
+	}
+
+	// Get parsed version info
+	vinfo, err := mv.ParseVersionInfo([]byte(versionFile))
+
+	if err != nil {
+		t.Error("Error: Failed to get version info")
+		return
+	}
+
+	if !mv.VersionsEqual(vinfo, expectedBranchVersion) {
+		t.Error("Error: version info does not match expected value")
+		return
+	}
+
+	// Custom branch type testing (Dry run)
+	err = branchCreationTester(manifestInternal, vinfo, customBranchName,
+		customBranchName, descriptor, false, false, false, false)
+	if err != nil {
+		t.Error(err)
+	}
+
+	// Release branch type testing (Dry run)
+	err = branchCreationTester(manifestInternal, vinfo, releaseBranchName,
+		"", descriptor, true, false, false, false)
+	if err != nil {
+		t.Error(err)
+	}
+
+	// Factory branch type testing (Dry run)
+	err = branchCreationTester(manifestInternal, vinfo, factoryBranchName,
+		"", descriptor, false, true, false, false)
+	if err != nil {
+		t.Error(err)
+	}
+
+	// Firmware branch type testing (Dry run)
+	err = branchCreationTester(manifestInternal, vinfo, firmwareBranchName,
+		"", descriptor, false, false, true, false)
+	if err != nil {
+		t.Error(err)
+	}
+
+	// Stabilize branch type testing (Dry run)
+	err = branchCreationTester(manifestInternal, vinfo, stabilizeBranchName,
+		"", descriptor, false, false, false, true)
+	if err != nil {
+		t.Error(err)
+	}
+	return
+}
+
 func TestCreate(t *testing.T) {
 	r := setUp(t)
 	defer r.Teardown()
@@ -459,6 +732,7 @@ func TestCreate(t *testing.T) {
 		"--custom", branch,
 		"-j", "2", // Test with two workers for kicks.
 	})
+
 	assert.Assert(t, ret == 0, "Got return code %d", ret)
 
 	assert.NilError(t, r.AssertCrosBranches([]string{branch}))

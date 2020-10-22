@@ -23,6 +23,7 @@ var (
 
 // GetWorkingManifestForVersion gets the manifest in manifest-versions/buildspecs for the
 // given version string (of the format %d.%d.%d).
+// TODO(juahurta): DEPRECATE
 func GetWorkingManifestForVersion(version string) (*repo.Manifest, error) {
 	tmpDir, err := ioutil.TempDir("", "tmp-manifest-version-repo")
 	defer os.RemoveAll(tmpDir)

@@ -18,8 +18,8 @@ import (
 func getCmdCreateBranchV1(opts auth.Options) *subcommands.Command {
 	return &subcommands.Command{
 		UsageLine: "create-v1 <options>",
-		ShortDesc: "Create a branch.",
-		LongDesc:  "Create a branch.",
+		ShortDesc: "Create a branch(DEPRECATED).",
+		LongDesc:  "Create a branch(DEPRECATED).",
 		CommandRun: func() subcommands.CommandRun {
 			c := &createBranchRunV1{}
 			c.InitFlags(opts)

@@ -30,6 +30,8 @@ func getCmdCreateBranch(opts auth.Options) *subcommands.Command {
 			c := &createBranch{}
 			c.InitFlags(opts)
 			// Arguments for determining branch name.
+			c.Flags.StringVar(&c.file, "file", "",
+				"File path to manifest file. Can be either absolute or relative to branch_util binary.")
 			c.Flags.StringVar(&c.descriptor, "descriptor", "",
 				"Optional descriptor for this branch. Typically, this is a build "+
 					"target or a device, depending on the nature of the branch. Used "+
@@ -75,11 +77,15 @@ type createBranch struct {
 	stabilize         bool
 	custom            string
 	gerritWriteQps    float64
+	file              string
 }
 
 func (c *createBranch) validate(args []string) (bool, string) {
-	if c.buildSpecManifest == "" {
-		return false, "must set --buildspec-manifest"
+	if c.buildSpecManifest == "" && c.file == "" {
+		return false, "must set --buildspec-manifest or --file"
+	}
+	if c.buildSpecManifest != "" && c.file != "" {
+		return false, "--buildspec-manifest and --file cannot be used together"
 	}
 	_, ok := branch.BranchType(c.release, c.factory, c.firmware, c.stabilize, c.custom)
 	if !ok {
@@ -140,32 +146,41 @@ func (c *createBranch) Run(a subcommands.Application, args []string,
 		}
 	}
 
-	file, err := gerrit.DownloadFileFromGitiles(authedClient, ctx, "chrome-internal.googlesource.com",
-		"chromeos/manifest-versions", "master", "buildspecs/"+c.buildSpecManifest)
-
-	if err != nil {
-		branch.LogErr(errors.Annotate(err, "failed to fetch buildspec %v", c.buildSpecManifest).Err().Error())
-		return 1
+	if c.file != "" {
+		// Branch from file.
+		file, err := repo.LoadManifestFromFileWithIncludes(c.file)
+		if err != nil {
+			branch.LogErr(errors.Annotate(err, "Error: Failed to load manifest from file ").Err().Error())
+			return 1
+		}
+		branch.LogErr("Got manifest from filepath %v", c.file)
+		branch.WorkingManifest = *file
+	} else {
+		file, err := gerrit.DownloadFileFromGitiles(authedClient, ctx, "chrome-internal.googlesource.com",
+			"chromeos/manifest-versions", "master", "buildspecs/"+c.buildSpecManifest)
+		if err != nil {
+			branch.LogErr(errors.Annotate(err, "failed to fetch buildspec %v", c.buildSpecManifest).Err().Error())
+			return 1
+		}
+		branch.LogErr("Got %v from Gitiles", c.buildSpecManifest)
+		wm, err := ioutil.TempFile("", "working-manifest.xml")
+		if err != nil {
+			branch.LogErr("%s\n", err.Error())
+			return 1
+		}
+		_, err = wm.WriteString(file)
+		if err != nil {
+			branch.LogErr("%s\n", err.Error())
+			return 1
+		}
+		branch.WorkingManifest, err = repo.LoadManifestFromFile(wm.Name())
+		if err != nil {
+			err = errors.Annotate(err, "failed to load manifests").Err()
+			branch.LogErr("%s\n", err.Error())
+			return 1
+		}
+		branch.LogErr("Fetched working manifest.\n")
 	}
-	branch.LogErr("Got %v from Gitiles", c.buildSpecManifest)
-
-	wm, err := ioutil.TempFile("", "working-manifest.xml")
-	if err != nil {
-		branch.LogErr("%s\n", err.Error())
-		return 1
-	}
-	_, err = wm.WriteString(file)
-	if err != nil {
-		branch.LogErr("%s\n", err.Error())
-		return 1
-	}
-	branch.WorkingManifest, err = repo.LoadManifestFromFile(wm.Name())
-	if err != nil {
-		err = errors.Annotate(err, "failed to load manifests").Err()
-		branch.LogErr("%s\n", err.Error())
-		return 1
-	}
-	branch.LogErr("Fetched working manifest.\n")
 
 	// Use manifest-internal as a sentinel repository to get the appropriate branch name.
 	// We know that manifest-internal is a single-checkout so its revision should be

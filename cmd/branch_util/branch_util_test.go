@@ -585,7 +585,7 @@ func branchCreationTester(manifestInternal repo.Project, vinfo mv.VersionInfo,
 	return nil
 }
 
-// TestCreateV2 performs unit tests on the components of create-v2
+// TestCreate performs unit tests on the components of create-v2
 func TestCreate(t *testing.T) {
 	// Get Mock for gitiles download
 	mockGitiles, err := createSetUp(t)
@@ -719,242 +719,6 @@ func TestCreate(t *testing.T) {
 	return
 }
 
-func TestCreateV1(t *testing.T) {
-	r := setUp(t)
-	defer r.Teardown()
-
-	manifest := r.Harness.Manifest()
-	branch := "new-branch"
-	s := &branchApplication{application, nil, nil}
-	ret := subcommands.Run(s, []string{
-		"create-v1", "--push",
-		"--file", fullManifestPath(r),
-		"--custom", branch,
-		"-j", "2", // Test with two workers for kicks.
-	})
-
-	assert.Assert(t, ret == 0, "Got return code %d", ret)
-
-	assert.NilError(t, r.AssertCrosBranches([]string{branch}))
-	assert.NilError(t, r.AssertCrosBranchFromManifest(manifest, branch, ""))
-	assertManifestsRepaired(t, r, branch)
-	newBranchVersion := mv.VersionInfo{
-		ChromeBranch:      12,
-		BuildNumber:       3,
-		BranchBuildNumber: 1,
-		PatchNumber:       0,
-	}
-	assert.NilError(t, r.AssertCrosVersion(branch, newBranchVersion))
-	mainVersion := mv.VersionInfo{
-		ChromeBranch:      12,
-		BuildNumber:       4,
-		BranchBuildNumber: 0,
-		PatchNumber:       0,
-	}
-	assert.NilError(t, r.AssertCrosVersion("main", mainVersion))
-
-	assertCommentsPersist(t, r, getManifestFiles, branch)
-	// Check that manifests were minmally changed (e.g. element ordering preserved).
-	// This check is meaningful because the manifests are created using the branch_util
-	// tool which reads in, unmarshals, and modifies the manifests from getManifestFiles.
-	// The expected manifests (which the branched manifests are being compared to)
-	// are simply strings produced by getBranchedManifestFiles.
-	assertMinimalManifestChanges(t, r, branch)
-}
-
-// Branch off of old-branch to make sure that the source version is being
-// bumped in the correct branch.
-// Covers crbug.com/1744928.
-func TestCreateV1ReleaseNonmain(t *testing.T) {
-	r := setUp(t)
-	defer r.Teardown()
-
-	manifest := r.Harness.Manifest()
-	branch := "release-R12-2.1.B"
-	s := &branchApplication{application, nil, nil}
-	ret := subcommands.Run(s, []string{
-		"create-v1", "--push",
-		"--file", fullBranchedManifestPath(r),
-		"--release",
-	})
-	assert.Assert(t, ret == 0, "Got return code %d", ret)
-
-	assert.NilError(t, r.AssertCrosBranches([]string{branch}))
-
-	crosFetchVal := manifest.GetRemoteByName("cros").Fetch
-	crosInternalFetchVal := manifest.GetRemoteByName("cros-internal").Fetch
-	_, _, fullBranchedXML := getBranchedManifestFiles(existingBranchName, crosFetchVal, crosInternalFetchVal)
-	var branchManifest *repo.Manifest
-	assert.NilError(t, xml.Unmarshal([]byte(fullBranchedXML), &branchManifest))
-	branchManifest = branchManifest.ResolveImplicitLinks()
-
-	assert.NilError(t, r.AssertCrosBranchFromManifest(*branchManifest, branch, "old-branch"))
-	assertManifestsRepaired(t, r, branch)
-	newBranchVersion := mv.VersionInfo{
-		ChromeBranch:      12,
-		BuildNumber:       2,
-		BranchBuildNumber: 1,
-		PatchNumber:       1,
-	}
-	assert.NilError(t, r.AssertCrosVersion(branch, newBranchVersion))
-	sourceVersion := mv.VersionInfo{
-		ChromeBranch:      13,
-		BuildNumber:       3,
-		BranchBuildNumber: 0,
-		PatchNumber:       0,
-	}
-	assert.NilError(t, r.AssertCrosVersion("old-branch", sourceVersion))
-
-	assertCommentsPersist(t, r, getExistingBranchManifestFiles, branch)
-}
-
-func TestCreateV1DryRun(t *testing.T) {
-	r := setUp(t)
-	defer r.Teardown()
-
-	branch := "new-branch"
-	s := &branchApplication{application, nil, nil}
-	ret := subcommands.Run(s, []string{
-		"create-v1",
-		"--file", fullManifestPath(r),
-		"--custom", branch,
-	})
-	assert.Assert(t, ret == 0, "Got return code %d", ret)
-	assertNoRemoteDiff(t, r)
-}
-
-// Test creating release branch also bumps main Chrome branch.
-func TestCreateV1Release(t *testing.T) {
-	r := setUp(t)
-	defer r.Teardown()
-
-	manifest := r.Harness.Manifest()
-
-	s := &branchApplication{application, nil, nil}
-	ret := subcommands.Run(s, []string{
-		"create-v1", "--push",
-		"--file", fullManifestPath(r),
-		"--release",
-	})
-	assert.Assert(t, ret == 0, "Got return code %d", ret)
-
-	branch := "release-R12-3.B"
-	assert.NilError(t, r.AssertCrosBranches([]string{branch}))
-	assert.NilError(t, r.AssertCrosBranchFromManifest(manifest, branch, ""))
-	assertManifestsRepaired(t, r, branch)
-	newBranchVersion := mv.VersionInfo{
-		ChromeBranch:      12,
-		BuildNumber:       3,
-		BranchBuildNumber: 1,
-		PatchNumber:       0,
-	}
-	assert.NilError(t, r.AssertCrosVersion(branch, newBranchVersion))
-	mainVersion := mv.VersionInfo{
-		ChromeBranch:      13,
-		BuildNumber:       4,
-		BranchBuildNumber: 0,
-		PatchNumber:       0,
-	}
-	assert.NilError(t, r.AssertCrosVersion("main", mainVersion))
-
-	assertCommentsPersist(t, r, getManifestFiles, branch)
-}
-
-// Test create overwrites existing branches when --force is set.
-func TestCreateV1Overwrite(t *testing.T) {
-	r := setUp(t)
-	defer r.Teardown()
-
-	manifest := r.Harness.Manifest()
-
-	branch := "old-branch"
-	s := &branchApplication{application, nil, nil}
-	ret := subcommands.Run(s, []string{
-		"create-v1", "--push",
-		"--force",
-		"--file", fullManifestPath(r),
-		"--custom", branch,
-	})
-	assert.Assert(t, ret == 0, "Got return code %d", ret)
-
-	assert.NilError(t, r.AssertCrosBranches([]string{branch}))
-	assert.NilError(t, r.AssertCrosBranchFromManifest(manifest, branch, ""))
-	assertManifestsRepaired(t, r, branch)
-	newBranchVersion := mv.VersionInfo{
-		ChromeBranch:      12,
-		BuildNumber:       3,
-		BranchBuildNumber: 1,
-		PatchNumber:       0,
-	}
-	assert.NilError(t, r.AssertCrosVersion(branch, newBranchVersion))
-	mainVersion := mv.VersionInfo{
-		ChromeBranch:      12,
-		BuildNumber:       4,
-		BranchBuildNumber: 0,
-		PatchNumber:       0,
-	}
-	assert.NilError(t, r.AssertCrosVersion("main", mainVersion))
-
-	assertCommentsPersist(t, r, getManifestFiles, branch)
-}
-
-// Test create dies when it tries to overwrite without --force.
-func TestCreateV1OverwriteMissingForce(t *testing.T) {
-	r := setUp(t)
-	defer r.Teardown()
-
-	manifest := r.Harness.Manifest()
-
-	branch := "old-branch"
-	var stderrBuf bytes.Buffer
-	stderrLog := log.New(&stderrBuf, "", log.LstdFlags|log.Lmicroseconds)
-	s := &branchApplication{application, nil, stderrLog}
-	ret := subcommands.Run(s, []string{
-		"create-v1", "--push",
-		"--file", fullManifestPath(r),
-		"--custom", branch,
-	})
-	assert.Assert(t, ret != 0)
-	assert.Assert(t, strings.Contains(stderrBuf.String(), "rerun with --force"))
-
-	// Check that no remotes change.
-	for _, remote := range manifest.Remotes {
-		remotePath := filepath.Join(r.Harness.HarnessRoot(), remote.Name)
-		remoteSnapshot, err := r.GetRecentRemoteSnapshot(remote.Name)
-		assert.NilError(t, err)
-		assert.NilError(t, test_util.AssertContentsEqual(remoteSnapshot, remotePath))
-	}
-}
-
-// Test create dies when given a version that was already branched.
-func TestCreateV1ExistingVersion(t *testing.T) {
-	r := setUp(t)
-	defer r.Teardown()
-
-	// Our set up uses branch 12.3.0.0. A branch created from this version must
-	// end in 12-3.B. We create a branch with that suffix so that the tool
-	// will think 12.3.0.0 has already been branched.
-	// We just need to add a branch to the manifest internal repo because
-	// the tool checks if a branch exists for a version by looking at
-	// branches in the manifest internal repo.
-	assert.NilError(t,
-		r.Harness.CreateRemoteRef(manifestInternalProject, "release-R12-3.B", ""))
-	// Snapshot of manifestInternalProject is stale -- need to update.
-	assert.NilError(t, r.TakeSnapshot())
-
-	var stderrBuf bytes.Buffer
-	stderrLog := log.New(&stderrBuf, "", log.LstdFlags|log.Lmicroseconds)
-	s := &branchApplication{application, nil, stderrLog}
-	ret := subcommands.Run(s, []string{
-		"create-v1", "--push",
-		"--file", fullManifestPath(r),
-		"--stabilize",
-	})
-	assert.Assert(t, ret != 0)
-	assert.Assert(t, strings.Contains(stderrBuf.String(), "already branched 3.0.0"))
-	assertNoRemoteDiff(t, r)
-}
-
 func TestRename(t *testing.T) {
 	r := setUp(t)
 	defer r.Teardown()
@@ -1036,37 +800,15 @@ func TestRenameOverwrite(t *testing.T) {
 	manifestDir := r.Harness.GetRemotePath(manifestInternalProject)
 
 	oldBranch := existingBranchName // "old-branch"
-	newBranch := "new-branch"
+	newBranch := "main"
 
-	// Create a branch to rename. To quote the functional tests for `cros branch`:
-	// "This may seem like we depend on the correctness of the code under test, but in practice
-	// the branches to be renamed will be created by `cros branch` anyways."
-	s := &branchApplication{application, nil, nil}
-	ret := subcommands.Run(s, []string{
-		"create-v1", "--push",
-		"--manifest-url", manifestDir,
-		"--file", fullManifestPath(r),
-		"--custom", newBranch,
-	})
-	assert.Assert(t, ret == 0, "Got return code %d", ret)
-
-	assert.NilError(t, r.AssertCrosBranches([]string{newBranch}))
-	assert.NilError(t, r.AssertCrosBranchFromManifest(manifest, newBranch, ""))
-	assertManifestsRepaired(t, r, newBranch)
 	newBranchVersion := mv.VersionInfo{
 		ChromeBranch:      12,
 		BuildNumber:       3,
-		BranchBuildNumber: 1,
-		PatchNumber:       0,
-	}
-	assert.NilError(t, r.AssertCrosVersion(newBranch, newBranchVersion))
-	mainVersion := mv.VersionInfo{
-		ChromeBranch:      12,
-		BuildNumber:       4,
 		BranchBuildNumber: 0,
 		PatchNumber:       0,
 	}
-	assert.NilError(t, r.AssertCrosVersion("main", mainVersion))
+	assert.NilError(t, r.AssertCrosVersion(newBranch, newBranchVersion))
 	oldBranchVersion := mv.VersionInfo{
 		ChromeBranch:      12,
 		BuildNumber:       2,
@@ -1078,12 +820,12 @@ func TestRenameOverwrite(t *testing.T) {
 	assertCommentsPersist(t, r, getManifestFiles, newBranch)
 
 	// Gah! Turns out we actually wanted what's in oldBranch. Let's try force renaming
-	// oldBranch to newBranch, overwriting the existing contents of newBranch in the process.
-	s = &branchApplication{application, nil, nil}
-	ret = subcommands.Run(s, []string{
+	// oldBranch to main, overwriting the existing contents of main in the process.
+	s := &branchApplication{application, nil, nil}
+	ret := subcommands.Run(s, []string{
 		"rename", "--push", "--force",
 		"--manifest-url", manifestDir,
-		oldBranch, newBranch,
+		oldBranch, "main",
 	})
 	assert.Assert(t, ret == 0, "Got return code %d", ret)
 

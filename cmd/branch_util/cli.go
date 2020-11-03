@@ -28,7 +28,6 @@ func getApplication(authOpts auth.Options) *subcommands.DefaultApplication {
 		Title: "cros branch tool",
 		Commands: []*subcommands.Command{
 			subcommands.CmdHelp,
-			getCmdCreateBranchV1(authOpts),
 			getCmdRenameBranch(authOpts),
 			getCmdDeleteBranch(authOpts),
 			getCmdCreateBranch(authOpts),

@@ -424,6 +424,22 @@ func GetRepoToRemoteBranchToSourceRootFromManifests(authedClient *http.Client, c
 	if err != nil {
 		return nil, err
 	}
+	repoToSourceRoot := getRepoToRemoteBranchToSourceRootFromLoadedManifests(manifests)
+	log.Printf("Found %d repo to source root mappings from manifest files", len(repoToSourceRoot))
+	return repoToSourceRoot, nil
+}
+
+func GetRepoToRemoteBranchToSourceRootFromManifestFile(file string) (map[string]map[string]string, error) {
+	manifests, err := LoadManifestTree(file)
+	if err != nil {
+		return nil, errors.Annotate(err, "failed to load local manifest %s", file).Err()
+	}
+	repoToSourceRoot := getRepoToRemoteBranchToSourceRootFromLoadedManifests(manifests)
+	log.Printf("Found %d repo to source root mappings from manifest files", len(repoToSourceRoot))
+	return repoToSourceRoot, nil
+}
+
+func getRepoToRemoteBranchToSourceRootFromLoadedManifests(manifests map[string]*Manifest) map[string]map[string]string {
 	repoToSourceRoot := make(map[string]map[string]string)
 	for _, m := range manifests {
 		for _, p := range m.Projects {
@@ -440,8 +456,7 @@ func GetRepoToRemoteBranchToSourceRootFromManifests(authedClient *http.Client, c
 			repoToSourceRoot[p.Name][branch] = p.Path
 		}
 	}
-	log.Printf("Found %d repo to source root mappings from manifest files", len(repoToSourceRoot))
-	return repoToSourceRoot, nil
+	return repoToSourceRoot
 }
 
 // GetUnique Project returns the unique project with the given name

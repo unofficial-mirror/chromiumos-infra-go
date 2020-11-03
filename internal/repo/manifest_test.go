@@ -64,6 +64,20 @@ func TestFetchFilesFromGitiles_success(t *testing.T) {
 	}
 }
 
+func TestGetRepoToRemoteBranchToSourceRootFromManifestFile_success(t *testing.T) {
+	m, err := GetRepoToRemoteBranchToSourceRootFromManifestFile("test_data/foo.xml")
+	if err != nil {
+		t.Error(err)
+	}
+	if len(m) != 4 {
+		t.Errorf("expected %d project mappings, found %d", 4, len(m))
+	}
+	// Make sure that a sample project is present.
+	if m["baz"]["refs/heads/master"] != "baz/" {
+		t.Errorf("expected to find a mapping for baz. Got mappings: %v", m)
+	}
+}
+
 func ManifestEq(a, b *Manifest) bool {
 	if len(a.Projects) != len(b.Projects) {
 		return false

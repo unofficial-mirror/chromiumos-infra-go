@@ -30,6 +30,8 @@ func getCmdCreateBranch(opts auth.Options) *subcommands.Command {
 			c := &createBranch{}
 			c.InitFlags(opts)
 			// Arguments for determining branch name.
+			c.Flags.StringVar(&c.file, "file", "",
+				"File path to manifest file. Can be either absolute or relative to branch_util binary.")
 			c.Flags.StringVar(&c.descriptor, "descriptor", "",
 				"Optional descriptor for this branch. Typically, this is a build "+
 					"target or a device, depending on the nature of the branch. Used "+
@@ -67,7 +69,6 @@ type createBranch struct {
 	CommonFlags
 	yes               bool
 	descriptor        string
-	version           string
 	buildSpecManifest string
 	release           bool
 	factory           bool
@@ -79,8 +80,11 @@ type createBranch struct {
 }
 
 func (c *createBranch) validate(args []string) (bool, string) {
-	if c.buildSpecManifest == "" {
-		return false, "must set --buildspec-manifest"
+	if c.buildSpecManifest == "" && c.file == "" {
+		return false, "must set --buildspec-manifest or --file"
+	}
+	if c.buildSpecManifest != "" && c.file != "" {
+		return false, "--buildspec-manifest and --file cannot be used together"
 	}
 	_, ok := branch.BranchType(c.release, c.factory, c.firmware, c.stabilize, c.custom)
 	if !ok {
@@ -89,9 +93,6 @@ func (c *createBranch) validate(args []string) (bool, string) {
 	}
 	if c.descriptor != "" && c.custom != "" {
 		return false, "--descriptor cannot be used with --custom."
-	}
-	if c.version != "" && c.version[len(c.version)-1] != '0' {
-		return false, "cannot branch version from nonzero patch number."
 	}
 	return true, ""
 }

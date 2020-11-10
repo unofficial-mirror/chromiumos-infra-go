@@ -453,6 +453,11 @@ func getRepoToRemoteBranchToSourceRootFromLoadedManifests(manifests map[string]*
 			if !strings.HasPrefix(branch, "refs/heads/") {
 				branch = "refs/heads/" + branch
 			}
+
+			if oldPath, found := repoToSourceRoot[p.Name][branch]; found {
+				log.Printf("Source root for (%s, %s) is currently %s, overwriting with %s", p.Name, branch, oldPath, p.Path)
+			}
+
 			repoToSourceRoot[p.Name][branch] = p.Path
 		}
 	}

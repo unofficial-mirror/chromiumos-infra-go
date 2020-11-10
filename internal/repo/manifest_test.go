@@ -78,6 +78,20 @@ func TestGetRepoToRemoteBranchToSourceRootFromManifestFile_success(t *testing.T)
 	}
 }
 
+func TestGetRepoToRemoteBranchToSourceRootFromManifestFile_duplicate(t *testing.T) {
+	m, err := GetRepoToRemoteBranchToSourceRootFromManifestFile("test_data/duplicate.xml")
+	if err != nil {
+		t.Error(err)
+	}
+	if len(m) != 1 {
+		t.Errorf("expected %d project mappings, found %d", 1, len(m))
+	}
+	// The last mapping for a given name and branch should take precedent.
+	if m["foo"]["refs/heads/master"] != "buz/" {
+		t.Errorf("expected to find a mapping for buz. Got mappings: %v", m)
+	}
+}
+
 func ManifestEq(a, b *Manifest) bool {
 	if len(a.Projects) != len(b.Projects) {
 		return false

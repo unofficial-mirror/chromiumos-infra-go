@@ -100,7 +100,12 @@ func getProjectCheckoutFromUrl(projectUrl string, opts *CheckoutOptions) (string
 	if opts != nil && opts.Ref != "" {
 		checkoutBranch = git.StripRefs(opts.Ref)
 	}
-	if err := git.Checkout(checkoutDir, checkoutBranch); err != nil {
+	// TODO: remove `master` when COIL is completed
+	if err := git.Checkout(checkoutDir, checkoutBranch); err != nil && checkoutBranch == "master" {
+		checkoutBranch = "main"
+		err = git.Checkout(checkoutDir, checkoutBranch)
+	}
+	if err != nil {
 		return "", fmt.Errorf("failed to checkout %s", checkoutBranch)
 	}
 

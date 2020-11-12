@@ -168,6 +168,7 @@ func (m *ManifestRepo) repairManifest(path string, branchesByPath map[string]str
 			}
 			project.Revision = git.NormalizeRef(branchName)
 		case repo.Tot:
+			// TODO(juahurta): When TOT is changed from `master` -> `main` change this
 			project.Revision = git.NormalizeRef("master")
 		case repo.Pinned:
 			// TODO(@jackneus): all this does is convert the current revision to a SHA.

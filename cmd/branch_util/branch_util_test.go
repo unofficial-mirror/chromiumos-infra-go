@@ -641,7 +641,6 @@ func TestCreate(t *testing.T) {
 	manifestInternal, err := branch.WorkingManifest.GetUniqueProject("chromeos/manifest-internal")
 	if err != nil {
 		t.Error("Error: Failed to get internal manifest")
-
 		return
 	}
 

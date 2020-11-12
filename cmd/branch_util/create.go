@@ -5,8 +5,6 @@ package main
 
 import (
 	"context"
-	"io/ioutil"
-
 	"github.com/maruel/subcommands"
 	"go.chromium.org/chromiumos/infra/go/internal/branch"
 	mv "go.chromium.org/chromiumos/infra/go/internal/chromeos_version"
@@ -15,6 +13,8 @@ import (
 	"go.chromium.org/chromiumos/infra/go/internal/repo"
 	"go.chromium.org/luci/auth"
 	"go.chromium.org/luci/common/errors"
+	"io/ioutil"
+	"strings"
 )
 
 const (
@@ -153,7 +153,13 @@ func (c *createBranch) Run(a subcommands.Application, args []string,
 		branch.WorkingManifest = *file
 	} else {
 		file, err := gerrit.DownloadFileFromGitiles(authedClient, ctx, "chrome-internal.googlesource.com",
-			"chromeos/manifest-versions", "master", "buildspecs/"+c.buildSpecManifest)
+			"chromeos/manifest-versions", "main", "buildspecs/"+c.buildSpecManifest)
+
+		// Temporary fix for while repos are being renamed due to COIL Initiative
+		if strings.Contains(err.Error(), "NotFound") || strings.Contains(err.Error(), "not found") {
+			file, err = gerrit.DownloadFileFromGitiles(authedClient, ctx, "chrome-internal.googlesource.com",
+				"chromeos/manifest-versions", "master", "buildspecs/"+c.buildSpecManifest)
+		}
 		if err != nil {
 			branch.LogErr(errors.Annotate(err, "failed to fetch buildspec %v", c.buildSpecManifest).Err().Error())
 			return 1

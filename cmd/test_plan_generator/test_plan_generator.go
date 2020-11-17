@@ -51,6 +51,7 @@ func cmdGenTestPlan(authOpts auth.Options) *subcommands.Command {
 			c.Flags.StringVar(&c.inputBinaryPb, "input_binary_pb", "", "Path to binaryproto file representing a GenerateTestPlanRequest")
 			c.Flags.StringVar(&c.outputBinaryPb, "output_binary_pb", "", "Path to file to write output GenerateTestPlanResponse binaryproto")
 			c.Flags.StringVar(&c.localConfigDir, "local_config_dir", "", "Path to an infra/config checkout, to be used rather than origin HEAD")
+			c.Flags.StringVar(&c.manifestFile, "manifest_file", "", "Path to local manifest file. If given, will be used instead of default snapshot.xml")
 			return c
 		}}
 }
@@ -94,16 +95,28 @@ func (c *getTestPlanRun) Run(a subcommands.Application, args []string, env subco
 		return 4
 	}
 
-	gitilesCommit, err := readGitilesCommit(req.GitilesCommit)
-	if err != nil {
-		log.Print(err)
-		return 5
-	}
+	var repoToSrcRoot *map[string]map[string]string
+	// If we have a local manifest file provided, use that. Else get it from Gerrit.
+	if c.manifestFile == "" {
+		gitilesCommit, err := readGitilesCommit(req.GitilesCommit)
+		if err != nil {
+			log.Print(err)
+			return 5
+		}
 
-	repoToSrcRoot, err := c.getRepoToSourceRoot(gitilesCommit)
-	if err != nil {
-		log.Print(err)
-		return 6
+		repoToSrcRoot, err = c.getRepoToSourceRoot(gitilesCommit)
+		if err != nil {
+			log.Print(err)
+			return 6
+		}
+	} else {
+		log.Printf("Reading local manifest from %s", c.manifestFile)
+		repoToSrcRootMap, err := repo.GetRepoToRemoteBranchToSourceRootFromManifestFile(c.manifestFile)
+		if err != nil {
+			log.Print(err)
+			return 9
+		}
+		repoToSrcRoot = &repoToSrcRootMap
 	}
 
 	testPlan, err := generator.CreateTestPlan(testReqsConfig, sourceTreeConfig, bbBuilds, gerritChanges, changeRevs, *repoToSrcRoot)
@@ -127,6 +140,7 @@ type getTestPlanRun struct {
 	inputBinaryPb  string
 	outputBinaryPb string
 	localConfigDir string
+	manifestFile   string
 }
 
 func (c *getTestPlanRun) readInput() (*testplans.GenerateTestPlanRequest, error) {

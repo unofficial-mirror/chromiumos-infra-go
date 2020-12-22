@@ -21,7 +21,7 @@ import (
 
 var (
 	// Name of the root XML file to seek in manifest-internal.
-	rootXml = "default.xml"
+	rootXml = "snapshot.xml"
 )
 
 // Manifest is a top-level Repo definition file.

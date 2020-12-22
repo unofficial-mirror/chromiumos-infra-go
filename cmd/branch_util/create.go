@@ -38,7 +38,7 @@ func getCmdCreateBranch(opts auth.Options) *subcommands.Command {
 					"to generate the branch name. Cannot be used with --custom.")
 			c.Flags.StringVar(&c.buildSpecManifest, "buildspec-manifest", "",
 				"Path to manifest within manifest-versions repo, relative to "+
-					"https://chrome-internal.googlesource.com/chromeos/manifest-versions/+/master/buildspecs/ "+
+					"https://chrome-internal.googlesource.com/chromeos/manifest-versions/+/HEAD/buildspecs/ "+
 					"e.g. 85/13277.0.0.xml")
 			c.Flags.BoolVar(&c.release, "release", false,
 				"The new branch is a release branch. "+

@@ -14,6 +14,7 @@ import (
 	"go.chromium.org/luci/auth"
 	"go.chromium.org/luci/common/errors"
 	"io/ioutil"
+	"os"
 	"strings"
 )
 
@@ -125,7 +126,7 @@ func (c *createBranch) Run(a subcommands.Application, args []string,
 	authedClient, err := auth.NewAuthenticator(ctx, auth.SilentLogin, authOpts).Client()
 
 	if err != nil {
-		branch.LogErr(errors.Annotate(err, "Please run `./branch_util auth-login` and sign in with your @google.com account").Err().Error())
+		branch.LogErr(errors.Annotate(err, "Please run `%s auth-login` and sign in with your @google.com account", os.Args[0]).Err().Error())
 		return 1
 	}
 

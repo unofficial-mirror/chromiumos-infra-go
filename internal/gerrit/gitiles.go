@@ -11,6 +11,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"path"
 	"time"
 
 	"go.chromium.org/chromiumos/infra/go/internal/shared"
@@ -115,40 +116,65 @@ func obtainGitilesBytes(ctx context.Context, gc gitilespb.GitilesClient, project
 // This function takes ownership of data. Caller should not use the byte array
 // concurrent to / after this call. See io.Reader interface for more details.
 func extractGitilesArchive(ctx context.Context, data []byte, paths []string) (*map[string]string, error) {
-	pmap := make(map[string]bool)
+	// pmap maps files to the requested filename.
+	// e.g. if "foo" is a symlink to "bar", then the entry "bar":"foo" exists.
+	// if a file is not a symlink, it will be mapped to itself.
+	pmap := make(map[string]string)
 	for _, p := range paths {
-		pmap[p] = true
+		pmap[p] = p
 	}
-
-	abuf := bytes.NewBuffer(data)
-	gr, err := gzip.NewReader(abuf)
-	if err != nil {
-		return nil, errors.Annotate(err, "extract gitiles archive").Err()
-	}
-	defer gr.Close()
 
 	res := make(map[string]string)
-	tr := tar.NewReader(gr)
-	for {
-		h, err := tr.Next()
-		switch {
-		case err == io.EOF:
-			// Scanned all files.
-			return &res, nil
-		case err != nil:
+	// Do two passes to resolve links.
+	for i := 0; i < 2; i++ {
+		abuf := bytes.NewBuffer(data)
+		gr, err := gzip.NewReader(abuf)
+		if err != nil {
 			return nil, errors.Annotate(err, "extract gitiles archive").Err()
-		default:
-			// good case.
 		}
-		if found := pmap[h.Name]; !found {
-			continue
-		}
+		defer gr.Close()
 
-		logging.Debugf(ctx, "Inventory data file %s size %d", h.Name, h.Size)
-		data := make([]byte, h.Size)
-		if _, err := io.ReadFull(tr, data); err != nil {
-			return nil, errors.Annotate(err, "extract gitiles archive").Err()
+		tr := tar.NewReader(gr)
+		for {
+			h, err := tr.Next()
+			eof := false
+			switch {
+			case err == io.EOF:
+				// Scanned all files.
+				eof = true
+			case err != nil:
+				return nil, errors.Annotate(err, "extract gitiles archive").Err()
+			default:
+				// good case.
+			}
+			if eof {
+				break
+			}
+			requestedFile, found := pmap[h.Name]
+			if !found {
+				// not a requested file.
+				continue
+			}
+			if _, ok := res[requestedFile]; ok {
+				// already read this file.
+				continue
+			}
+			if h.Typeflag == tar.TypeSymlink {
+				if i == 0 {
+					// if symlink, mark link in pmap so it gets picked up on the second pass.
+					linkPath := path.Join(path.Dir(h.Name), h.Linkname)
+					pmap[linkPath] = h.Name
+				}
+				continue
+			}
+
+			logging.Debugf(ctx, "Inventory data file %s size %d", h.Name, h.Size)
+			data := make([]byte, h.Size)
+			if _, err := io.ReadFull(tr, data); err != nil {
+				return nil, errors.Annotate(err, "extract gitiles archive").Err()
+			}
+			res[requestedFile] = string(data)
 		}
-		res[h.Name] = string(data)
 	}
+	return &res, nil
 }

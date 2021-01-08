@@ -108,7 +108,7 @@ func TestCreateCombinedTestPlan_oneUnitSuccess(t *testing.T) {
 	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{})
 	repoToBranchToSrcRoot := map[string]map[string]string{"chromiumos/repo/name": {"refs/heads/master": "src/to/file"}}
 
-	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, emptyGerritChanges, chRevData, repoToBranchToSrcRoot)
+	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, &testplans.BoardPriorityList{}, bbBuilds, emptyGerritChanges, chRevData, repoToBranchToSrcRoot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -196,7 +196,7 @@ func TestCreateCombinedTestPlan_manyUnitSuccess(t *testing.T) {
 	repoToBranchToSrcRoot := map[string]map[string]string{"chromiumos/repo/name": {"refs/heads/master": "src/to/file"}}
 	gerritChanges := []*bbproto.GerritChange{
 		{Host: "test-review.googlesource.com", Change: 123, Patchset: 2}}
-	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, gerritChanges, chRevData, repoToBranchToSrcRoot)
+	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, &testplans.BoardPriorityList{}, bbBuilds, gerritChanges, chRevData, repoToBranchToSrcRoot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -310,7 +310,7 @@ func TestCreateCombinedTestPlan_successDespiteOneFailedBuilder(t *testing.T) {
 		{Host: "test-review.googlesource.com", Change: 123, Patchset: 2},
 	}
 
-	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, gerritChanges, chRevData, repoToBranchToSrcRoot)
+	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, &testplans.BoardPriorityList{}, bbBuilds, gerritChanges, chRevData, repoToBranchToSrcRoot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -379,7 +379,7 @@ func TestCreateCombinedTestPlan_skipsUnnecessaryHardwareTest(t *testing.T) {
 		{Host: "test-review.googlesource.com", Change: 123, Patchset: 2},
 	}
 
-	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, gerritChanges, chRevData, repoToBranchToSrcRoot)
+	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, &testplans.BoardPriorityList{}, bbBuilds, gerritChanges, chRevData, repoToBranchToSrcRoot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -458,7 +458,7 @@ func TestCreateCombinedTestPlan_doesOnlyTest(t *testing.T) {
 		{Host: "test-review.googlesource.com", Change: 123, Patchset: 2},
 	}
 
-	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, gerritChanges, chRevData, repoToBranchToSrcRoot)
+	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, &testplans.BoardPriorityList{}, bbBuilds, gerritChanges, chRevData, repoToBranchToSrcRoot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -484,9 +484,11 @@ func TestCreateCombinedTestPlan_doesOnlyTest(t *testing.T) {
 }
 
 func TestCreateCombinedTestPlan_doesOnlyOneofTest(t *testing.T) {
-	boardPriorities = map[string]int32{
-		"kev": -1,
-		"bob": 1,
+	boardPriorityList := &testplans.BoardPriorityList{
+		BoardPriorities: []*testplans.BoardPriority{
+			{SkylabBoard: "kev", Priority: -1},
+			{SkylabBoard: "bob", Priority: 1},
+		},
 	}
 	kevinHWTestCfg := &testplans.HwTestCfg{HwTest: []*testplans.HwTestCfg_HwTest{
 		{
@@ -554,7 +556,7 @@ func TestCreateCombinedTestPlan_doesOnlyOneofTest(t *testing.T) {
 		{Host: "test-review.googlesource.com", Change: 123, Patchset: 2},
 	}
 
-	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, gerritChanges, chRevData, repoToBranchToSrcRoot)
+	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, boardPriorityList, bbBuilds, gerritChanges, chRevData, repoToBranchToSrcRoot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -580,9 +582,11 @@ func TestCreateCombinedTestPlan_doesOnlyOneofTest(t *testing.T) {
 }
 
 func TestCreateCombinedTestPlan_doesAddOneofTest(t *testing.T) {
-	boardPriorities = map[string]int32{
-		"kev": -1,
-		"bob": 1,
+	boardPriorityList := &testplans.BoardPriorityList{
+		BoardPriorities: []*testplans.BoardPriority{
+			{SkylabBoard: "kev", Priority: -1},
+			{SkylabBoard: "bob", Priority: 1},
+		},
 	}
 	kevinHWTestCfg := &testplans.HwTestCfg{HwTest: []*testplans.HwTestCfg_HwTest{
 		{
@@ -652,7 +656,7 @@ func TestCreateCombinedTestPlan_doesAddOneofTest(t *testing.T) {
 		{Host: "test-review.googlesource.com", Change: 123, Patchset: 2},
 	}
 
-	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, gerritChanges, chRevData, repoToBranchToSrcRoot)
+	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, boardPriorityList, bbBuilds, gerritChanges, chRevData, repoToBranchToSrcRoot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -747,7 +751,7 @@ func TestCreateCombinedTestPlan_doesAlsoTest(t *testing.T) {
 		{Host: "test-review.googlesource.com", Change: 123, Patchset: 2},
 	}
 
-	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, gerritChanges, chRevData, repoToBranchToSrcRoot)
+	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, &testplans.BoardPriorityList{}, bbBuilds, gerritChanges, chRevData, repoToBranchToSrcRoot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -783,7 +787,7 @@ func TestCreateCombinedTestPlan_inputMissingTargetType(t *testing.T) {
 				}}}}
 	sourceTreeTestCfg := &testplans.SourceTreeTestCfg{}
 	bbBuilds := []*bbproto.Build{}
-	if _, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, emptyGerritChanges, &gerrit.ChangeRevData{}, map[string]map[string]string{}); err == nil {
+	if _, err := CreateTestPlan(testReqs, sourceTreeTestCfg, &testplans.BoardPriorityList{}, bbBuilds, emptyGerritChanges, &gerrit.ChangeRevData{}, map[string]map[string]string{}); err == nil {
 		t.Errorf("Expected an error to be returned")
 	}
 }
@@ -830,7 +834,7 @@ func TestCreateCombinedTestPlan_skipsPointlessBuild(t *testing.T) {
 		{Host: "test-review.googlesource.com", Change: 123, Patchset: 2},
 	}
 
-	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, gerritChanges, chRevData, repoToBranchToSrcRoot)
+	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, &testplans.BoardPriorityList{}, bbBuilds, gerritChanges, chRevData, repoToBranchToSrcRoot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -852,7 +856,7 @@ func TestCreateTestPlan_succeedsOnNoBuildTarget(t *testing.T) {
 	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{})
 	repoToBranchToSrcRoot := map[string]map[string]string{}
 
-	_, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, emptyGerritChanges, chRevData, repoToBranchToSrcRoot)
+	_, err := CreateTestPlan(testReqs, sourceTreeTestCfg, &testplans.BoardPriorityList{}, bbBuilds, emptyGerritChanges, chRevData, repoToBranchToSrcRoot)
 	if err != nil {
 		t.Errorf("expected no error, but got %v", err)
 	}
@@ -901,7 +905,7 @@ func TestCreateCombinedTestPlan_doesNotSkipNonCritical(t *testing.T) {
 		{Host: "test-review.googlesource.com", Change: 123, Patchset: 2},
 	}
 
-	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, gerritChanges, chRevData, repoToBranchToSrcRoot)
+	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, &testplans.BoardPriorityList{}, bbBuilds, gerritChanges, chRevData, repoToBranchToSrcRoot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -959,7 +963,7 @@ func TestCreateCombinedTestPlan_ignoresNonArtifactBuild(t *testing.T) {
 	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{})
 	repoToBranchToSrcRoot := map[string]map[string]string{"chromiumos/repo/name": {"refs/heads/master": "src/to/file"}}
 
-	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, bbBuilds, emptyGerritChanges, chRevData, repoToBranchToSrcRoot)
+	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, &testplans.BoardPriorityList{}, bbBuilds, emptyGerritChanges, chRevData, repoToBranchToSrcRoot)
 	if err != nil {
 		t.Error(err)
 	}

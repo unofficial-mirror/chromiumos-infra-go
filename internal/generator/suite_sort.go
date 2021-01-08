@@ -12,19 +12,6 @@ import (
 	bbproto "go.chromium.org/luci/buildbucket/proto"
 )
 
-var (
-	// boardPriorities is a map of Skylab boards to their relative oversupply in
-	// the lab, compared to their demand. A board that never sees pending times
-	// should get a very negative number. A board with large demand should get
-	// a large positive number. Any unlisted board is implicitly 0.
-	// This may be moved into config at some point soon.
-	boardPriorities = map[string]int32{
-		"coral":  -20,
-		"sarien": 2,
-		"eve":    5,
-	}
-)
-
 type testSuite struct {
 	skylabBoard string
 	build       bbproto.Build
@@ -55,7 +42,7 @@ func (ts testSuite) String() string {
 // toward elements in that testGroup. The first element in each testGroup is the one
 // that the test plan generator is encouraged to schedule against first.
 // This all supports oneof-based testing. See go/cq-oneof
-func groupAndSort(buildResult []buildResult) (map[testGroup][]testSuite, error) {
+func groupAndSort(buildResult []buildResult, boardPriorityList *testplans.BoardPriorityList) (map[testGroup][]testSuite, error) {
 	m := make(map[testGroup][]testSuite)
 	for _, br := range buildResult {
 		req := br.perTargetTestReqs
@@ -69,6 +56,12 @@ func groupAndSort(buildResult []buildResult) (map[testGroup][]testSuite, error) 
 			m = tsc(br, br.buildId.buildTarget, t.GetCommon(), true, m)
 		}
 	}
+
+	boardPriorities := make(map[string]*testplans.BoardPriority)
+	for _, boardPriority := range boardPriorityList.BoardPriorities {
+		boardPriorities[boardPriority.SkylabBoard] = boardPriority
+	}
+
 	for _, suites := range m {
 		for _, s := range suites {
 			if s.tsc.GetDisplayName() == "" {
@@ -92,8 +85,8 @@ func groupAndSort(buildResult []buildResult) (map[testGroup][]testSuite, error) 
 			}
 			if !suites[i].isVm && !suites[j].isVm {
 				// then prefer the board with the least oversubscription
-				if boardPriorities[suites[i].skylabBoard] != boardPriorities[suites[j].skylabBoard] {
-					return boardPriorities[suites[i].skylabBoard] < boardPriorities[suites[j].skylabBoard]
+				if boardPriorities[suites[i].skylabBoard].GetPriority() != boardPriorities[suites[j].skylabBoard].GetPriority() {
+					return boardPriorities[suites[i].skylabBoard].GetPriority() < boardPriorities[suites[j].skylabBoard].GetPriority()
 				}
 			}
 			// finally sort by name, just for a stable sort

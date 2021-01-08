@@ -29,6 +29,7 @@ import (
 )
 
 const (
+	boardPriorityConfigPath    = "testingconfig/generated/board_priority.binaryproto"
 	sourceTreeTestConfigPath   = "testingconfig/generated/source_tree_test_config.binaryproto"
 	targetTestRequirementsPath = "testingconfig/generated/target_test_requirements.binaryproto"
 )
@@ -65,12 +66,13 @@ func (c *getTestPlanRun) Run(a subcommands.Application, args []string, env subco
 		return 1
 	}
 
+	var boardPriorityList *testplans.BoardPriorityList
 	var sourceTreeConfig *testplans.SourceTreeTestCfg
 	var testReqsConfig *testplans.TargetTestRequirementsCfg
 	if c.localConfigDir == "" {
-		sourceTreeConfig, testReqsConfig, err = c.fetchConfigFromGitiles()
+		boardPriorityList, sourceTreeConfig, testReqsConfig, err = c.fetchConfigFromGitiles()
 	} else {
-		sourceTreeConfig, testReqsConfig, err = c.readLocalConfigFiles()
+		boardPriorityList, sourceTreeConfig, testReqsConfig, err = c.readLocalConfigFiles()
 	}
 	if err != nil {
 		log.Print(err)
@@ -119,7 +121,7 @@ func (c *getTestPlanRun) Run(a subcommands.Application, args []string, env subco
 		repoToSrcRoot = &repoToSrcRootMap
 	}
 
-	testPlan, err := generator.CreateTestPlan(testReqsConfig, sourceTreeConfig, bbBuilds, gerritChanges, changeRevs, *repoToSrcRoot)
+	testPlan, err := generator.CreateTestPlan(testReqsConfig, sourceTreeConfig, boardPriorityList, bbBuilds, gerritChanges, changeRevs, *repoToSrcRoot)
 	if err != nil {
 		log.Printf("Error creating test plan:\n%v", err)
 		return 7
@@ -169,64 +171,79 @@ func (c *getTestPlanRun) readInput() (*testplans.GenerateTestPlanRequest, error)
 	}
 }
 
-func (c *getTestPlanRun) fetchConfigFromGitiles() (*testplans.SourceTreeTestCfg, *testplans.TargetTestRequirementsCfg, error) {
+func (c *getTestPlanRun) fetchConfigFromGitiles() (*testplans.BoardPriorityList, *testplans.SourceTreeTestCfg, *testplans.TargetTestRequirementsCfg, error) {
 	// Create an authenticated client for Gerrit RPCs, then fetch all required CL data from Gerrit.
 	ctx := context.Background()
 	authOpts, err := c.authFlags.Options()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	authedClient, err := auth.NewAuthenticator(ctx, auth.SilentLogin, authOpts).Client()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
+
 	m, err := igerrit.FetchFilesFromGitiles(authedClient, ctx,
 		"chrome-internal.googlesource.com",
 		"chromeos/infra/config",
 		"master",
-		[]string{sourceTreeTestConfigPath, targetTestRequirementsPath})
+		[]string{boardPriorityConfigPath, sourceTreeTestConfigPath, targetTestRequirementsPath})
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
+	}
+
+	boardPriorityList := &testplans.BoardPriorityList{}
+	if err := proto.Unmarshal([]byte((*m)[boardPriorityConfigPath]), boardPriorityList); err != nil {
+		return nil, nil, nil, fmt.Errorf("Couldn't decode %s as a BoardPriorityList\n%v", (*m)[boardPriorityConfigPath], err)
 	}
 	sourceTreeConfig := &testplans.SourceTreeTestCfg{}
 	if err := proto.Unmarshal([]byte((*m)[sourceTreeTestConfigPath]), sourceTreeConfig); err != nil {
-		return nil, nil, fmt.Errorf("Couldn't decode %s as a SourceTreeTestCfg\n%v", (*m)[sourceTreeTestConfigPath], err)
+		return nil, nil, nil, fmt.Errorf("Couldn't decode %s as a SourceTreeTestCfg\n%v", (*m)[sourceTreeTestConfigPath], err)
 	}
 	testReqsConfig := &testplans.TargetTestRequirementsCfg{}
 	if err := proto.Unmarshal([]byte((*m)[targetTestRequirementsPath]), testReqsConfig); err != nil {
-		return nil, nil, fmt.Errorf("Couldn't decode %s as a TargetTestRequirementsCfg\n%v", (*m)[targetTestRequirementsPath], err)
+		return nil, nil, nil, fmt.Errorf("Couldn't decode %s as a TargetTestRequirementsCfg\n%v", (*m)[targetTestRequirementsPath], err)
 	}
-	log.Printf("Fetched config from Gitiles:\n%s\n\n%s",
+	log.Printf("Fetched config from Gitiles:\n%s\n\n%s\n\n%s", proto.MarshalTextString(boardPriorityList),
 		proto.MarshalTextString(sourceTreeConfig), proto.MarshalTextString(testReqsConfig))
-	return sourceTreeConfig, testReqsConfig, nil
+	return boardPriorityList, sourceTreeConfig, testReqsConfig, nil
 }
 
-func (c *getTestPlanRun) readLocalConfigFiles() (*testplans.SourceTreeTestCfg, *testplans.TargetTestRequirementsCfg, error) {
+func (c *getTestPlanRun) readLocalConfigFiles() (*testplans.BoardPriorityList, *testplans.SourceTreeTestCfg, *testplans.TargetTestRequirementsCfg, error) {
 	log.Print("--------------------------------------------")
 	log.Print("WARNING: Reading config from local dir.")
 	log.Print("Be sure that you've run `./regenerate_configs.sh -b` first to generate binaryproto files")
 	log.Print("--------------------------------------------")
 
+	bplBytes, err := ioutil.ReadFile(path.Join(c.localConfigDir, boardPriorityConfigPath))
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("couldn't read BoardPriorityList file: %v", err)
+	}
+	boardPriorityList := &testplans.BoardPriorityList{}
+	if err := proto.Unmarshal(bplBytes, boardPriorityList); err != nil {
+		return nil, nil, nil, fmt.Errorf("couldn't decode file as BoardPriorityList: %v", err)
+	}
+
 	stcBytes, err := ioutil.ReadFile(path.Join(c.localConfigDir, sourceTreeTestConfigPath))
 	if err != nil {
-		return nil, nil, fmt.Errorf("couldn't read SourceTreeTestCfg file: %v", err)
+		return nil, nil, nil, fmt.Errorf("couldn't read SourceTreeTestCfg file: %v", err)
 	}
 	sourceTreeConfig := &testplans.SourceTreeTestCfg{}
 	if err := proto.Unmarshal(stcBytes, sourceTreeConfig); err != nil {
-		return nil, nil, fmt.Errorf("couldn't decode file as SourceTreeTestCfg: %v", err)
+		return nil, nil, nil, fmt.Errorf("couldn't decode file as SourceTreeTestCfg: %v", err)
 	}
 
 	ttrBytes, err := ioutil.ReadFile(path.Join(c.localConfigDir, targetTestRequirementsPath))
 	if err != nil {
-		return nil, nil, fmt.Errorf("couldn't read TargetTestRequirementsCfg file: %v", err)
+		return nil, nil, nil, fmt.Errorf("couldn't read TargetTestRequirementsCfg file: %v", err)
 	}
 	testReqsConfig := &testplans.TargetTestRequirementsCfg{}
 	if err := proto.Unmarshal(ttrBytes, testReqsConfig); err != nil {
-		return nil, nil, fmt.Errorf("couldn't decode file as TargetTestRequirementsCfg: %v", err)
+		return nil, nil, nil, fmt.Errorf("couldn't decode file as TargetTestRequirementsCfg: %v", err)
 	}
-	log.Printf("Read local config:\n%s\n\n%s",
+	log.Printf("Read local config:\n%s\n\n%s\n\n%s", proto.MarshalTextString(boardPriorityList),
 		proto.MarshalTextString(sourceTreeConfig), proto.MarshalTextString(testReqsConfig))
-	return sourceTreeConfig, testReqsConfig, nil
+	return boardPriorityList, sourceTreeConfig, testReqsConfig, nil
 }
 
 func readBuildbucketBuilds(bbBuildsBytes []*testplans.ProtoBytes) ([]*bbproto.Build, error) {

@@ -41,6 +41,7 @@ type suitesForGroups struct {
 func CreateTestPlan(
 	targetTestReqs *testplans.TargetTestRequirementsCfg,
 	sourceTreeCfg *testplans.SourceTreeTestCfg,
+	boardPriorityList *testplans.BoardPriorityList,
 	unfilteredBbBuilds []*bbproto.Build,
 	gerritChanges []*bbproto.GerritChange,
 	changeRevs *gerrit.ChangeRevData,
@@ -78,14 +79,14 @@ perTargetTestReq:
 	// out the right suites to test for those rules.
 	onlyKeepSuites := make(map[string]bool)
 	if pruneResult.hasOnlyKeepSuiteRules() {
-		onlyKeepSuites, err = getOnlyKeepAllSuitesAndOneofSuites(targetBuildResults, pruneResult)
+		onlyKeepSuites, err = getOnlyKeepAllSuitesAndOneofSuites(targetBuildResults, pruneResult, boardPriorityList)
 		if err != nil {
 			return nil, err
 		}
 	}
 	additionalSuites := make(map[string]bool)
 	if pruneResult.hasAddAllOrOneTestRules() {
-		additionalSuites, err = getAddAllSuitesAndOneofSuites(targetBuildResults, pruneResult)
+		additionalSuites, err = getAddAllSuitesAndOneofSuites(targetBuildResults, pruneResult, boardPriorityList)
 		if err != nil {
 			return nil, err
 		}
@@ -97,10 +98,10 @@ perTargetTestReq:
 	return createResponse(targetBuildResults, pruneResult, sfg)
 }
 
-func getOnlyKeepAllSuitesAndOneofSuites(targetBuildResults []buildResult, pruneResult *testPruneResult) (map[string]bool, error) {
+func getOnlyKeepAllSuitesAndOneofSuites(targetBuildResults []buildResult, pruneResult *testPruneResult, boardPriorityList *testplans.BoardPriorityList) (map[string]bool, error) {
 	// Test group --> test suites, sorted in descending order of preference that the
 	// planner should use to pick from the group.
-	groupsToSortedSuites, err := groupAndSort(targetBuildResults)
+	groupsToSortedSuites, err := groupAndSort(targetBuildResults, boardPriorityList)
 	if err != nil {
 		return nil, err
 	}
@@ -116,6 +117,7 @@ func getOnlyKeepAllSuitesAndOneofSuites(targetBuildResults []buildResult, pruneR
 		}
 		for oneofGroup := range pruneResult.onlyKeepOneSuiteFromEachGroup {
 			sorted := groupsToSortedSuites[oneofGroup]
+
 			if len(sorted) > 0 {
 				suitesForOneofAndOnly[sorted[0].tsc.GetDisplayName()] = true
 				log.Printf("Using OneOfTest rule for testGroup %v, adding %v", oneofGroup, sorted[0].tsc.GetDisplayName())
@@ -126,10 +128,10 @@ func getOnlyKeepAllSuitesAndOneofSuites(targetBuildResults []buildResult, pruneR
 	return suitesForOneofAndOnly, nil
 }
 
-func getAddAllSuitesAndOneofSuites(targetBuildResults []buildResult, pruneResult *testPruneResult) (map[string]bool, error) {
+func getAddAllSuitesAndOneofSuites(targetBuildResults []buildResult, pruneResult *testPruneResult, boardPriorityList *testplans.BoardPriorityList) (map[string]bool, error) {
 	// Test group --> test suites, sorted in descending order of preference that the
 	// planner should use to pick from the group.
-	groupsToSortedSuites, err := groupAndSort(targetBuildResults)
+	groupsToSortedSuites, err := groupAndSort(targetBuildResults, boardPriorityList)
 	if err != nil {
 		return nil, err
 	}

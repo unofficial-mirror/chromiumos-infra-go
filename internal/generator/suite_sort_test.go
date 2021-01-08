@@ -12,15 +12,6 @@ import (
 	bbproto "go.chromium.org/luci/buildbucket/proto"
 )
 
-func setup() {
-	boardPriorities = map[string]int32{
-		"ocean":  -100,
-		"coral":  -6,
-		"sarien": 2,
-		"eve":    5,
-	}
-}
-
 func groupsObjs(groups []string) []*testplans.TestSuiteCommon_TestSuiteGroup {
 	newGroups := make([]*testplans.TestSuiteCommon_TestSuiteGroup, len(groups))
 	for i, g := range groups {
@@ -80,8 +71,6 @@ func vmBuildResult(buildTarget, builderName string, criticalSuite, criticalBuild
 }
 
 func Test_SortOrder(t *testing.T) {
-	setup()
-
 	br := []buildResult{
 		// This will be the second ranked suite, since it's hw (vm goes first) and coral is a very common board.
 		hwBuildResult("coral-arc-r", "coral-arc-r-cq", "coral", true, true, []string{"testGroup 1", "testGroup 5"}),
@@ -95,7 +84,16 @@ func Test_SortOrder(t *testing.T) {
 		vmBuildResult("betty", "betty-shark-cq", false, true, []string{"testGroup 1"}),
 	}
 
-	r, err := groupAndSort(br)
+	boardPriorityList := &testplans.BoardPriorityList{
+		BoardPriorities: []*testplans.BoardPriority{
+			{SkylabBoard: "ocean", Priority: -100},
+			{SkylabBoard: "coral", Priority: -6},
+			{SkylabBoard: "sarien", Priority: 2},
+			{SkylabBoard: "eve", Priority: 5},
+		},
+	}
+
+	r, err := groupAndSort(br, boardPriorityList)
 	if err != nil {
 		t.Error(err)
 	}

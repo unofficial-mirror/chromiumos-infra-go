@@ -23,4 +23,7 @@ for go_cmd in $COMMANDS; do
   (cd "$CMDPATH/$go_cmd" && GOOS=linux GOARCH=amd64 go build -o "$OUTPATH/$go_cmd")
 done
 
-cipd create -pkg-def=cipd.yaml -ref latest -json-output deploy_cipd.json
+GIT_REVISION=$(git rev-parse HEAD)
+
+cipd create -pkg-def=cipd.yaml -ref latest -json-output deploy_cipd.json \
+  -tag "git_revision:${GIT_REVISION}"

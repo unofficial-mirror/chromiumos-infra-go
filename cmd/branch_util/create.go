@@ -195,6 +195,14 @@ func (c *createBranch) Run(a subcommands.Application, args []string,
 	}
 	sourceRevision := manifestInternal.Revision
 	sourceUpstream := git.StripRefs(manifestInternal.Upstream)
+
+	// This string replacement is needed since chromiumos-overlay's master branch
+	// has been renamed to main. This replacement swaps the name so the correct
+	// upstream is used. crbug.com/1163216 for reference.
+	if sourceUpstream == "master" {
+		sourceUpstream = "main"
+	}
+
 	branch.LogErr("Using sourceRevision %s for manifestInternal", sourceRevision)
 	branch.LogErr("Using sourceUpstream %s for manifestInternal", sourceUpstream)
 

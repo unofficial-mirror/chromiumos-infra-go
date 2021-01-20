@@ -775,6 +775,93 @@ func TestCreateCombinedTestPlan_doesAlsoTest(t *testing.T) {
 	}
 }
 
+func TestCreateCombinedTestPlan_fileExcludePattern(t *testing.T) {
+	kevinHWTestCfg := &testplans.HwTestCfg{HwTest: []*testplans.HwTestCfg_HwTest{
+		{
+			Common: &testplans.TestSuiteCommon{
+				DisplayName:      "kev-cq.bvt-some-suite",
+				TestSuiteGroups:  []*testplans.TestSuiteCommon_TestSuiteGroup{{TestSuiteGroup: "my-test-testGroup"}},
+				DisableByDefault: true,
+			},
+			Suite:           "HW kevin",
+			SkylabBoard:     "kev",
+			HwTestSuiteType: testplans.HwTestCfg_AUTOTEST,
+		},
+	}}
+	bobHWTestCfg := &testplans.HwTestCfg{HwTest: []*testplans.HwTestCfg_HwTest{
+		{
+			Common: &testplans.TestSuiteCommon{
+				DisplayName:      "bob-cq.bvt-some-suite",
+				TestSuiteGroups:  []*testplans.TestSuiteCommon_TestSuiteGroup{{TestSuiteGroup: "my-test-testGroup"}},
+				DisableByDefault: true,
+			},
+			Suite:           "HW bob",
+			SkylabBoard:     "bob board",
+			HwTestSuiteType: testplans.HwTestCfg_AUTOTEST,
+		},
+	}}
+	testReqs := &testplans.TargetTestRequirementsCfg{
+		PerTargetTestRequirements: []*testplans.PerTargetTestRequirements{
+			{
+				TargetCriteria: &testplans.TargetCriteria{
+					BuilderName: "kevin-cq",
+					TargetType:  &testplans.TargetCriteria_BuildTarget{BuildTarget: "kevin"}},
+				HwTestCfg: kevinHWTestCfg},
+			{
+				TargetCriteria: &testplans.TargetCriteria{
+					BuilderName: "bob-cq",
+					TargetType:  &testplans.TargetCriteria_BuildTarget{BuildTarget: "bob"}},
+				HwTestCfg: bobHWTestCfg},
+		},
+	}
+	sourceTreeTestCfg := &testplans.SourceTreeTestCfg{
+		SourceTestRules: []*testplans.SourceTestRules{
+			{
+				FilePattern: &testplans.FilePattern{
+					Pattern: "run/my-test-testGroup/here/some/**",
+					ExcludePatterns: []string{
+						"run/my-test-testGroup/here/some/**/except/here/**",
+						"run/my-test-testGroup/here/some/**/or/here/**",
+					},
+				},
+				AdditiveRule: &testplans.AdditiveRule{
+					AddOneSuiteFromEachGroup: &testplans.TestGroups{Name: []string{"my-test-testGroup", "irrelevant-test-testGroup"}},
+				},
+			},
+		}}
+	bbBuilds := []*bbproto.Build{
+		makeBuildbucketBuild("kevin", "kevin-cq", bbproto.Status_SUCCESS, true),
+		makeBuildbucketBuild("bob", "bob-cq", bbproto.Status_SUCCESS, true),
+	}
+	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{
+		{
+			ChangeRevKey: gerrit.ChangeRevKey{
+				Host:      "test-review.googlesource.com",
+				ChangeNum: 123,
+				Revision:  2,
+			},
+			Branch:  "refs/heads/main",
+			Project: "chromiumos/test/repo/name",
+			Files:   []string{"some/file/except/here/a.txt", "some/file/or/here/b.txt"},
+		},
+	})
+	repoToBranchToSrcRoot := map[string]map[string]string{"chromiumos/test/repo/name": {"refs/heads/main": "run/my-test-testGroup/here"}}
+	gerritChanges := []*bbproto.GerritChange{
+		{Host: "test-review.googlesource.com", Change: 123, Patchset: 2},
+	}
+
+	actualTestPlan, err := CreateTestPlan(testReqs, sourceTreeTestCfg, &testplans.BoardPriorityList{}, bbBuilds, gerritChanges, chRevData, repoToBranchToSrcRoot)
+	if err != nil {
+		t.Error(err)
+	}
+
+	expectedTestPlan := &testplans.GenerateTestPlanResponse{}
+
+	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, cmpopts.EquateEmpty(), cmpopts.IgnoreUnexported(_struct.Value{}, _struct.Struct{}, wrappers.BoolValue{})); diff != "" {
+		t.Errorf("CreateCombinedTestPlan bad result (-want/+got)\n%s", diff)
+	}
+}
+
 func TestCreateCombinedTestPlan_inputMissingTargetType(t *testing.T) {
 	testReqs := &testplans.TargetTestRequirementsCfg{
 		PerTargetTestRequirements: []*testplans.PerTargetTestRequirements{

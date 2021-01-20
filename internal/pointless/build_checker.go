@@ -9,9 +9,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/bmatcuk/doublestar"
 	"github.com/golang/protobuf/ptypes/wrappers"
 	"go.chromium.org/chromiumos/infra/go/internal/gerrit"
+	"go.chromium.org/chromiumos/infra/go/internal/match"
 	testplans_pb "go.chromium.org/chromiumos/infra/proto/go/testplans"
 	bbproto "go.chromium.org/luci/buildbucket/proto"
 )
@@ -105,7 +105,7 @@ func filterByBuildIrrelevantPaths(files []string, cfg testplans_pb.BuildIrreleva
 affectedFile:
 	for _, f := range files {
 		for _, pattern := range cfg.IrrelevantFilePatterns {
-			match, err := doublestar.Match(pattern.Pattern, f)
+			match, err := match.FilePatternMatches(pattern, f)
 			if err != nil {
 				log.Fatalf("Failed to match pattern %s against file %s: %v", pattern, f, err)
 			}

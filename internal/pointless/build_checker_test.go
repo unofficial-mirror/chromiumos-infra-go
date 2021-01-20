@@ -4,11 +4,12 @@
 package pointless
 
 import (
+	"testing"
+
 	"github.com/bmatcuk/doublestar"
 	"go.chromium.org/chromiumos/infra/go/internal/gerrit"
 	testplans_pb "go.chromium.org/chromiumos/infra/proto/go/testplans"
 	bbproto "go.chromium.org/luci/buildbucket/proto"
-	"testing"
 )
 
 func TestCheckBuilder_irrelevantToRelevantPaths(t *testing.T) {
@@ -158,7 +159,7 @@ func TestCheckBuilder_noGerritChangesMeansPointlessBuild(t *testing.T) {
 	}
 }
 
-func match(t *testing.T, pattern, name string) {
+func doesMatch(t *testing.T, pattern, name string) {
 	m, err := doublestar.Match(pattern, name)
 	if err != nil {
 		t.Errorf("error trying to match pattern %s against name %s: %v", pattern, name, err)
@@ -183,11 +184,11 @@ func notMatch(t *testing.T, pattern, name string) {
 func TestDoubleStar(t *testing.T) {
 	// A test that demonstrates/verifies operation of the doublestar matching package.
 
-	match(t, "**/OWNERS", "OWNERS")
-	match(t, "**/OWNERS", "some/deep/subdir/OWNERS")
+	doesMatch(t, "**/OWNERS", "OWNERS")
+	doesMatch(t, "**/OWNERS", "some/deep/subdir/OWNERS")
 	notMatch(t, "**/OWNERS", "OWNERS/fds")
 
-	match(t, "chromite/config/**", "chromite/config/config_dump.json")
+	doesMatch(t, "chromite/config/**", "chromite/config/config_dump.json")
 
-	match(t, "**/*.md", "a/b/c/README.md")
+	doesMatch(t, "**/*.md", "a/b/c/README.md")
 }

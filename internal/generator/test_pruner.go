@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/bmatcuk/doublestar"
+	"go.chromium.org/chromiumos/infra/go/internal/match"
 	"go.chromium.org/chromiumos/infra/proto/go/testplans"
 )
 
@@ -179,7 +179,7 @@ func getOnlyTestGroups(
 	sourceTreeCfg *testplans.SourceTreeTestCfg) (map[testGroup]bool, error) {
 	onlyTestGroups := make(map[testGroup]bool)
 	for _, str := range sourceTreeCfg.GetSourceTestRules() {
-		match, err := doublestar.Match(str.GetFilePattern().GetPattern(), sourcePath)
+		match, err := match.FilePatternMatches(str.GetFilePattern(), sourcePath)
 		if err != nil {
 			return onlyTestGroups, err
 		}
@@ -201,7 +201,7 @@ func getOneofTestGroups(
 	sourceTreeCfg *testplans.SourceTreeTestCfg) (map[testGroup]bool, error) {
 	oneofTestGroups := make(map[testGroup]bool)
 	for _, str := range sourceTreeCfg.GetSourceTestRules() {
-		match, err := doublestar.Match(str.GetFilePattern().GetPattern(), sourcePath)
+		match, err := match.FilePatternMatches(str.GetFilePattern(), sourcePath)
 		if err != nil {
 			return oneofTestGroups, err
 		}
@@ -220,7 +220,7 @@ func getAddAllSuitesInGroups(
 	sourceTreeCfg *testplans.SourceTreeTestCfg) (map[testGroup]bool, error) {
 	alsoTestGroups := make(map[testGroup]bool)
 	for _, str := range sourceTreeCfg.GetSourceTestRules() {
-		match, err := doublestar.Match(str.GetFilePattern().GetPattern(), sourcePath)
+		match, err := match.FilePatternMatches(str.GetFilePattern(), sourcePath)
 		if err != nil {
 			return alsoTestGroups, err
 		}
@@ -239,7 +239,7 @@ func getAddOneSuiteFromEachGroup(
 	sourceTreeCfg *testplans.SourceTreeTestCfg) (map[testGroup]bool, error) {
 	alsoTestOneofEachGroup := make(map[testGroup]bool)
 	for _, str := range sourceTreeCfg.GetSourceTestRules() {
-		match, err := doublestar.Match(str.GetFilePattern().GetPattern(), sourcePath)
+		match, err := match.FilePatternMatches(str.GetFilePattern(), sourcePath)
 		if err != nil {
 			return alsoTestOneofEachGroup, err
 		}
@@ -262,7 +262,7 @@ func canDisableTestingForPath(sourcePath string, sourceTreeCfg *testplans.Source
 			return false, fmt.Errorf("Missing test filter for %v", tt)
 		}
 		if testFilter(str) {
-			match, err := doublestar.Match(str.GetFilePattern().GetPattern(), sourcePath)
+			match, err := match.FilePatternMatches(str.GetFilePattern(), sourcePath)
 			if err != nil {
 				return false, err
 			}

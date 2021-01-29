@@ -353,7 +353,7 @@ func TestTeardown(t *testing.T) {
 	harness := RepoHarness{
 		harnessRoot: tmpDir,
 	}
-	// Sanity check: harness root exists.
+	// Check that harness root exists.
 	_, err = os.Stat(tmpDir)
 	assert.NilError(t, err)
 	// Perform teardown.

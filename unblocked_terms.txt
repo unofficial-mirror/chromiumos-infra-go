@@ -6,7 +6,7 @@
 # See repohooks/README.md for more details.
 
 black.?list
-dummy
+# dummy <- cleared
 master
-sanity
+# sanity <- cleared
 slave

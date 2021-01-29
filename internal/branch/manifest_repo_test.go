@@ -68,7 +68,7 @@ func TestRepairManifest_success(t *testing.T) {
 		Stdout: "123 test",
 	}
 
-	manifestRaw, err := manifestRepo.repairManifest("dummy_path", branchPathMap)
+	manifestRaw, err := manifestRepo.repairManifest("fake_path", branchPathMap)
 	assert.NilError(t, err)
 
 	manifest := repo.Manifest{}

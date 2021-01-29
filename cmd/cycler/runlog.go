@@ -87,11 +87,11 @@ func (rl *Runlog) Init(config cycler_pb.RunLogConfiguration, client *storage.Cli
 	}
 	rl.dstURL = dstURL
 
-	// Sanity test location writable by clobbering onto a special file.
+	// Access test location writable by clobbering onto a special file.
 	tstMsg := "Written to validate logging location writablility, ignore please."
 
 	// Path has a leading / and we omit it.
-	tstPath := path.Join(rl.dstURL.Path[1:], "ignore-sanity-test")
+	tstPath := path.Join(rl.dstURL.Path[1:], "ignore-access-test")
 
 	glog.V(0).Infof("Test log location: %v", tstPath)
 

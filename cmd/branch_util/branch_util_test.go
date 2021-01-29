@@ -8,6 +8,13 @@ import (
 	"context"
 	"encoding/xml"
 	"fmt"
+	"io/ioutil"
+	"log"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
 	"github.com/golang/mock/gomock"
 	"github.com/maruel/subcommands"
 	"go.chromium.org/chromiumos/infra/go/cmd/branch_util/test"
@@ -21,12 +28,6 @@ import (
 	gitilespb "go.chromium.org/luci/common/proto/gitiles"
 	"go.chromium.org/luci/hardcoded/chromeinfra"
 	"gotest.tools/assert"
-	"io/ioutil"
-	"log"
-	"os"
-	"path/filepath"
-	"strings"
-	"testing"
 )
 
 const (
@@ -209,7 +210,7 @@ var (
 
 func getManifestFiles(crosFetch, crosInternalFetch string) (
 	manifestFiles, manifestInternalFiles map[string]string, fullTotXML string) {
-	// We use a dummy value here because if a <	remote> tag has fetch="",
+	// We use a fake value here because if a <	remote> tag has fetch="",
 	// it will default to the actual gerrit remote.
 	if crosFetch == "" {
 		crosFetch = "placeholder"
@@ -252,7 +253,7 @@ func getBranchedManifestFiles(branch, crosFetch, crosInternalFetch string) (
 	manifestBranchedFiles map[string]string,
 	manifestInternalBranchedFiles map[string]string,
 	fullBranchedXML string) {
-	// We use a dummy value here because if a <	remote> tag has fetch="",
+	// We use a fake value here because if a <	remote> tag has fetch="",
 	// it will default to the actual gerrit remot
 	if crosFetch == "" {
 		crosFetch = "placeholder"

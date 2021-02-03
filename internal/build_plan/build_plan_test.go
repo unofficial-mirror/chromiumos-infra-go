@@ -102,6 +102,64 @@ func TestCheckBuilders_imageBuilderFiltering(t *testing.T) {
 	}
 }
 
+func TestCheckBuilders_hasManifestXMLChange(t *testing.T) {
+	changes := []*bbproto.GerritChange{
+		{Host: "test-review.googlesource.com", Change: 123, Patchset: 2, Project: "chromiumos/public/example"}}
+	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{
+		{
+			ChangeRevKey: gerrit.ChangeRevKey{
+				Host:      "test-review.googlesource.com",
+				ChangeNum: 123,
+				Revision:  2,
+			},
+			Branch:  "refs/heads/master",
+			Project: "chromiumos/manifest-internal",
+			Files: []string{
+				"readme.md",
+				"full.xml",
+			},
+		},
+	})
+	repoToBranchToSrcRoot := map[string]map[string]string{
+		"chromiumos/manifest-internal": {"refs/heads/master": "src/pub/ex"},
+	}
+
+	buildIrrelevanceCfg := testplans_pb.BuildIrrelevanceCfg{}
+	slimBuildCfg := testplans_pb.SlimBuildCfg{}
+	testReqsCfg := testplans_pb.TargetTestRequirementsCfg{}
+	builderConfigs := cros_pb.BuilderConfigs{}
+
+	b := []*cros_pb.BuilderConfig{
+		makeBuilderConfig("my_image_builder", cros_pb.BuilderConfig_Id_TYPE_UNSPECIFIED, cros_pb.BuilderConfig_General_RunWhen_ALWAYS_RUN, []string{}),
+		makeBuilderConfig("chromite-not_an_image_builder", cros_pb.BuilderConfig_Id_TYPE_UNSPECIFIED, cros_pb.BuilderConfig_General_RunWhen_ALWAYS_RUN, []string{}),
+	}
+
+	checkBuildersInput := &CheckBuildersInput{
+		Builders:              b,
+		Changes:               changes,
+		ChangeRevs:            chRevData,
+		RepoToBranchToSrcRoot: repoToBranchToSrcRoot,
+		BuildIrrelevanceCfg:   buildIrrelevanceCfg,
+		SlimBuildCfg:          slimBuildCfg,
+		TestReqsCfg:           testReqsCfg,
+		BuilderConfigs:        builderConfigs,
+	}
+
+	res, err := checkBuildersInput.CheckBuilders()
+	if err != nil {
+		t.Error(err)
+	}
+	if len(res.BuildsToRun) != 2 {
+		t.Errorf("Expected BuildsToRun to have 2 elements. Instead, %v", res.BuildsToRun)
+	}
+	if len(res.SkipForRunWhenRules) != 0 {
+		t.Errorf("Expected SkipForRunWhenRules to be empty. Instead, %v", res.SkipForRunWhenRules)
+	}
+	if len(res.SkipForGlobalBuildIrrelevance) != 0 {
+		t.Errorf("Expected SkipForGlobalBuildIrrelevance to be empty. Instead, %v", res.SkipForGlobalBuildIrrelevance)
+	}
+}
+
 func TestCheckBuilders_noGerritChanges(t *testing.T) {
 	// When there are no GerritChanges, we run all of the builders as full builds.
 

@@ -33,6 +33,21 @@ func (c *CheckBuildersInput) CheckBuilders() (*cros_pb.GenerateBuildPlanResponse
 
 	response := &cros_pb.GenerateBuildPlanResponse{}
 
+	// TODO(crbug/1169870): Be more selective once we have a way to know what source paths are
+	// relevant for each builder.
+	hasXMLChange, err := hasManifestXMLChange(c.Changes, c.ChangeRevs)
+	if err != nil {
+		return nil, fmt.Errorf("error in hasManifestXMLChange: %+v", err)
+	}
+	if hasXMLChange {
+		log.Printf("Manifest change modifies XML file, running all children builds.")
+		for _, b := range c.Builders {
+			log.Printf("Must run builder %v", b.GetId().GetName())
+			response.BuildsToRun = append(response.BuildsToRun, b.GetId())
+		}
+		return response, nil
+	}
+
 	// Get all of the files referenced by each GerritCommit in the Build.
 	affectedFiles, err := extractAffectedFiles(c.Changes, c.ChangeRevs, c.RepoToBranchToSrcRoot)
 	if err != nil {
@@ -220,6 +235,24 @@ func stringInSlice(a string, list []string) bool {
 		}
 	}
 	return false
+}
+
+func hasManifestXMLChange(changes []*bbproto.GerritChange, changeRevs *gerrit.ChangeRevData) (bool, error) {
+	for _, gc := range changes {
+		rev, err := changeRevs.GetChangeRev(gc.Host, gc.Change, int32(gc.Patchset))
+		if err != nil {
+			return false, err
+		}
+		if rev.Project != "chromiumos/manifest" && rev.Project != "chromeos/manifest-internal" {
+			continue
+		}
+		for _, file := range rev.Files {
+			if strings.HasSuffix(file, ".xml") {
+				return true, nil
+			}
+		}
+	}
+	return false, nil
 }
 
 func extractAffectedFiles(changes []*bbproto.GerritChange, changeRevs *gerrit.ChangeRevData, repoToSrcRoot map[string]map[string]string) ([]string, error) {

@@ -286,6 +286,7 @@ go.chromium.org/chromiumos/config/go v0.0.0-20200414232608-f5f458358927/go.mod h
 go.chromium.org/chromiumos/infra/proto v0.0.0-20200909165934-c5af25376297 h1:8dlJIxJkbkImaVG5XqC8JF/NMK1rxKW4A+E3aBmSwf8=
 go.chromium.org/chromiumos/infra/proto v0.0.0-20200909180331-92776ca7797d h1:VM8MCqAEDM0AJMsViE6NgkZ9nIuPvq+RAHBaCfT6e64=
 go.chromium.org/chromiumos/infra/proto v0.0.0-20200909192854-0563f56b84fb h1:wSbGyjSnpOc+ZENkklFKBekz+iyGwEPJLgpmWGCYvT0=
+go.chromium.org/chromiumos/infra/proto v0.0.0-20210202193551-fced3a8bb29f h1:pFIIVrt5TuQfv5157ZKIcQBeyiAAJLgi7ZyMuohaerM=
 go.chromium.org/chromiumos/infra/proto/go v0.0.0-20200106213256-37ffe011cbfd h1:OMukUGtsxOSvK5bC6s1Om1MbhbhBrUivF/AG6xZG2Gw=
 go.chromium.org/chromiumos/infra/proto/go v0.0.0-20200106213256-37ffe011cbfd/go.mod h1:6J9KHeZWAXoXap0SymRBXiPSDg8bSKGtHC+njpyz2eY=
 go.chromium.org/chromiumos/infra/proto/go v0.0.0-20200122233935-80b48f5df332 h1:14qX0YpgwMwPiOKkSH8y9YRP78LWsKKOZxEGpvFT8aw=
@@ -316,6 +317,7 @@ go.chromium.org/chromiumos/infra/proto/go v0.0.0-20210107013620-001c1eebc5c2 h1:
 go.chromium.org/chromiumos/infra/proto/go v0.0.0-20210107013620-001c1eebc5c2/go.mod h1:IQsSFs/0PTkYB4921qru+QGpmNYDn2I+78r2mkdPRjc=
 go.chromium.org/chromiumos/infra/proto/go v0.0.0-20210120205405-dcd51391609e h1:2TDuC0wmnUJT/ON52PiVXxNFOKNCj3LNfFMkR6WRdqE=
 go.chromium.org/chromiumos/infra/proto/go v0.0.0-20210120205405-dcd51391609e/go.mod h1:IQsSFs/0PTkYB4921qru+QGpmNYDn2I+78r2mkdPRjc=
+go.chromium.org/chromiumos/infra/proto/go v0.0.0-20210202193551-fced3a8bb29f h1:AIsFB+5WDMRQhocGTFv6cO38jyKVAKUPovKr5ZeSXDo=
 go.chromium.org/gae v0.0.0-20190826183307-50a499513efa h1:1Ia0zTIyW9IktCoEQOHPqlBsohu5n/Vzqmupj4B4tqg=
 go.chromium.org/gae v0.0.0-20190826183307-50a499513efa/go.mod h1:ypuIZj/TmtaQgUYPNNu0iKlsUkuv10PROeqHCNrqrog=
 go.chromium.org/luci v0.0.0-20191118200800-9eaf449bf869 h1:/4CDaHTkA4+VywpOUqnsbr7KYnRkohvazceYD8wm71g=
@@ -330,6 +332,7 @@ go.chromium.org/luci v0.0.0-20201019185456-d944e79f14ba h1:N/4McMj8qQjeAHuex6aJl
 go.chromium.org/luci v0.0.0-20201021193438-60a4b46d4477 h1:ZXAygQmEp0/KJiVO0EWXJr2aNuDmzEfQcqUjG0c+yc8=
 go.chromium.org/luci v0.0.0-20201026180202-fc747fd1d9f5 h1:aX2/Fw8+/g230SLl/hStKe67iZCFUJshg4S3MiuW7aA=
 go.chromium.org/luci v0.0.0-20210106204702-94bf1c716aba h1:Mh3sb+75YMIYRV/70nSEGuUqVkrMcMOhJiE0YeKjBAo=
+go.chromium.org/luci v0.0.0-20210202195500-142f1e543868 h1:9XaRUwiSdAz945oH7lSSQyCGQOYNM7qG93RbgGNL29w=
 go.opencensus.io v0.18.0/go.mod h1:vKdFvxhtzZ9onBp9VKHK8z/sRpBMnKAsufL7wlDrCOA=
 go.opencensus.io v0.19.1/go.mod h1:gug0GbSHa8Pafr0d2urOSgoXHZ6x/RUlaiT0d9pqb4A=
 go.opencensus.io v0.19.2 h1:ZZpq6xI6kv/LuE/5s5UQvBU5vMjvRnPb8PvJrIntAnc=

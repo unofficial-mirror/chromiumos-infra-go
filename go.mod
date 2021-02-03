@@ -15,8 +15,8 @@ require (
 	github.com/golang/lint v0.0.0-20180702182130-06c8688daad7 // indirect
 	github.com/golang/mock v1.4.3
 	github.com/golang/protobuf v1.4.2
-	github.com/google/go-cmp v0.4.1
-	github.com/google/uuid v1.1.1
+	github.com/google/go-cmp v0.5.0
+	github.com/google/uuid v1.1.2
 	github.com/grpc-ecosystem/grpc-gateway v1.6.2 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/luci/gtreap v0.0.0-20161228054646-35df89791e8f // indirect
@@ -34,7 +34,7 @@ require (
 	github.com/smartystreets/assertions v0.0.0-20190401211740-f487f9de1cd3 // indirect
 	github.com/smartystreets/goconvey v0.0.0-20190330032615-68dc04aab96a // indirect
 	github.com/texttheater/golang-levenshtein v0.0.0-20180516184445-d188e65d659e // indirect
-	go.chromium.org/chromiumos/infra/proto/go v0.0.0-20210120205405-dcd51391609e
+	go.chromium.org/chromiumos/infra/proto/go v0.0.0-20210203213821-17db9e8f18a5
 	go.chromium.org/gae v0.0.0-20190826183307-50a499513efa // indirect
 	go.chromium.org/luci v0.0.0-20191118200800-9eaf449bf869
 	go.uber.org/atomic v1.6.0
@@ -45,7 +45,8 @@ require (
 	golang.org/x/tools v0.0.0-20200604183345-4d5ea46c79fe // indirect
 	google.golang.org/api v0.26.0
 	google.golang.org/genproto v0.0.0-20200605102947-12044bf5ea91 // indirect
-	google.golang.org/grpc v1.29.1
+	google.golang.org/grpc v1.35.0
+	google.golang.org/protobuf v1.25.0
 	gopkg.in/yaml.v2 v2.3.0 // indirect
 	gotest.tools v2.2.0+incompatible
 )

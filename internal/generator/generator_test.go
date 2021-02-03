@@ -10,11 +10,11 @@ import (
 	_struct "github.com/golang/protobuf/ptypes/struct"
 	"github.com/golang/protobuf/ptypes/wrappers"
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	"go.chromium.org/chromiumos/infra/go/internal/gerrit"
 	"go.chromium.org/chromiumos/infra/proto/go/chromiumos"
 	"go.chromium.org/chromiumos/infra/proto/go/testplans"
 	bbproto "go.chromium.org/luci/buildbucket/proto"
+	"google.golang.org/protobuf/testing/protocmp"
 )
 
 const (
@@ -128,7 +128,7 @@ func TestCreateCombinedTestPlan_oneUnitSuccess(t *testing.T) {
 			},
 		},
 	}
-	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, cmpopts.EquateEmpty(), cmpopts.IgnoreUnexported(_struct.Value{}, _struct.Struct{}, wrappers.BoolValue{})); diff != "" {
+	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, protocmp.Transform()); diff != "" {
 		t.Errorf("CreateCombinedTestPlan bad result (-want/+got)\n%s", diff)
 	}
 }
@@ -248,7 +248,7 @@ func TestCreateCombinedTestPlan_manyUnitSuccess(t *testing.T) {
 					BuildTarget: &chromiumos.BuildTarget{Name: "kevin"}},
 				VmTestCfg: kevinVMTestCfg},
 		}}
-	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, cmpopts.EquateEmpty(), cmpopts.IgnoreUnexported(_struct.Value{}, _struct.Struct{}, wrappers.BoolValue{})); diff != "" {
+	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, protocmp.Transform()); diff != "" {
 		t.Errorf("CreateCombinedTestPlan bad result (-want/+got)\n%s", diff)
 	}
 }
@@ -329,7 +329,7 @@ func TestCreateCombinedTestPlan_successDespiteOneFailedBuilder(t *testing.T) {
 				HwTestCfg: reefHwTestCfg},
 		}}
 
-	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, cmpopts.EquateEmpty(), cmpopts.IgnoreUnexported(_struct.Value{}, _struct.Struct{}, wrappers.BoolValue{})); diff != "" {
+	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, protocmp.Transform()); diff != "" {
 		t.Errorf("CreateCombinedTestPlan bad result (-want/+got)\n%s", diff)
 	}
 }
@@ -386,7 +386,7 @@ func TestCreateCombinedTestPlan_skipsUnnecessaryHardwareTest(t *testing.T) {
 
 	expectedTestPlan := &testplans.GenerateTestPlanResponse{}
 
-	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, cmpopts.EquateEmpty()); diff != "" {
+	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, protocmp.Transform()); diff != "" {
 		t.Errorf("CreateCombinedTestPlan bad result (-want/+got)\n%s", diff)
 	}
 }
@@ -478,7 +478,7 @@ func TestCreateCombinedTestPlan_doesOnlyTest(t *testing.T) {
 		},
 	}
 
-	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, cmpopts.EquateEmpty(), cmpopts.IgnoreUnexported(_struct.Value{}, _struct.Struct{}, wrappers.BoolValue{})); diff != "" {
+	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, protocmp.Transform()); diff != "" {
 		t.Errorf("CreateCombinedTestPlan bad result (-want/+got)\n%s", diff)
 	}
 }
@@ -576,7 +576,7 @@ func TestCreateCombinedTestPlan_doesOnlyOneofTest(t *testing.T) {
 		},
 	}
 
-	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, cmpopts.EquateEmpty(), cmpopts.IgnoreUnexported(_struct.Value{}, _struct.Struct{}, wrappers.BoolValue{})); diff != "" {
+	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, protocmp.Transform()); diff != "" {
 		t.Errorf("CreateCombinedTestPlan bad result (-want/+got)\n%s", diff)
 	}
 }
@@ -676,7 +676,7 @@ func TestCreateCombinedTestPlan_doesAddOneofTest(t *testing.T) {
 		},
 	}
 
-	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, cmpopts.EquateEmpty(), cmpopts.IgnoreUnexported(_struct.Value{}, _struct.Struct{}, wrappers.BoolValue{})); diff != "" {
+	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, protocmp.Transform()); diff != "" {
 		t.Errorf("CreateCombinedTestPlan bad result (-want/+got)\n%s", diff)
 	}
 }
@@ -770,7 +770,7 @@ func TestCreateCombinedTestPlan_doesAlsoTest(t *testing.T) {
 				HwTestCfg: kevinHWTestCfg,
 			}}}
 
-	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, cmpopts.EquateEmpty(), cmpopts.IgnoreUnexported(_struct.Value{}, _struct.Struct{}, wrappers.BoolValue{})); diff != "" {
+	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, protocmp.Transform()); diff != "" {
 		t.Errorf("CreateCombinedTestPlan bad result (-want/+got)\n%s", diff)
 	}
 }
@@ -857,7 +857,7 @@ func TestCreateCombinedTestPlan_fileExcludePattern(t *testing.T) {
 
 	expectedTestPlan := &testplans.GenerateTestPlanResponse{}
 
-	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, cmpopts.EquateEmpty(), cmpopts.IgnoreUnexported(_struct.Value{}, _struct.Struct{}, wrappers.BoolValue{})); diff != "" {
+	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, protocmp.Transform()); diff != "" {
 		t.Errorf("CreateCombinedTestPlan bad result (-want/+got)\n%s", diff)
 	}
 }
@@ -928,7 +928,7 @@ func TestCreateCombinedTestPlan_skipsPointlessBuild(t *testing.T) {
 
 	expectedTestPlan := &testplans.GenerateTestPlanResponse{}
 
-	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, cmpopts.EquateEmpty()); diff != "" {
+	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, protocmp.Transform()); diff != "" {
 		t.Errorf("CreateCombinedTestPlan bad result (-want/+got)\n%s", diff)
 	}
 }
@@ -1011,7 +1011,7 @@ func TestCreateCombinedTestPlan_doesNotSkipNonCritical(t *testing.T) {
 				HwTestCfg: reefHwTestCfg,
 			}}}
 
-	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, cmpopts.EquateEmpty(), cmpopts.IgnoreUnexported(_struct.Value{}, _struct.Struct{}, wrappers.BoolValue{})); diff != "" {
+	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, protocmp.Transform()); diff != "" {
 		t.Errorf("CreateCombinedTestPlan bad result (-want/+got)\n%s", diff)
 	}
 }
@@ -1056,7 +1056,7 @@ func TestCreateCombinedTestPlan_ignoresNonArtifactBuild(t *testing.T) {
 	}
 
 	expectedTestPlan := &testplans.GenerateTestPlanResponse{}
-	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, cmpopts.EquateEmpty()); diff != "" {
+	if diff := cmp.Diff(expectedTestPlan, actualTestPlan, protocmp.Transform()); diff != "" {
 		t.Errorf("CreateCombinedTestPlan bad result (-want/+got)\n%s", diff)
 	}
 }

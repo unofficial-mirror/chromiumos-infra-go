@@ -17,7 +17,7 @@ import (
 
 // NoopEffect runtime and configuration state.
 type NoopEffect struct {
-	Config cycler_pb.NoopEffectConfiguration `json:"NoopEffectConfiguration"`
+	Config *cycler_pb.NoopEffectConfiguration `json:"NoopEffectConfiguration"`
 }
 
 func (ne NoopEffect) DefaultActor() interface{} {

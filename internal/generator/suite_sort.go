@@ -14,7 +14,7 @@ import (
 
 type testSuite struct {
 	skylabBoard string
-	build       bbproto.Build
+	build       *bbproto.Build
 	tsc         *testplans.TestSuiteCommon
 	isVm        bool
 }

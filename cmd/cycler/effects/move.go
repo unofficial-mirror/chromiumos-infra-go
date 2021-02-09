@@ -24,7 +24,7 @@ func (me MoveEffect) DefaultActor() interface{} {
 
 // MoveEffect runtime and configuration state.
 type MoveEffect struct {
-	Config cycler_pb.MoveEffectConfiguration `json:"MoveEffectConfiguration"`
+	Config *cycler_pb.MoveEffectConfiguration `json:"MoveEffectConfiguration"`
 	// Real or mock actor, non-test invocations use util.objectBucketToBucket.
 	actor func(ctx context.Context, client *storage.Client, srcAttr *storage.ObjectAttrs,
 		dstBucket string, prefix string, deleteAfter bool) error
@@ -38,7 +38,7 @@ type MoveEffectConfig struct {
 
 // Init the move effect with a config and an actor (mock or real function).
 func (me *MoveEffect) Initialize(config interface{}, actor interface{}, checks ...bool) {
-	orig, ok := config.(cycler_pb.MoveEffectConfiguration)
+	orig, ok := config.(*cycler_pb.MoveEffectConfiguration)
 	if !ok {
 		log.Printf("Config could not be typecast: %+v", ok)
 		os.Exit(2)

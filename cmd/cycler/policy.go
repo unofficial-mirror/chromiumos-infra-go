@@ -24,7 +24,7 @@ import (
 // Policy defines a policy document, settings, and runtime information.
 type Policy struct {
 	// The policy effect configuration (contains effect_configuration).
-	Config cycler_pb.PolicyEffectConfiguration `json:"PolicyEffectConfiguration"`
+	Config *cycler_pb.PolicyEffectConfiguration `json:"PolicyEffectConfiguration"`
 
 	// We must be explicitly allowed to mutate after policy determinations.
 	MutationAllowed bool `json:"MutationAllowed"`
@@ -76,7 +76,7 @@ func (ap *Policy) init(ctx context.Context, client *storage.Client,
 	ap.RunUUID = runUUID
 
 	// Set the config.
-	ap.Config = *config
+	ap.Config = config
 
 	// Set the GCP client.
 	ap.client = client

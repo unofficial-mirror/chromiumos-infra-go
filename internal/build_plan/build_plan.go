@@ -22,10 +22,10 @@ type CheckBuildersInput struct {
 	Changes               []*bbproto.GerritChange
 	ChangeRevs            *gerrit.ChangeRevData
 	RepoToBranchToSrcRoot map[string]map[string]string
-	BuildIrrelevanceCfg   testplans_pb.BuildIrrelevanceCfg
-	SlimBuildCfg          testplans_pb.SlimBuildCfg
-	TestReqsCfg           testplans_pb.TargetTestRequirementsCfg
-	BuilderConfigs        cros_pb.BuilderConfigs
+	BuildIrrelevanceCfg   *testplans_pb.BuildIrrelevanceCfg
+	SlimBuildCfg          *testplans_pb.SlimBuildCfg
+	TestReqsCfg           *testplans_pb.TargetTestRequirementsCfg
+	BuilderConfigs        *cros_pb.BuilderConfigs
 }
 
 // CheckBuilders determines which builders can be skipped and which must be run.
@@ -96,7 +96,7 @@ builderLoop:
 }
 
 // Slim builds are only allows in select repos.
-func allowSlimBuilds(affectedFiles []string, cfg testplans_pb.SlimBuildCfg) bool {
+func allowSlimBuilds(affectedFiles []string, cfg *testplans_pb.SlimBuildCfg) bool {
 	if len(affectedFiles) == 0 {
 		log.Print("Cannot schedule slim builds since no affected files were provided")
 		return false
@@ -119,7 +119,7 @@ affectedFile:
 }
 
 // Given a builder name, returns the builder config for the slim variant if it exists.
-func getSlimBuilder(b string, builderConfigs cros_pb.BuilderConfigs) *cros_pb.BuilderConfig {
+func getSlimBuilder(b string, builderConfigs *cros_pb.BuilderConfigs) *cros_pb.BuilderConfig {
 	suffixIndex := strings.LastIndex(b, "-")
 	slimName := b[:suffixIndex] + "-slim" + b[suffixIndex:]
 	for _, builderConfig := range builderConfigs.BuilderConfigs {
@@ -131,7 +131,7 @@ func getSlimBuilder(b string, builderConfigs cros_pb.BuilderConfigs) *cros_pb.Bu
 }
 
 // A CQ build target can be run as slim build if no HW or VM tests are configured for it.
-func eligibleForSlimBuild(b *cros_pb.BuilderConfig, testReqsCfg testplans_pb.TargetTestRequirementsCfg) bool {
+func eligibleForSlimBuild(b *cros_pb.BuilderConfig, testReqsCfg *testplans_pb.TargetTestRequirementsCfg) bool {
 	if b.GetId().GetType() != cros_pb.BuilderConfig_Id_CQ {
 		return false
 	}
@@ -154,7 +154,7 @@ func eligibleForGlobalIrrelevance(b *cros_pb.BuilderConfig) bool {
 	return true
 }
 
-func ignoreImageBuilders(affectedFiles []string, cfg testplans_pb.BuildIrrelevanceCfg, changes []*bbproto.GerritChange) bool {
+func ignoreImageBuilders(affectedFiles []string, cfg *testplans_pb.BuildIrrelevanceCfg, changes []*bbproto.GerritChange) bool {
 	if len(changes) == 0 {
 		// This happens during postsubmit runs, for example.
 		log.Print("Cannot ignore image builders, since no changes were provided")
@@ -287,7 +287,7 @@ changeLoop:
 	return allAffectedFiles, nil
 }
 
-func filterByBuildIrrelevantPaths(files []string, cfg testplans_pb.BuildIrrelevanceCfg) []string {
+func filterByBuildIrrelevantPaths(files []string, cfg *testplans_pb.BuildIrrelevanceCfg) []string {
 	pipFilteredFiles := make([]string, 0)
 affectedFile:
 	for _, f := range files {

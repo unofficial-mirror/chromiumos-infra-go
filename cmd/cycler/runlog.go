@@ -42,7 +42,7 @@ type Runlog struct {
 	LogSink chan []byte
 
 	// Config is the RunLogConfiguration
-	Config cycler_pb.RunLogConfiguration
+	Config *cycler_pb.RunLogConfiguration
 
 	// Stop channel signals the logging routines to stop.
 	Stop chan bool
@@ -67,7 +67,7 @@ type Runlog struct {
 }
 
 // Init sets up the runlog, with json config bytes or nil if defaults should be used.
-func (rl *Runlog) Init(config cycler_pb.RunLogConfiguration, client *storage.Client, wg *sync.WaitGroup) {
+func (rl *Runlog) Init(config *cycler_pb.RunLogConfiguration, client *storage.Client, wg *sync.WaitGroup) {
 	ctx := context.Background()
 
 	// Initialize channels, waitgroups and semaphores.

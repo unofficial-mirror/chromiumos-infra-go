@@ -27,8 +27,8 @@ func hwBuildResult(buildTarget, builderName, skylabBoard string, criticalSuite, 
 	}
 	return buildResult{
 		buildId: buildId{buildTarget: buildTarget, builderName: builderName},
-		build:   bbproto.Build{Critical: crit},
-		perTargetTestReqs: testplans.PerTargetTestRequirements{
+		build:   &bbproto.Build{Critical: crit},
+		perTargetTestReqs: &testplans.PerTargetTestRequirements{
 			TargetCriteria: &testplans.TargetCriteria{
 				BuilderName: builderName,
 			},
@@ -53,8 +53,8 @@ func vmBuildResult(buildTarget, builderName string, criticalSuite, criticalBuild
 	}
 	return buildResult{
 		buildId: buildId{buildTarget: buildTarget, builderName: builderName},
-		build:   bbproto.Build{Critical: crit},
-		perTargetTestReqs: testplans.PerTargetTestRequirements{
+		build:   &bbproto.Build{Critical: crit},
+		perTargetTestReqs: &testplans.PerTargetTestRequirements{
 			TargetCriteria: &testplans.TargetCriteria{
 				BuilderName: builderName,
 			},

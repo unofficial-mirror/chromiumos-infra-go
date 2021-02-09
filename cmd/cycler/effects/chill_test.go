@@ -24,7 +24,7 @@ func getChillMock(t *testing.T) interface{} {
 }
 
 func TestChillEffect(t *testing.T) {
-	config := cycler_pb.ChillEffectConfiguration{
+	config := &cycler_pb.ChillEffectConfiguration{
 		ToStorageClass: cycler_pb.ChillEffectConfiguration_COLDLINE,
 	}
 

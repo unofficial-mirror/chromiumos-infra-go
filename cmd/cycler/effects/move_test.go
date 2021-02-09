@@ -27,7 +27,7 @@ func getMoveMock(t *testing.T) interface{} {
 }
 
 func TestMoveEffect(t *testing.T) {
-	config := cycler_pb.MoveEffectConfiguration{
+	config := &cycler_pb.MoveEffectConfiguration{
 		DestinationBucket: "test_dest",
 		DestinationPrefix: "test_prefix",
 	}

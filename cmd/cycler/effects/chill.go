@@ -27,7 +27,7 @@ func (ce ChillEffect) DefaultActor() interface{} {
 
 // ChillEffect runtime and configuration state.
 type ChillEffect struct {
-	Config cycler_pb.ChillEffectConfiguration `json:"ChillEffectConfiguration"`
+	Config *cycler_pb.ChillEffectConfiguration `json:"ChillEffectConfiguration"`
 	// Real or mock actor, non-test invocations use util.objectChangeStorageClass
 	actor func(ctx context.Context, client *storage.Client, srcAttr *storage.ObjectAttrs,
 		toStorageClass cycler_pb.ChillEffectConfiguration_EnumStorageClass) error
@@ -35,7 +35,7 @@ type ChillEffect struct {
 
 // Init the chill effect.
 func (ce *ChillEffect) Initialize(config interface{}, actor interface{}, checks ...bool) {
-	orig, ok := config.(cycler_pb.ChillEffectConfiguration)
+	orig, ok := config.(*cycler_pb.ChillEffectConfiguration)
 	if !ok {
 		log.Printf("Config could not be typecast: %+v", ok)
 		os.Exit(2)

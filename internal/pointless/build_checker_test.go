@@ -35,7 +35,7 @@ func TestCheckBuilder_irrelevantToRelevantPaths(t *testing.T) {
 	}
 	cfg := testplans_pb.BuildIrrelevanceCfg{}
 
-	res, err := CheckBuilder(changes, chRevData, relevantPaths, repoToBranchToSrcRoot, cfg)
+	res, err := CheckBuilder(changes, chRevData, relevantPaths, repoToBranchToSrcRoot, &cfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -85,7 +85,7 @@ func TestCheckBuilder_relevantToRelevantPaths(t *testing.T) {
 	}
 	cfg := testplans_pb.BuildIrrelevanceCfg{}
 
-	res, err := CheckBuilder(changes, chRevData, relevantPaths, repoToBranchToSrcRoot, cfg)
+	res, err := CheckBuilder(changes, chRevData, relevantPaths, repoToBranchToSrcRoot, &cfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -127,7 +127,7 @@ func TestCheckBuilder_buildIrrelevantPaths(t *testing.T) {
 		},
 	}
 
-	res, err := CheckBuilder(changes, chRevData, relevantPaths, repoToBranchToSrcRoot, cfg)
+	res, err := CheckBuilder(changes, chRevData, relevantPaths, repoToBranchToSrcRoot, &cfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -150,7 +150,7 @@ func TestCheckBuilder_noGerritChangesMeansPointlessBuild(t *testing.T) {
 	}
 	cfg := testplans_pb.BuildIrrelevanceCfg{}
 
-	res, err := CheckBuilder(changes, chRevData, relevantPaths, repoToBranchToSrcRoot, cfg)
+	res, err := CheckBuilder(changes, chRevData, relevantPaths, repoToBranchToSrcRoot, &cfg)
 	if err != nil {
 		t.Error(err)
 	}

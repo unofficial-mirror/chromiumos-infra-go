@@ -23,7 +23,7 @@ func getDeleteMock(t *testing.T) interface{} {
 }
 
 func TestDeleteEffect(t *testing.T) {
-	config := cycler_pb.DeleteEffectConfiguration{}
+	config := &cycler_pb.DeleteEffectConfiguration{}
 
 	ctx := context.Background()
 	de := DeleteEffect{}

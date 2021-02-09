@@ -20,7 +20,7 @@ func TestStatsPackage(t *testing.T) {
 
 	config := DefaultStatsConfiguration()
 
-	stats.init(ctx, &config)
+	stats.init(ctx, config)
 
 	var sum int64
 	for i := 0; i < 10; i++ {

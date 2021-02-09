@@ -53,17 +53,17 @@ func TestCheckBuilders_imageBuilderFiltering(t *testing.T) {
 		"chromiumos/public/example": {"refs/heads/master": "src/pub/ex"},
 	}
 
-	buildIrrelevanceCfg := testplans_pb.BuildIrrelevanceCfg{
+	buildIrrelevanceCfg := &testplans_pb.BuildIrrelevanceCfg{
 		IrrelevantFilePatterns: []*testplans_pb.FilePattern{
 			{Pattern: "**/ignore_me.txt"},
 		},
 	}
 
-	slimBuildCfg := testplans_pb.SlimBuildCfg{}
+	slimBuildCfg := &testplans_pb.SlimBuildCfg{}
 
-	testReqsCfg := testplans_pb.TargetTestRequirementsCfg{}
+	testReqsCfg := &testplans_pb.TargetTestRequirementsCfg{}
 
-	builderConfigs := cros_pb.BuilderConfigs{}
+	builderConfigs := &cros_pb.BuilderConfigs{}
 
 	b := []*cros_pb.BuilderConfig{
 		makeBuilderConfig("my_image_builder", cros_pb.BuilderConfig_Id_TYPE_UNSPECIFIED, cros_pb.BuilderConfig_General_RunWhen_ALWAYS_RUN, []string{}),
@@ -124,10 +124,10 @@ func TestCheckBuilders_hasManifestXMLChange(t *testing.T) {
 		"chromiumos/manifest-internal": {"refs/heads/master": "src/pub/ex"},
 	}
 
-	buildIrrelevanceCfg := testplans_pb.BuildIrrelevanceCfg{}
-	slimBuildCfg := testplans_pb.SlimBuildCfg{}
-	testReqsCfg := testplans_pb.TargetTestRequirementsCfg{}
-	builderConfigs := cros_pb.BuilderConfigs{}
+	buildIrrelevanceCfg := &testplans_pb.BuildIrrelevanceCfg{}
+	slimBuildCfg := &testplans_pb.SlimBuildCfg{}
+	testReqsCfg := &testplans_pb.TargetTestRequirementsCfg{}
+	builderConfigs := &cros_pb.BuilderConfigs{}
 
 	b := []*cros_pb.BuilderConfig{
 		makeBuilderConfig("my_image_builder", cros_pb.BuilderConfig_Id_TYPE_UNSPECIFIED, cros_pb.BuilderConfig_General_RunWhen_ALWAYS_RUN, []string{}),
@@ -167,17 +167,17 @@ func TestCheckBuilders_noGerritChanges(t *testing.T) {
 	chRevData := gerrit.GetChangeRevsForTest([]*gerrit.ChangeRev{})
 	repoToBranchToSrcRoot := map[string]map[string]string{}
 
-	buildIrrelevanceCfg := testplans_pb.BuildIrrelevanceCfg{
+	buildIrrelevanceCfg := &testplans_pb.BuildIrrelevanceCfg{
 		IrrelevantFilePatterns: []*testplans_pb.FilePattern{
 			{Pattern: "**/ignore_me.txt"},
 		},
 	}
 
-	slimBuildCfg := testplans_pb.SlimBuildCfg{}
+	slimBuildCfg := &testplans_pb.SlimBuildCfg{}
 
-	testReqsCfg := testplans_pb.TargetTestRequirementsCfg{}
+	testReqsCfg := &testplans_pb.TargetTestRequirementsCfg{}
 
-	builderConfigs := cros_pb.BuilderConfigs{}
+	builderConfigs := &cros_pb.BuilderConfigs{}
 
 	b := []*cros_pb.BuilderConfig{
 		makeBuilderConfig("my_image_builder", cros_pb.BuilderConfig_Id_CQ, cros_pb.BuilderConfig_General_RunWhen_ALWAYS_RUN, []string{}),
@@ -243,10 +243,10 @@ func TestCheckBuilders_withGerritChangesNoAffectedFiles(t *testing.T) {
 		"chromiumos/public/example": {"refs/heads/other": "src/pub/ex"},
 	}
 
-	buildIrrelevanceCfg := testplans_pb.BuildIrrelevanceCfg{}
-	slimBuildCfg := testplans_pb.SlimBuildCfg{}
-	testReqsCfg := testplans_pb.TargetTestRequirementsCfg{}
-	builderConfigs := cros_pb.BuilderConfigs{}
+	buildIrrelevanceCfg := &testplans_pb.BuildIrrelevanceCfg{}
+	slimBuildCfg := &testplans_pb.SlimBuildCfg{}
+	testReqsCfg := &testplans_pb.TargetTestRequirementsCfg{}
+	builderConfigs := &cros_pb.BuilderConfigs{}
 
 	b := []*cros_pb.BuilderConfig{
 		makeBuilderConfig("my_image_builder", cros_pb.BuilderConfig_Id_CQ, cros_pb.BuilderConfig_General_RunWhen_ALWAYS_RUN, []string{}),
@@ -310,10 +310,10 @@ func TestCheckBuilders_onlyRunOnFileMatch(t *testing.T) {
 		"chromiumos/public/example": {"refs/heads/master": "src/pub/ex"},
 	}
 
-	buildIrrelevanceCfg := testplans_pb.BuildIrrelevanceCfg{}
-	slimBuildCfg := testplans_pb.SlimBuildCfg{}
-	testReqsCfg := testplans_pb.TargetTestRequirementsCfg{}
-	builderConfigs := cros_pb.BuilderConfigs{}
+	buildIrrelevanceCfg := &testplans_pb.BuildIrrelevanceCfg{}
+	slimBuildCfg := &testplans_pb.SlimBuildCfg{}
+	testReqsCfg := &testplans_pb.TargetTestRequirementsCfg{}
+	builderConfigs := &cros_pb.BuilderConfigs{}
 
 	b := []*cros_pb.BuilderConfig{
 		makeBuilderConfig("board_to_run", cros_pb.BuilderConfig_Id_TYPE_UNSPECIFIED, cros_pb.BuilderConfig_General_RunWhen_ONLY_RUN_ON_FILE_MATCH, []string{"**/match_me.txt"}),
@@ -374,15 +374,15 @@ func TestCheckBuilders_slimBuildersEligiblePaths(t *testing.T) {
 	repoToBranchToSrcRoot := map[string]map[string]string{
 		"chromiumos/third_party/kernel": {"refs/heads/master": "src/third_party/kernel"},
 	}
-	buildIrrelevanceCfg := testplans_pb.BuildIrrelevanceCfg{}
+	buildIrrelevanceCfg := &testplans_pb.BuildIrrelevanceCfg{}
 
-	slimBuildCfg := testplans_pb.SlimBuildCfg{
+	slimBuildCfg := &testplans_pb.SlimBuildCfg{
 		SlimEligibleFilePatterns: []*testplans_pb.FilePattern{
 			{Pattern: "src/third_party/kernel/**"},
 		},
 	}
 
-	testReqsCfg := testplans_pb.TargetTestRequirementsCfg{
+	testReqsCfg := &testplans_pb.TargetTestRequirementsCfg{
 		PerTargetTestRequirements: []*testplans_pb.PerTargetTestRequirements{
 			&testplans_pb.PerTargetTestRequirements{
 				TargetCriteria: &testplans_pb.TargetCriteria{
@@ -395,7 +395,7 @@ func TestCheckBuilders_slimBuildersEligiblePaths(t *testing.T) {
 		},
 	}
 
-	builderConfigs := cros_pb.BuilderConfigs{
+	builderConfigs := &cros_pb.BuilderConfigs{
 		BuilderConfigs: []*cros_pb.BuilderConfig{
 			makeBuilderConfig("not-cq-builder", cros_pb.BuilderConfig_Id_TYPE_UNSPECIFIED, cros_pb.BuilderConfig_General_RunWhen_ALWAYS_RUN, []string{}),
 			makeBuilderConfig("testable-builder-cq", cros_pb.BuilderConfig_Id_CQ, cros_pb.BuilderConfig_General_RunWhen_ALWAYS_RUN, []string{}),
@@ -471,15 +471,15 @@ func TestCheckBuilders_slimBuildersNotStaging(t *testing.T) {
 	repoToBranchToSrcRoot := map[string]map[string]string{
 		"chromiumos/third_party/kernel": {"refs/heads/master": "src/third_party/kernel"},
 	}
-	buildIrrelevanceCfg := testplans_pb.BuildIrrelevanceCfg{}
+	buildIrrelevanceCfg := &testplans_pb.BuildIrrelevanceCfg{}
 
-	slimBuildCfg := testplans_pb.SlimBuildCfg{
+	slimBuildCfg := &testplans_pb.SlimBuildCfg{
 		SlimEligibleFilePatterns: []*testplans_pb.FilePattern{
 			{Pattern: "src/third_party/kernel/**"},
 		},
 	}
 
-	testReqsCfg := testplans_pb.TargetTestRequirementsCfg{
+	testReqsCfg := &testplans_pb.TargetTestRequirementsCfg{
 		PerTargetTestRequirements: []*testplans_pb.PerTargetTestRequirements{
 			&testplans_pb.PerTargetTestRequirements{
 				TargetCriteria: &testplans_pb.TargetCriteria{
@@ -494,7 +494,7 @@ func TestCheckBuilders_slimBuildersNotStaging(t *testing.T) {
 
 	bConfig := makeBuilderConfig("non-testable-builder-with-slim-variant-cq", cros_pb.BuilderConfig_Id_CQ, cros_pb.BuilderConfig_General_RunWhen_ALWAYS_RUN, []string{})
 	bConfig.General.Environment = cros_pb.BuilderConfig_General_PRODUCTION
-	builderConfigs := cros_pb.BuilderConfigs{
+	builderConfigs := &cros_pb.BuilderConfigs{
 		BuilderConfigs: []*cros_pb.BuilderConfig{
 			bConfig,
 			makeBuilderConfig("non-testable-builder-with-slim-variant-slim-cq", cros_pb.BuilderConfig_Id_CQ, cros_pb.BuilderConfig_General_RunWhen_ALWAYS_RUN, []string{}),
@@ -572,15 +572,15 @@ func TestCheckBuilders_slimBuildersIneligiblePaths(t *testing.T) {
 		"chromiumos/platform2":          {"refs/heads/master": "src/platform2"},
 		"chromiumos/ineligible/project": {"refs/heads/master": "src/pub/ex"},
 	}
-	buildIrrelevanceCfg := testplans_pb.BuildIrrelevanceCfg{}
+	buildIrrelevanceCfg := &testplans_pb.BuildIrrelevanceCfg{}
 
-	slimBuildCfg := testplans_pb.SlimBuildCfg{
+	slimBuildCfg := &testplans_pb.SlimBuildCfg{
 		SlimEligibleFilePatterns: []*testplans_pb.FilePattern{
 			{Pattern: "src/third_party/kernel/**"},
 		},
 	}
 
-	testReqsCfg := testplans_pb.TargetTestRequirementsCfg{
+	testReqsCfg := &testplans_pb.TargetTestRequirementsCfg{
 		PerTargetTestRequirements: []*testplans_pb.PerTargetTestRequirements{
 			&testplans_pb.PerTargetTestRequirements{
 				TargetCriteria: &testplans_pb.TargetCriteria{
@@ -593,7 +593,7 @@ func TestCheckBuilders_slimBuildersIneligiblePaths(t *testing.T) {
 		},
 	}
 
-	builderConfigs := cros_pb.BuilderConfigs{}
+	builderConfigs := &cros_pb.BuilderConfigs{}
 
 	b := []*cros_pb.BuilderConfig{
 		makeBuilderConfig("not-cq-builder", cros_pb.BuilderConfig_Id_TYPE_UNSPECIFIED, cros_pb.BuilderConfig_General_RunWhen_ALWAYS_RUN, []string{}),
@@ -657,13 +657,13 @@ func TestCheckBuilders_NoRunOnFileMatch(t *testing.T) {
 		"chromiumos/public/example": {"refs/heads/master": "src/pub/ex"},
 	}
 
-	buildIrrelevanceCfg := testplans_pb.BuildIrrelevanceCfg{}
+	buildIrrelevanceCfg := &testplans_pb.BuildIrrelevanceCfg{}
 
-	slimBuildCfg := testplans_pb.SlimBuildCfg{}
+	slimBuildCfg := &testplans_pb.SlimBuildCfg{}
 
-	testReqsCfg := testplans_pb.TargetTestRequirementsCfg{}
+	testReqsCfg := &testplans_pb.TargetTestRequirementsCfg{}
 
-	builderConfigs := cros_pb.BuilderConfigs{}
+	builderConfigs := &cros_pb.BuilderConfigs{}
 
 	b := []*cros_pb.BuilderConfig{
 		makeBuilderConfig("board_to_skip", cros_pb.BuilderConfig_Id_TYPE_UNSPECIFIED, cros_pb.BuilderConfig_General_RunWhen_NO_RUN_ON_FILE_MATCH, []string{"**/match_me_1.txt", "**/match_me_2.txt"}),

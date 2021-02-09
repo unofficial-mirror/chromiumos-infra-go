@@ -24,8 +24,8 @@ type buildId struct {
 // buildResult is a conglomeration of data about a build and how to test it.
 type buildResult struct {
 	buildId           buildId
-	build             bbproto.Build
-	perTargetTestReqs testplans.PerTargetTestRequirements
+	build             *bbproto.Build
+	perTargetTestReqs *testplans.PerTargetTestRequirements
 }
 
 type suitesForGroups struct {
@@ -464,9 +464,9 @@ func selectBuildForRequirements(
 	}
 	br := buildIdToBuild[*bt]
 	return &buildResult{
-			build:             *br,
+			build:             br,
 			buildId:           buildId{buildTarget: getBuildTarget(br), builderName: br.GetBuilder().GetBuilder()},
-			perTargetTestReqs: *pttr},
+			perTargetTestReqs: pttr},
 		nil
 }
 

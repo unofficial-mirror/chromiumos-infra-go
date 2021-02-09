@@ -67,10 +67,10 @@ func cmdCheckSkip(authOpts auth.Options) *subcommands.Command {
 }
 
 type fetchConfigResult struct {
-	buildIrrelevanceCfg testplans_pb.BuildIrrelevanceCfg
-	slimBuildCfg        testplans_pb.SlimBuildCfg
-	testReqsCfg         testplans_pb.TargetTestRequirementsCfg
-	builderConfigs      cros_pb.BuilderConfigs
+	buildIrrelevanceCfg *testplans_pb.BuildIrrelevanceCfg
+	slimBuildCfg        *testplans_pb.SlimBuildCfg
+	testReqsCfg         *testplans_pb.TargetTestRequirementsCfg
+	builderConfigs      *cros_pb.BuilderConfigs
 }
 
 func (c *checkBuild) Run(a subcommands.Application, args []string, env subcommands.Env) int {
@@ -248,10 +248,10 @@ func (c *checkBuild) fetchConfigFromGitiles() (*fetchConfigResult, error) {
 	log.Printf("Fetched config from Gitiles:\n%s\n\n%s\n\n%s",
 		proto.MarshalTextString(buildIrrelevanceConfig), proto.MarshalTextString(targetTestRequirementsConfig), proto.MarshalTextString(builderConfigs))
 	return &fetchConfigResult{
-		buildIrrelevanceCfg: *buildIrrelevanceConfig,
-		slimBuildCfg:        *slimBuildConfig,
-		testReqsCfg:         *targetTestRequirementsConfig,
-		builderConfigs:      *builderConfigs,
+		buildIrrelevanceCfg: buildIrrelevanceConfig,
+		slimBuildCfg:        slimBuildConfig,
+		testReqsCfg:         targetTestRequirementsConfig,
+		builderConfigs:      builderConfigs,
 	}, nil
 }
 

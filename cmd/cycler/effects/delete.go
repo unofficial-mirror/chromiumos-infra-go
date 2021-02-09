@@ -24,14 +24,14 @@ func (de DeleteEffect) DefaultActor() interface{} {
 
 // DeleteEffect runtime and configuration state.
 type DeleteEffect struct {
-	Config cycler_pb.DeleteEffectConfiguration `json:"DeleteEffectConfiguration"`
+	Config *cycler_pb.DeleteEffectConfiguration `json:"DeleteEffectConfiguration"`
 	// Real or mock actor, non-test invocations use util.objectBucketToBucket.
 	actor func(ctx context.Context, client *storage.Client, srcAttr *storage.ObjectAttrs) error
 }
 
 // Init the DeleteEffect
 func (de *DeleteEffect) Initialize(config interface{}, actor interface{}, checks ...bool) {
-	orig, ok := config.(cycler_pb.DeleteEffectConfiguration)
+	orig, ok := config.(*cycler_pb.DeleteEffectConfiguration)
 	if !ok {
 		log.Printf("Config could not be typecast: %+v", ok)
 		os.Exit(2)

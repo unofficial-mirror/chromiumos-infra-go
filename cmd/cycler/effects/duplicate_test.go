@@ -27,7 +27,7 @@ func getDuplicateMock(t *testing.T) interface{} {
 }
 
 func TestDuplicateEffect(t *testing.T) {
-	config := cycler_pb.DuplicateEffectConfiguration{
+	config := &cycler_pb.DuplicateEffectConfiguration{
 		DestinationBucket: "test_dest",
 		DestinationPrefix: "test_prefix",
 	}

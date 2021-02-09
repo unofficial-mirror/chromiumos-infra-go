@@ -24,7 +24,7 @@ func (de DuplicateEffect) DefaultActor() interface{} {
 
 // DuplicateEffect runtime and configuration state.
 type DuplicateEffect struct {
-	Config cycler_pb.DuplicateEffectConfiguration `json:"DuplicateEffectConfiguration"`
+	Config *cycler_pb.DuplicateEffectConfiguration `json:"DuplicateEffectConfiguration"`
 	// Real or mock actor, non-test invocations use util.objectBucketToBucket.
 	actor func(ctx context.Context, client *storage.Client, srcAttr *storage.ObjectAttrs,
 		dstBucket string, prefix string, deleteAfter bool) error
@@ -32,7 +32,7 @@ type DuplicateEffect struct {
 
 // Init the DuplicateEffect, duplicate doesn't mutate so skip checks.
 func (de *DuplicateEffect) Initialize(config interface{}, actor interface{}, checks ...bool) {
-	orig, ok := config.(cycler_pb.DuplicateEffectConfiguration)
+	orig, ok := config.(*cycler_pb.DuplicateEffectConfiguration)
 	if !ok {
 		log.Printf("Config could not be typecast: %+v", ok)
 		os.Exit(2)

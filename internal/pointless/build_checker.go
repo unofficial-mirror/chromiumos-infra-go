@@ -24,7 +24,7 @@ func CheckBuilder(
 	changeRevs *gerrit.ChangeRevData,
 	relevantPaths []*testplans_pb.PointlessBuildCheckRequest_Path,
 	repoToBranchToSrcRoot map[string]map[string]string,
-	cfg testplans_pb.BuildIrrelevanceCfg) (*testplans_pb.PointlessBuildCheckResponse, error) {
+	cfg *testplans_pb.BuildIrrelevanceCfg) (*testplans_pb.PointlessBuildCheckResponse, error) {
 
 	// Get all of the files referenced by each GerritCommit in the Build.
 	affectedFiles, err := extractAffectedFiles(changes, changeRevs, repoToBranchToSrcRoot)
@@ -100,7 +100,7 @@ func extractAffectedFiles(changes []*bbproto.GerritChange,
 	return allAffectedFiles, nil
 }
 
-func filterByBuildIrrelevantPaths(files []string, cfg testplans_pb.BuildIrrelevanceCfg) []string {
+func filterByBuildIrrelevantPaths(files []string, cfg *testplans_pb.BuildIrrelevanceCfg) []string {
 	pipFilteredFiles := make([]string, 0)
 affectedFile:
 	for _, f := range files {

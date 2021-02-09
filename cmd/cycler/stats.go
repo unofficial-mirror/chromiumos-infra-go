@@ -54,15 +54,15 @@ type Stats struct {
 	SizeBytesHistogram stats.Histogram `json:"SizeBytesHistogram"`
 
 	// General config.
-	Config cycler_pb.StatsConfiguration `json:"StatsConfiguration"`
+	Config *cycler_pb.StatsConfiguration `json:"StatsConfiguration"`
 
 	// Used to protect non-thread-safe members.
 	mux sync.Mutex
 }
 
 // DefaultStatsConfiguration returns a default configuration for StatsConfiguration.
-func DefaultStatsConfiguration() cycler_pb.StatsConfiguration {
-	return cycler_pb.StatsConfiguration{
+func DefaultStatsConfiguration() *cycler_pb.StatsConfiguration {
+	return &cycler_pb.StatsConfiguration{
 		// Max depth is default to '1' to avoid massive report sizes.
 		PrefixReportMaxDepth: 1,
 		AgeDaysHistogramOptions: &cycler_pb.HistogramOptions{
@@ -86,7 +86,7 @@ func (s *Stats) init(ctx context.Context, config *cycler_pb.StatsConfiguration) 
 	if config == nil {
 		s.Config = DefaultStatsConfiguration()
 	} else {
-		s.Config = *config
+		s.Config = config
 	}
 
 	s.AgeDaysHistogram = *stats.NewHistogram(convertHistogramOptions(s.Config.AgeDaysHistogramOptions))

@@ -200,7 +200,7 @@ func main() {
 
 	// Setting up log sink.
 	var runlog = &Runlog{}
-	runlog.Init(*runConfig.RunLogConfiguration, client, &lwg)
+	runlog.Init(runConfig.RunLogConfiguration, client, &lwg)
 
 	// Initialize the policy.
 	pol := Policy{}

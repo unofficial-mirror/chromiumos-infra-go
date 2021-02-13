@@ -481,3 +481,16 @@ func TestRemoteBranches(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Assert(t, !ok)
 }
+
+func TestResolveRemoteSymbolicRef(t *testing.T) {
+	remote := "remote"
+
+	CommandRunnerImpl = cmd.FakeCommandRunner{
+		ExpectedDir: "foo",
+		ExpectedCmd: []string{"git", "ls-remote", "-q", "--symref", "--exit-code", remote, "HEAD"},
+		Stdout:      "ref: refs/heads/main\tHEAD\n5f6803b100bb3cd0f534e96e88c91373e8ed1c44\tHEAD\n",
+	}
+	ref, err := ResolveRemoteSymbolicRef("foo", remote, "HEAD")
+	assert.NilError(t, err)
+	assert.Equal(t, ref, "refs/heads/main")
+}

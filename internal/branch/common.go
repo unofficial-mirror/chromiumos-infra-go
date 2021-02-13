@@ -15,6 +15,7 @@ import (
 	"path"
 	"path/filepath"
 	"strconv"
+	"strings"
 )
 
 const VersionFileProjectPath = "src/third_party/chromiumos-overlay"
@@ -96,15 +97,18 @@ func getProjectCheckoutFromUrl(projectUrl string, opts *CheckoutOptions) (string
 	if err != nil {
 		return "", fmt.Errorf("failed to fetch %s: %s", projectUrl, output.Stderr)
 	}
-	checkoutBranch := "master"
+	checkoutBranch := ""
 	if opts != nil && opts.Ref != "" {
 		checkoutBranch = git.StripRefs(opts.Ref)
+	} else {
+		remoteBranch, err := git.ResolveRemoteSymbolicRef(checkoutDir, "origin", "HEAD")
+		if err != nil {
+			return "", fmt.Errorf("unable to resolve %s HEAD: %s", projectUrl, err)
+		}
+		parts := strings.Split(remoteBranch, "/")
+		checkoutBranch = parts[len(parts)-1]
 	}
-	// TODO: remove `master` when COIL is completed
-	if err := git.Checkout(checkoutDir, checkoutBranch); err != nil && checkoutBranch == "master" {
-		checkoutBranch = "main"
-		err = git.Checkout(checkoutDir, checkoutBranch)
-	}
+	err = git.Checkout(checkoutDir, checkoutBranch)
 	if err != nil {
 		return "", fmt.Errorf("failed to checkout %s", checkoutBranch)
 	}

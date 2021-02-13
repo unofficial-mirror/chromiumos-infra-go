@@ -336,3 +336,24 @@ func RemoteHasBranch(gitRepo, remote, branch string) (bool, error) {
 	}
 	return output.Stdout != "", nil
 }
+
+// ResolveRemoteSymbolicRef resolves the target of a symbolic ref.
+func ResolveRemoteSymbolicRef(gitRepo, remote string, ref string) (string, error) {
+	output, err := RunGit(gitRepo, []string{"ls-remote", "-q", "--symref", "--exit-code", remote, ref})
+	if err != nil {
+		if strings.Contains(output.Stderr, "not appear to be a git repository") {
+			return "", fmt.Errorf("%s is not a valid remote", remote)
+		}
+		return "", fmt.Errorf(output.Stderr)
+	}
+	// The output will look like (NB: tabs are separators):
+	// ref: refs/heads/main	HEAD
+	// 5f6803b100bb3cd0f534e96e88c91373e8ed1c44	HEAD
+	for _, line := range strings.Split(output.Stdout, "\n") {
+		parts := strings.SplitN(line, "\t", 2)
+		if strings.HasPrefix(parts[0], "ref:") && parts[1] == ref {
+			return strings.TrimSpace(parts[0][4:]), nil
+		}
+	}
+	return "", fmt.Errorf("unable to resolve %s", ref)
+}

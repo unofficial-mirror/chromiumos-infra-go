@@ -43,39 +43,12 @@ func TestGetProjectCheckoutFromUrl(t *testing.T) {
 			},
 			{
 				ExpectedDir: "",
-				ExpectedCmd: []string{"git", "checkout", "master"},
-				FailCommand: true,
-				FailError:   "Failed to checkout master",
-			},
-		},
-	}
-
-	_, err := getProjectCheckoutFromUrl("localhost", nil)
-
-	if err != nil {
-		t.Error("Error: checkout out project reason: ", err.Error())
-		return
-	}
-}
-
-func TestGetProjectCheckoutFromUrl_coilcheck(t *testing.T) {
-	git.CommandRunnerImpl = &cmd.FakeCommandRunnerMulti{
-		CommandRunners: []cmd.FakeCommandRunner{
-			{
-				ExpectedDir: "",
-				ExpectedCmd: []string{"git", "init"},
+				ExpectedCmd: []string{"git", "ls-remote", "-q", "--symref", "--exit-code", "origin", "HEAD"},
+				Stdout:      "ref: refs/heads/mamama\tHEAD\n5f6803b100bb3cd0f534e96e88c91373e8ed1c44\tHEAD\n",
 			},
 			{
 				ExpectedDir: "",
-				ExpectedCmd: []string{"git", "remote", "add", "origin", "localhost"},
-			},
-			{
-				ExpectedDir: "",
-				ExpectedCmd: []string{"git", "fetch", "origin"},
-			},
-			{
-				ExpectedDir: "",
-				ExpectedCmd: []string{"git", "checkout", "master"},
+				ExpectedCmd: []string{"git", "checkout", "mamama"},
 			},
 		},
 	}

@@ -6,14 +6,15 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
+	"os"
+
 	"github.com/maruel/subcommands"
 	"go.chromium.org/chromiumos/infra/go/internal/branch"
 	"go.chromium.org/luci/auth"
 	"go.chromium.org/luci/auth/client/authcli"
 	"go.chromium.org/luci/common/api/gerrit"
 	"go.chromium.org/luci/hardcoded/chromeinfra"
-	"log"
-	"os"
 )
 
 var (
@@ -81,10 +82,6 @@ func (c *CommonFlags) InitFlags(authOpts auth.Options) {
 func Run(c branchCommand, a subcommands.Application, args []string, env subcommands.Env) int {
 	branch.StdoutLog = a.(*branchApplication).stdoutLog
 	branch.StderrLog = a.(*branchApplication).stderrLog
-	// Set output of standard log in case any packages use it.
-	if branch.StdoutLog != nil {
-		log.SetOutput(branch.StdoutLog.Writer())
-	}
 
 	// Validate flags/arguments.
 	ok, errMsg := c.validate(args)

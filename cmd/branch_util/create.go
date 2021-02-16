@@ -5,6 +5,9 @@ package main
 
 import (
 	"context"
+	"io/ioutil"
+	"os"
+
 	"github.com/maruel/subcommands"
 	"go.chromium.org/chromiumos/infra/go/internal/branch"
 	mv "go.chromium.org/chromiumos/infra/go/internal/chromeos_version"
@@ -13,8 +16,6 @@ import (
 	"go.chromium.org/chromiumos/infra/go/internal/repo"
 	"go.chromium.org/luci/auth"
 	"go.chromium.org/luci/common/errors"
-	"io/ioutil"
-	"os"
 )
 
 const (
@@ -110,7 +111,6 @@ func (c *createBranch) getManifestUrl() string {
 func (c *createBranch) Run(a subcommands.Application, args []string,
 	env subcommands.Env) int {
 	// Common setup (argument validation, repo init, etc.)
-
 	ret := Run(c, a, args, env)
 	if ret != 0 {
 		return ret
@@ -149,7 +149,7 @@ func (c *createBranch) Run(a subcommands.Application, args []string,
 			branch.LogErr(errors.Annotate(err, "Error: Failed to load manifest from file ").Err().Error())
 			return 1
 		}
-		branch.LogErr("Got manifest from filepath %v", c.file)
+		branch.LogOut("Got manifest from filepath %v", c.file)
 		branch.WorkingManifest = *file
 	} else {
 		file, err := gerrit.DownloadFileFromGitiles(authedClient, ctx, "chrome-internal.googlesource.com",
@@ -158,7 +158,7 @@ func (c *createBranch) Run(a subcommands.Application, args []string,
 			branch.LogErr(errors.Annotate(err, "failed to fetch buildspec %v", c.buildSpecManifest).Err().Error())
 			return 1
 		}
-		branch.LogErr("Got %v from Gitiles", c.buildSpecManifest)
+		branch.LogOut("Got %v from Gitiles", c.buildSpecManifest)
 		wm, err := ioutil.TempFile("", "working-manifest.xml")
 		if err != nil {
 			branch.LogErr("%s\n", err.Error())
@@ -175,7 +175,7 @@ func (c *createBranch) Run(a subcommands.Application, args []string,
 			branch.LogErr("%s\n", err.Error())
 			return 1
 		}
-		branch.LogErr("Fetched working manifest.\n")
+		branch.LogOut("Fetched working manifest.\n")
 	}
 
 	// Use manifest-internal as a sentinel repository to get the appropriate branch name.
@@ -196,8 +196,8 @@ func (c *createBranch) Run(a subcommands.Application, args []string,
 		sourceUpstream = "main"
 	}
 
-	branch.LogErr("Using sourceRevision %s for manifestInternal", sourceRevision)
-	branch.LogErr("Using sourceUpstream %s for manifestInternal", sourceUpstream)
+	branch.LogOut("Using sourceRevision %s for manifestInternal", sourceRevision)
+	branch.LogOut("Using sourceUpstream %s for manifestInternal", sourceUpstream)
 
 	// Validate the version.
 	// Double check that the checkout has a zero patch number. Otherwise we cannot branch from it.
@@ -228,9 +228,9 @@ func (c *createBranch) Run(a subcommands.Application, args []string,
 			vinfo.VersionString())
 		return 1
 	}
-	branch.LogErr("Version found: %s.\n", vinfo.VersionString())
+	branch.LogOut("Version found: %s.\n", vinfo.VersionString())
 
-	branch.LogErr("Have manifest = %v", manifestInternal)
+	branch.LogOut("Have manifest = %v", manifestInternal)
 
 	branchType := ""
 
@@ -262,6 +262,7 @@ func (c *createBranch) Run(a subcommands.Application, args []string,
 
 	// Generate git branch names.
 	branches := branch.ProjectBranches(branchName, git.StripRefs(sourceRevision))
+	// Do not change the format of this string, it is parsed by the brancher recipe.
 	branch.LogOut("Creating branch: %s\n", branchName)
 
 	projectBranches, err := branch.GerritProjectBranches(branches)
@@ -289,7 +290,7 @@ func (c *createBranch) Run(a subcommands.Application, args []string,
 	}
 
 	if !c.Push {
-		branch.LogErr("Dry run (no --push): completed successfully")
+		branch.LogOut("Dry run (no --push): completed successfully")
 	}
 	return 0
 }

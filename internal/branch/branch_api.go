@@ -6,14 +6,14 @@ package branch
 
 import (
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"time"
+
 	gerritapi "github.com/andygrunwald/go-gerrit"
 	"go.chromium.org/luci/common/errors"
 	"go.uber.org/atomic"
 	"golang.org/x/sync/errgroup"
-	"io/ioutil"
-	"log"
-	"net/http"
-	"time"
 )
 
 // GerritProjectBranch contains all the details for creating a new Gerrit branch
@@ -28,7 +28,7 @@ type GerritProjectBranch struct {
 func qpsToPeriod(qps float64) time.Duration {
 	if qps <= 0 {
 		// some very generous default duration
-		LogErr("Got qps %v, <= 0. Using a default duration instead.", qps)
+		LogOut("Got qps %v, <= 0. Using a default duration instead.", qps)
 		return time.Second * 10
 	}
 	periodSec := float64(time.Second) / qps
@@ -64,10 +64,10 @@ func createRemoteBranch(authedClient *http.Client, b GerritProjectBranch, dryRun
 // for the specified inputs using the Gerrit API.
 func CreateRemoteBranchesApi(authedClient *http.Client, branches []GerritProjectBranch, dryRun bool, gerritQps float64) error {
 	if dryRun {
-		log.Printf("Dry run (no --push): would create remote branches for %v Gerrit repos", len(branches))
+		LogOut("Dry run (no --push): would create remote branches for %v Gerrit repos", len(branches))
 		return nil
 	}
-	log.Printf("Creating remote branches for %v Gerrit repos. This will take a few minutes, since otherwise Gerrit would throttle us.", len(branches))
+	LogOut("Creating remote branches for %v Gerrit repos. This will take a few minutes, since otherwise Gerrit would throttle us.", len(branches))
 	var g errgroup.Group
 	throttle := time.Tick(qpsToPeriod(gerritQps))
 	createCount := atomic.Int64{}
@@ -81,13 +81,13 @@ func CreateRemoteBranchesApi(authedClient *http.Client, branches []GerritProject
 			}
 			count := createCount.Inc()
 			if count%10 == 0 {
-				log.Printf("Created %v of %v remote branches", count, len(branches))
+				LogOut("Created %v of %v remote branches", count, len(branches))
 			}
 			return nil
 		})
 	}
 	err := g.Wait()
-	log.Printf("Successfully created %v of %v remote branches", createCount.Load(), len(branches))
+	LogOut("Successfully created %v of %v remote branches", createCount.Load(), len(branches))
 	return err
 }
 

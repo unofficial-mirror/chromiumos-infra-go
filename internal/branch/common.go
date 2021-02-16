@@ -6,9 +6,6 @@ package branch
 
 import (
 	"fmt"
-	"go.chromium.org/chromiumos/infra/go/internal/git"
-	"go.chromium.org/chromiumos/infra/go/internal/repo"
-	"go.chromium.org/luci/common/errors"
 	"io/ioutil"
 	"log"
 	"net/url"
@@ -16,6 +13,10 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"go.chromium.org/chromiumos/infra/go/internal/git"
+	"go.chromium.org/chromiumos/infra/go/internal/repo"
+	"go.chromium.org/luci/common/errors"
 )
 
 const VersionFileProjectPath = "src/third_party/chromiumos-overlay"
@@ -44,7 +45,7 @@ func LogOut(format string, a ...interface{}) {
 	}
 }
 
-// LogOut logs to stderr.
+// LogErr logs to stderr.
 func LogErr(format string, a ...interface{}) {
 	if StderrLog != nil {
 		StderrLog.Printf(format, a...)

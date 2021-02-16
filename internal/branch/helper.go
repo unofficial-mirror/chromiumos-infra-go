@@ -531,10 +531,10 @@ func CheckIfAlreadyBranched(vinfo mv.VersionInfo, manifestInternal repo.Project,
 			return fmt.Errorf("already branched %s. Please rerun with --force if you "+
 				"would like to proceed", vinfo.VersionString())
 		} else {
-			LogErr("Overwriting branch with version %s (--force was set).\n", vinfo.VersionString())
+			LogOut("Overwriting branch with version %s (--force was set).\n", vinfo.VersionString())
 		}
 	} else {
-		LogErr("No branch exists for version %s. Continuing...\n", vinfo.VersionString())
+		LogOut("No branch exists for version %s. Continuing...\n", vinfo.VersionString())
 	}
 	return nil
 }

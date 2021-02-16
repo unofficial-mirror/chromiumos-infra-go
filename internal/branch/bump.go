@@ -6,10 +6,11 @@ package branch
 
 import (
 	"fmt"
+	"os"
+
 	"go.chromium.org/chromiumos/infra/go/internal/chromeos_version"
 	"go.chromium.org/chromiumos/infra/go/internal/git"
 	"go.chromium.org/luci/common/errors"
-	"os"
 )
 
 func bumpVersion(
@@ -72,7 +73,7 @@ func bumpVersion(
 // source branch for a branch creation command.
 func BumpForCreate(componentToBump chromeos_version.VersionComponent, release, push bool, branchName, sourceUpstream string) error {
 	commitMsg := fmt.Sprintf("Bump %s number after creating branch %s", componentToBump, branchName)
-	LogErr(commitMsg)
+	LogOut(commitMsg)
 	if err := bumpVersion(componentToBump, branchName, commitMsg, !push); err != nil {
 		return err
 	}
@@ -80,14 +81,14 @@ func BumpForCreate(componentToBump chromeos_version.VersionComponent, release, p
 	if release {
 		// Bump milestone after creating release branch.
 		commitMsg = fmt.Sprintf("Bump milestone after creating release branch %s", branchName)
-		LogErr(commitMsg)
+		LogOut(commitMsg)
 		if err := bumpVersion(chromeos_version.ChromeBranch, sourceUpstream, commitMsg, !push); err != nil {
 			return err
 		}
 		// Also need to bump the build number, otherwise two release will have conflicting versions.
 		// See crbug.com/213075.
 		commitMsg = fmt.Sprintf("Bump build number after creating release branch %s", branchName)
-		LogErr(commitMsg)
+		LogOut(commitMsg)
 		if err := bumpVersion(chromeos_version.Build, sourceUpstream, commitMsg, !push); err != nil {
 			return err
 		}
@@ -109,7 +110,7 @@ func BumpForCreate(componentToBump chromeos_version.VersionComponent, release, p
 		}
 		commitMsg = fmt.Sprintf("Bump %s number for source branch %s after creating branch %s",
 			sourceComponentToBump, sourceUpstream, branchName)
-		LogErr(commitMsg)
+		LogOut(commitMsg)
 		if err := bumpVersion(sourceComponentToBump, sourceUpstream, commitMsg, !push); err != nil {
 			return err
 		}

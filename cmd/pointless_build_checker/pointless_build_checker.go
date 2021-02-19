@@ -173,7 +173,7 @@ func (c *checkBuild) fetchConfigFromGitiles() (*testplans_pb.BuildIrrelevanceCfg
 	m, err := igerrit.FetchFilesFromGitiles(authedClient, ctx,
 		"chrome-internal.googlesource.com",
 		"chromeos/infra/config",
-		"master",
+		"main",
 		[]string{buildIrrelevanceConfigPath})
 	if err != nil {
 		return nil, err

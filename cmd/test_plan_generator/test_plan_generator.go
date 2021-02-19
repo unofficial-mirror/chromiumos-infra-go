@@ -186,7 +186,7 @@ func (c *getTestPlanRun) fetchConfigFromGitiles() (*testplans.BoardPriorityList,
 	m, err := igerrit.FetchFilesFromGitiles(authedClient, ctx,
 		"chrome-internal.googlesource.com",
 		"chromeos/infra/config",
-		"master",
+		"main",
 		[]string{boardPriorityConfigPath, sourceTreeTestConfigPath, targetTestRequirementsPath})
 	if err != nil {
 		return nil, nil, nil, err

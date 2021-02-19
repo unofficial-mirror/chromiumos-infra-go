@@ -224,7 +224,7 @@ func (c *checkBuild) fetchConfigFromGitiles() (*fetchConfigResult, error) {
 	m, err := igerrit.FetchFilesFromGitiles(authedClient, ctx,
 		"chrome-internal.googlesource.com",
 		"chromeos/infra/config",
-		"master",
+		"main",
 		[]string{buildIrrelevanceConfigPath, slimBuildConfigPath, targetTestRequirementsConfigPath, builderConfigsPath})
 	if err != nil {
 		return nil, err

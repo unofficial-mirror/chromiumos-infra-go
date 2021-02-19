@@ -129,7 +129,11 @@ func (c *createBranch) Run(a subcommands.Application, args []string,
 		return 1
 	}
 
-	if c.Push {
+	// Check if the user is in mdb/chromeos-branch-creators, unless SkipGroupCheck is set.
+	// This is not to say that an unauthorized user can simply call the tool with --skip-group-check;
+	// ACLs will still be enforced. Skipping this check is necessary for bot invocations,
+	// as service accounts cannot be added to MDB groups.
+	if c.Push && !c.SkipGroupCheck {
 		inGroup, err := branch.CheckSelfGroupMembership(authedClient, "https://chromium-review.googlesource.com", branchCreatorGroup)
 		if err != nil {
 			branch.LogErr(errors.Annotate(err, "failed to confirm that the running user is in %v", branchCreatorGroup).Err().Error())

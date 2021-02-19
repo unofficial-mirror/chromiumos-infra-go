@@ -54,11 +54,12 @@ type branchCommand interface {
 // Common flags
 type CommonFlags struct {
 	subcommands.CommandRunBase
-	Push        bool
-	Force       bool
-	Root        string
-	ManifestUrl string
-	authFlags   authcli.Flags
+	Push           bool
+	Force          bool
+	Root           string
+	ManifestUrl    string
+	SkipGroupCheck bool
+	authFlags      authcli.Flags
 }
 
 func (c *CommonFlags) InitFlags(authOpts auth.Options) {
@@ -76,6 +77,9 @@ func (c *CommonFlags) InitFlags(authOpts auth.Options) {
 		"URL of the manifest to be checked out. Defaults to googlesource URL "+
 			"for manifest-internal.")
 	c.Flags.IntVar(&workerCount, "j", 1, "Number of jobs to run for parallel operations.")
+	c.Flags.BoolVar(&c.SkipGroupCheck, "skip-group-check", false,
+		"If set, skips checking if the invoker is in mdb/chromeos-branch-creators. "+
+			"ACLs will still be enforced.")
 	c.authFlags.Register(c.GetFlags(), authOpts)
 }
 

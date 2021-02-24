@@ -5,20 +5,22 @@
 package branch
 
 import (
+	"bytes"
 	"context"
 	"fmt"
-	"net/url"
-	"os"
-	"regexp"
-	"strings"
-	"sync"
-	"time"
-
 	mv "go.chromium.org/chromiumos/infra/go/internal/chromeos_version"
+	"go.chromium.org/chromiumos/infra/go/internal/cmd"
 	"go.chromium.org/chromiumos/infra/go/internal/git"
 	"go.chromium.org/chromiumos/infra/go/internal/repo"
 	"go.chromium.org/chromiumos/infra/go/internal/shared"
 	"go.chromium.org/luci/common/errors"
+	"net/url"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strings"
+	"sync"
+	"time"
 )
 
 const (
@@ -34,6 +36,10 @@ var (
 	// A Chrome OS branch name as a prefix to a string, starting with a dash.
 	// e.g. -release-R77-12371.B
 	BranchPrefix = regexp.MustCompile("^-.*[.]B")
+)
+
+var (
+	CommandRunnerImpl cmd.CommandRunner = cmd.RealCommandRunner{}
 )
 
 // ProjectBranch is a project and a branch.
@@ -294,7 +300,7 @@ func GetNonManifestBranches(branches []GerritProjectBranch) []GerritProjectBranc
 // the local git branches to remote.
 func RepairManifestRepositories(branches []ProjectBranch, dryRun, force bool) error {
 	manifestBranchNames := make(map[string]string)
-
+	var stdoutBuf, stderrBuf bytes.Buffer
 	// Find names of manifest project branches so that we can push changes.
 	for _, projectBranch := range branches {
 		if _, ok := ManifestProjects[projectBranch.Project.Name]; ok {
@@ -326,6 +332,20 @@ func RepairManifestRepositories(branches []ProjectBranch, dryRun, force bool) er
 		if err := manifestRepo.RepairManifestsOnDisk(getBranchesByPath(branches)); err != nil {
 			return errors.Annotate(err, "failed to repair manifest project %s", projectName).Err()
 		}
+
+		// b/179312445: Format manifest files
+		if _, err := os.Stat("./format.py"); err == nil {
+			files, err := filepath.Glob("*.xml")
+			if err != nil {
+				return fmt.Errorf(err.Error())
+			}
+			ctx := context.Background()
+			cmd := append([]string{"-i"}, files...)
+			if err := CommandRunnerImpl.RunCommand(ctx, &stdoutBuf, &stderrBuf, manifestCheckout, "./format.py", cmd...); err != nil {
+				return fmt.Errorf("failed to format manifest changes")
+			}
+		}
+
 		if output, err := git.RunGit(manifestCheckout,
 			[]string{"commit", "-a", "-m", "commit repaired manifests"}); err != nil {
 			return fmt.Errorf("error committing repaired manifests: %s", output.Stdout)

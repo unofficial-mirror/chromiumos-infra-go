@@ -5,13 +5,14 @@ package git
 
 import (
 	"fmt"
-	"gotest.tools/assert"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"testing"
 
+	"go.chromium.org/chromiumos/infra/go/internal/assert"
 	"go.chromium.org/chromiumos/infra/go/internal/cmd"
 	"go.chromium.org/chromiumos/infra/go/internal/util"
 )
@@ -25,7 +26,7 @@ func TestRunGit_success(t *testing.T) {
 
 	output, err := RunGit("myrepo", []string{"log"})
 	assert.NilError(t, err)
-	assert.Equal(t, output.Stdout, "success")
+	assert.StringsEqual(t, output.Stdout, "success")
 }
 
 func TestRunGit_error(t *testing.T) {
@@ -39,23 +40,23 @@ func TestRunGit_error(t *testing.T) {
 
 	output, err := RunGit("myrepo", []string{"log"})
 	assert.Assert(t, err != nil)
-	assert.Equal(t, output.Stderr, "sudden death")
+	assert.StringsEqual(t, output.Stderr, "sudden death")
 }
 
 func TestStripRefsHead(t *testing.T) {
-	assert.Equal(t, StripRefsHead("refs/heads/foo"), "foo")
-	assert.Equal(t, StripRefsHead("foo"), "foo")
+	assert.StringsEqual(t, StripRefsHead("refs/heads/foo"), "foo")
+	assert.StringsEqual(t, StripRefsHead("foo"), "foo")
 }
 
 func TestStripRefs(t *testing.T) {
-	assert.Equal(t, StripRefs("refs/remotes/origin/foo"), "foo")
-	assert.Equal(t, StripRefs("refs/heads/foo"), "foo")
-	assert.Equal(t, StripRefs("foo"), "foo")
+	assert.StringsEqual(t, StripRefs("refs/remotes/origin/foo"), "foo")
+	assert.StringsEqual(t, StripRefs("refs/heads/foo"), "foo")
+	assert.StringsEqual(t, StripRefs("foo"), "foo")
 }
 
 func TestNormalizeRef(t *testing.T) {
-	assert.Equal(t, NormalizeRef("refs/heads/foo"), "refs/heads/foo")
-	assert.Equal(t, NormalizeRef("foo"), "refs/heads/foo")
+	assert.StringsEqual(t, NormalizeRef("refs/heads/foo"), "refs/heads/foo")
+	assert.StringsEqual(t, NormalizeRef("foo"), "refs/heads/foo")
 }
 
 func TestIsSHA(t *testing.T) {
@@ -71,14 +72,14 @@ func TestGetCurrentBranch_success(t *testing.T) {
 		ExpectedDir: fakeGitRepo,
 		Stdout:      fakeGitData,
 	}
-	assert.Equal(t, GetCurrentBranch(fakeGitRepo), "current-branch")
+	assert.StringsEqual(t, GetCurrentBranch(fakeGitRepo), "current-branch")
 }
 
 func TestGetCurrentBranch_failure(t *testing.T) {
 	CommandRunnerImpl = cmd.FakeCommandRunner{
 		FailCommand: true,
 	}
-	assert.Equal(t, GetCurrentBranch("project"), "")
+	assert.StringsEqual(t, GetCurrentBranch("project"), "")
 }
 
 func TestMatchBranchName_success(t *testing.T) {
@@ -97,12 +98,16 @@ func TestMatchBranchName_success(t *testing.T) {
 	expectedMatches := []string{"refs/heads/foo", "refs/heads/foobar"}
 	branches, err := MatchBranchName(fakeGitRepo, regexp.MustCompile("Foo"))
 	assert.NilError(t, err)
-	assert.DeepEqual(t, expectedMatches, branches)
+	if !reflect.DeepEqual(expectedMatches, branches) {
+		t.Fatalf("branches mismatch: got %v, expected %v", branches, expectedMatches)
+	}
 
 	expectedMatches = []string{"refs/heads/foo"}
 	branches, err = MatchBranchName(fakeGitRepo, regexp.MustCompile("Foo$"))
 	assert.NilError(t, err)
-	assert.DeepEqual(t, expectedMatches, branches)
+	if !reflect.DeepEqual(expectedMatches, branches) {
+		t.Fatalf("branches mismatch: got %v, expected %v", branches, expectedMatches)
+	}
 }
 
 func TestMatchBranchNameWithNamespace_success(t *testing.T) {
@@ -123,7 +128,9 @@ func TestMatchBranchNameWithNamespace_success(t *testing.T) {
 	namespace := regexp.MustCompile("refs/heads/")
 	branches, err := MatchBranchNameWithNamespace(fakeGitRepo, pattern, namespace)
 	assert.NilError(t, err)
-	assert.DeepEqual(t, expectedMatches, branches)
+	if !reflect.DeepEqual(expectedMatches, branches) {
+		t.Fatalf("branches mismatch: got %v, expected %v", branches, expectedMatches)
+	}
 }
 
 func TestGetRepoRevision(t *testing.T) {
@@ -135,7 +142,7 @@ func TestGetRepoRevision(t *testing.T) {
 	}
 	res, err := GetGitRepoRevision("project", "")
 	assert.NilError(t, err)
-	assert.Equal(t, res, sha)
+	assert.StringsEqual(t, res, sha)
 }
 
 func TestIsReachable_true(t *testing.T) {
@@ -250,7 +257,7 @@ func TestCommitAll(t *testing.T) {
 
 	commit, err := CommitAll(fakeGitRepo, commitMsg)
 	assert.NilError(t, err)
-	assert.Equal(t, commit, "abcde12345")
+	assert.StringsEqual(t, commit, "abcde12345")
 }
 
 func TestCommitEmpty(t *testing.T) {
@@ -273,7 +280,7 @@ func TestCommitEmpty(t *testing.T) {
 
 	commit, err := CommitEmpty(fakeGitRepo, commitMsg)
 	assert.NilError(t, err)
-	assert.Equal(t, commit, "abcde12345")
+	assert.StringsEqual(t, commit, "abcde12345")
 }
 
 func TestPushRef(t *testing.T) {
@@ -492,5 +499,5 @@ func TestResolveRemoteSymbolicRef(t *testing.T) {
 	}
 	ref, err := ResolveRemoteSymbolicRef("foo", remote, "HEAD")
 	assert.NilError(t, err)
-	assert.Equal(t, ref, "refs/heads/main")
+	assert.StringsEqual(t, ref, "refs/heads/main")
 }

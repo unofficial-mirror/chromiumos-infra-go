@@ -5,22 +5,29 @@ package util
 
 import (
 	"testing"
-
-	"gotest.tools/assert"
 )
 
 func TestUnorderedEqual(t *testing.T) {
 	a := []string{"a", "b", "c", "a"}
 	b := []string{"b", "c", "a", "a"}
 	c := []string{"a", "b", "b", "c"}
-	assert.Assert(t, UnorderedEqual(a, b))
-	assert.Assert(t, !UnorderedEqual(a, c))
+	if !UnorderedEqual(a, b) {
+		t.Fatalf("UnorderedEqual: got false, expected true")
+	}
+	if UnorderedEqual(a, c) {
+		t.Fatalf("UnorderedEqual: got true, expected false")
+	}
 }
 
 func TestUnorderedContains(t *testing.T) {
 	a := []string{"a", "b", "c", "a"}
 	b := []string{"b", "c"}
 	c := []string{"b", "d"}
-	assert.Assert(t, UnorderedContains(a, b))
-	assert.Assert(t, !UnorderedContains(a, c))
+
+	if !UnorderedContains(a, b) {
+		t.Fatalf("UnorderedEqual: got false, expected true")
+	}
+	if UnorderedContains(a, c) {
+		t.Fatalf("UnorderedEqual: got true, expected false")
+	}
 }

@@ -7,11 +7,12 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 
+	"go.chromium.org/chromiumos/infra/go/internal/assert"
 	"go.chromium.org/chromiumos/infra/go/internal/cmd"
 	"go.chromium.org/chromiumos/infra/go/internal/git"
-	"gotest.tools/assert"
 )
 
 func TestVersionsEqual(t *testing.T) {
@@ -28,10 +29,10 @@ func TestVersionsEqual(t *testing.T) {
 }
 
 func assertVersionEqual(t *testing.T, v VersionInfo, expected []int) {
-	assert.Equal(t, v.ChromeBranch, expected[0])
-	assert.Equal(t, v.BuildNumber, expected[1])
-	assert.Equal(t, v.BranchBuildNumber, expected[2])
-	assert.Equal(t, v.PatchNumber, expected[3])
+	assert.IntsEqual(t, v.ChromeBranch, expected[0])
+	assert.IntsEqual(t, v.BuildNumber, expected[1])
+	assert.IntsEqual(t, v.BranchBuildNumber, expected[2])
+	assert.IntsEqual(t, v.PatchNumber, expected[3])
 }
 
 func TestGetVersionInfoFromRepo_success(t *testing.T) {
@@ -135,7 +136,7 @@ func TestVersionString(t *testing.T) {
 	v.BuildNumber = 123
 	v.BranchBuildNumber = 1
 	v.PatchNumber = 0
-	assert.Equal(t, v.VersionString(), "123.1.0")
+	assert.StringsEqual(t, v.VersionString(), "123.1.0")
 }
 
 func TestVersionComponents(t *testing.T) {
@@ -144,15 +145,17 @@ func TestVersionComponents(t *testing.T) {
 	v.BranchBuildNumber = 1
 	v.PatchNumber = 0
 	components := []int{123, 1, 0}
-	assert.DeepEqual(t, v.VersionComponents(), components)
+	if !reflect.DeepEqual(v.VersionComponents(), components) {
+		t.Fatalf("version mismatch: got %+v, expected %+v", v.VersionComponents(), components)
+	}
 }
 
 func TestStrippedVersionString(t *testing.T) {
 	var v VersionInfo
 	v.BuildNumber = 123
-	assert.Equal(t, v.StrippedVersionString(), "123")
+	assert.StringsEqual(t, v.StrippedVersionString(), "123")
 	v.BranchBuildNumber = 1
-	assert.Equal(t, v.StrippedVersionString(), "123.1")
+	assert.StringsEqual(t, v.StrippedVersionString(), "123.1")
 }
 
 func TestUpdateVersionFile_noVersionFile(t *testing.T) {
@@ -193,5 +196,7 @@ func TestUpdateVersionFile_success(t *testing.T) {
 	// Read version info back in from file, make sure it's correct.
 	versionInfo, err := GetVersionInfoFromRepo(tmpDir)
 	assert.NilError(t, err)
-	assert.Equal(t, versionInfo, v)
+	if !reflect.DeepEqual(versionInfo, v) {
+		t.Fatalf("version mismatch: got %+v, expected %+v", v, versionInfo)
+	}
 }

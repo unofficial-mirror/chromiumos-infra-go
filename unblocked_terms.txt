@@ -5,8 +5,8 @@
 #
 # See repohooks/README.md for more details.
 
-black.?list
+# black.?list <- cleared
 # dummy <- cleared
-master
+# master <- cleared
 # sanity <- cleared
-slave
+# slave <- cleared
